@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-8px); }
+  80% { transform: translateX(8px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease;
+}
+
+/* ─── Calendar Base ─────────────────────────────────────────────── */
+.react-calendar {
+  /* size & centering */
+  width: 100%;
+  max-width: 13rem;       /* compact but readable */
+  margin: 0 auto;         /* centers inside flex/box parent */
+  box-sizing: border-box;
+
+  /* styling */
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  font-family: "Inter", sans-serif;
+
+  /* remove default border + shadow */
+  border: none !important;   /* ⬅️ add !important to beat library’s rule */
+  box-shadow: none;
+}
+
+/* ─── Navigation Bar ────────────────────────────────────────────── */
+.react-calendar__navigation {
+  margin-bottom: 0.5rem;
+}
+
+.react-calendar__navigation button {
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background: #ffe5e5;
+}
+
+/* hide nav arrows when they’re disabled */
+.react-calendar__navigation button:disabled {
+  visibility: hidden;
+}
+
+.react-calendar__month-view__weekdays {
+  text-transform: uppercase;
+  font-size: 0.75rem;           /* slightly larger for readability */
+  
+  letter-spacing: 0.03em;
+  text-align: center;
+  color: #888888;
+  margin-bottom: 0.25rem;
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  padding: 0.5rem 0;            /* add padding to prevent cutoff */
+  display: flex;
+  align-items: center;
+  
+  justify-content: center;
+  min-width: 2rem;              /* ensures no clipping */
+  height: 2rem;                 /* even height for alignment */
+  box-sizing: border-box;
+}
+
+/* ─── Tile (day cell) tweaks ───────────────────────────────────── */
+.react-calendar__tile {
+  padding: 0.35rem 0;
+  border-radius: 0.75rem;
+}
+
+/* Today (but NOT selected) */
+.react-calendar__tile--now:not(.react-calendar__tile--active) {
+  background: #ffecec;
+  color: #cc0000;
+  font-weight: 600;
+}
+
+/* Selected day */
+.react-calendar__tile--active {
+  background: #cc0000 !important;
+  color: #ffffff !important;
+}
+
+/* Hover (only on enabled tiles) */
+.react-calendar__tile:enabled:hover:not(.react-calendar__tile--active) {
+  background: #ffefef;
+}
+
+/* Disabled dates */
+.react-calendar__tile--disabled {
+  color: #cccccc;
+  background: none;
+}
+
