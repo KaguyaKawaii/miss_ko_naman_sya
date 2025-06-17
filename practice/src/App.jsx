@@ -6,6 +6,8 @@ import { LogOut } from "lucide-react";
 import Header from "./Homepage/Header.jsx";
 import Body from "./Homepage/Body.jsx";
 import Body2 from "./Homepage/Body2.jsx";
+import Body3 from "./Homepage/Body3.jsx";
+import Body4 from "./Homepage/Body4.jsx";
 import Login_User from "./Login/Login_User.jsx";
 import Login_Admin from "./Login/Login_Admin.jsx";
 import SignUp_User from "./Login/SignUp_User.jsx";
@@ -143,6 +145,9 @@ function App() {
           <Header onLoginClick={() => setView("login")} />
           <Body onReserveClick={() => setView("login")}/>
           <Body2 />
+          <Body3 />
+          <Body4 />
+
         </>
       )}
 

@@ -29,7 +29,7 @@ function Body2() {
         </div>
 
         {/* Vision & Mission */}
-        <div className="flex flex-wrap justify-between items-center gap-5">
+        <div className="flex flex-wrap justify-between items-center gap-5 pt-10">
           <div className="w-[550px] h-[250px] text-center border p-5 rounded-2xl shadow-lg border-gray-100">
             <h2 className="text-3xl font-bold border-[#CC0000] inline-block mb-4">Vision</h2>
             <div className="border-b border-[#CC0000] mb-5"></div>
