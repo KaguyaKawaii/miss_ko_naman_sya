@@ -1,48 +1,90 @@
 // SignUp_User.jsx
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { Eye, EyeOff, CheckCircle, Loader2 } from "lucide-react";
 import Logo from "../assets/logo.png";
 
 function SignUp_User({ onSwitchToLogin }) {
-  /* ---------------------------------------------------------------------- */
-  /* Local state                                                            */
-  /* ---------------------------------------------------------------------- */
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     id_number: "",
     password: "",
     confirmPassword: "",
-    role: "Student",   // NEW  ➜ Student | Faculty | Staff
+    role: "",
     department: "",
     course: "",
     yearLevel: "",
   });
 
+  /* UI state */
+  const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
   const [message, setMessage] = useState("");
   const [messageClass, setMessageClass] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);        // full‑screen loader
   const [resendCooldown, setResendCooldown] = useState(60);
   const [resendTimerActive, setResendTimerActive] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
 
-  /* Available programs per department (for Students only) */
+  /* Program options */
   const courseOptions = {
-    SHS: ["STEM", "ABM", "HUMSS", "TVL"],
+    SHS: ["STEM", "ABM", "HUMSS"],
     CLASE: [
-      "Bachelor of Science in Information Technology",
-      "Bachelor of Science in Computer Science",
-    ],
-    CNND: ["Bachelor of Science in Nursing"],
-    CPMT: ["Bachelor of Science in Pharmacy"],
-    COT: ["Bachelor of Science in Medical Technology"],
-    COC: ["Bachelor of Science in Criminology"],
+  "Bachelor of Arts in Communication", 
+  "Bachelor of Arts in Philosophy",
+  "Bachelor of Arts in Political Science",
+  "Bachelor of Science in Foreign Service",
+  "Bachelor of Science in Psychology",
+  "Bachelor of Science in Biology (Medical)",
+  "Bachelor of Science in Biology (Biological)",
+  "Bachelor of Science in Chemistry",
+  "Bachelor of Science in Computer Science",
+  "Bachelor of Science in Information Technology",
+  "Bachelor of Library and Information Science", 
+  "Bachelor of Music in Music Education",
+  "Bachelor of Music in Music Performance (Piano)",
+  "Bachelor of Music in Music Performance (Voice)",
+  "Bachelor of Elementary Education",
+  "Bachelor of Science in Secondary Education (English)",
+  "Bachelor of Science in Secondary Education (Filipino)",
+  "Bachelor of Science in Secondary Education (Mathematics)",
+  "Bachelor of Science in Secondary Education (Social Studies)",
+  "Bachelor of Culture And Arts Education",
+  "Bachelor of Special Need Education (Early Childhood Education)"
+],
+    CNND: [
+  "Bachelor of Science in Nursing",
+  "Bachelor of Science in Nutrition and Dietetics"
+],
+    CPMT: [
+  "Bachelor of Science in Medical Laboratory Science",
+  "Bachelor of Science in Pharmacy"
+],
+    COT: [
+  "Bachelor of Science in Architecture",
+  "Bachelor of Science in Landscape Architecture",
+  "Bachelor of Science in Interior Design",
+  "Bachelor of Science in Chemical Engineering",
+  "Bachelor of Science in Civil Engineering",
+  "Bachelor of Science in Computer Engineering",
+  "Bachelor of Science in Electronics Engineering",
+  "Bachelor of Science in Mechanical Engineering",
+  "Bachelor of Fine Arts"
+],
+    COC: [
+  "Bachelor of Science in Accountancy",
+  "Bachelor of Science in Management Accounting",
+  "Bachelor of Science in Business Administration (Financial Management)", 
+  "Bachelor of Science in Business Administration (Marketing Management)", 
+  "Bachelor of Science in Hospitality Management",
+  "Bachelor of Science in Tourism Management (Certificate of Culinary Arts)"
+],
   };
 
-  /* ---------------------------------------------------------------------- */
-  /* Side‑effects: transient message animation + resend timer               */
-  /* ---------------------------------------------------------------------- */
+  /* ─── intro animations & resend timer ─── */
   useEffect(() => {
     if (message) {
       setMessageClass("animate-shake");
@@ -55,124 +97,103 @@ function SignUp_User({ onSwitchToLogin }) {
   }, [message]);
 
   useEffect(() => {
-    let timer;
+    let t;
     if (resendTimerActive && resendCooldown > 0) {
-      timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+      t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     } else if (resendCooldown === 0) {
       setResendTimerActive(false);
     }
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [resendCooldown, resendTimerActive]);
 
-  /* ---------------------------------------------------------------------- */
-  /* Handlers                                                               */
-  /* ---------------------------------------------------------------------- */
+  /* ─── handlers ─── */
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    /* If role changes from Student → Faculty/Staff, clear program & year  */
-    if (name === "role" && value !== "Student") {
-      setFormData((prev) => ({
-        ...prev,
+    if (name === "role") {
+      setFormData((p) => ({
+        ...p,
         role: value,
+        department: "",
         course: "",
         yearLevel: "",
       }));
       return;
     }
-
-    /* If department changes, reset course/yearLevel (for Students)        */
     if (name === "department") {
-      setFormData((prev) => ({
-        ...prev,
+      setFormData((p) => ({
+        ...p,
         department: value,
         course: "",
         yearLevel: "",
       }));
       return;
     }
-
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((p) => ({ ...p, [name]: value }));
   };
 
-  /* ===========================  SUBMIT (send OTP)  ====================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
-    /* Basic validation */
-    if (!formData.email.endsWith("@usa.edu.ph")) {
-      setMessage("Email must end with @usa.edu.ph");
-      return;
-    }
-    if (formData.password.length < 8) {
-      setMessage("Password must be at least 8 characters");
-      return;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setMessage("Passwords do not match");
-      return;
-    }
-    if (!formData.department) {
-      setMessage("Please select a department");
-      return;
-    }
-
-    /* Extra validation for Students only */
+    /* basic validation */
+    if (!formData.email.endsWith("@usa.edu.ph"))
+      return setMessage("Email must end with @usa.edu.ph");
+    if (formData.password.length < 8)
+      return setMessage("Password must be at least 8 characters");
+    if (formData.password !== formData.confirmPassword)
+      return setMessage("Passwords do not match");
+    if (!formData.role) return setMessage("Please select an account role");
+    if (!formData.department) return setMessage("Please select a department");
     if (
       formData.role === "Student" &&
       (!formData.course || !formData.yearLevel)
-    ) {
-      setMessage("Program and Year Level are required for students");
-      return;
-    }
+    )
+      return setMessage("Program and Year Level are required for students");
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:5000/signup", formData);
-      setMessage(res.data.message || "OTP sent to your email. Please verify.");
+      await axios.post("http://localhost:5000/signup", formData);
+      setMessage("OTP sent to your email.");
       setOtpSent(true);
       setResendCooldown(60);
       setResendTimerActive(true);
     } catch (err) {
-      setMessage(
-        err.response?.data?.message || "Signup failed. Please try again."
-      );
+      setMessage(err.response?.data?.message || "Signup failed. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ===========================  OTP VERIFY  ============================= */
+  /* ========== OTP VERIFY ========== */
   const handleOtpVerify = async () => {
-    setMessage("");
-    if (!otp) {
-      setMessage("Please enter the OTP");
-      return;
-    }
+    if (!otp) return setMessage("Please enter the OTP");
 
+    setLoading(true);               // show spinner immediately
     try {
-      setLoading(true);
-      const res = await axios.post("http://localhost:5000/verify-otp", {
+      await axios.post("http://localhost:5000/verify-otp", {
         email: formData.email,
         otp,
       });
-      alert(res.data.message || "Email verified successfully!");
-      onSwitchToLogin();
+
+      /* keep spinner on screen at least ~2 s for UX */
+      setTimeout(() => {
+        setLoading(false);
+        setSuccessModal(true);
+      }, 2000);
     } catch (err) {
-      setMessage(err.response?.data?.message || "OTP verification failed.");
-    } finally {
       setLoading(false);
+      setMessage(err.response?.data?.message || "OTP verification failed.");
     }
   };
 
   const handleResendOtp = async () => {
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:5000/resend-otp", {
+      await axios.post("http://localhost:5000/resend-otp", {
         email: formData.email,
       });
-      setMessage(res.data.message || "OTP resent successfully.");
+      setMessage("OTP resent successfully.");
       setResendCooldown(60);
       setResendTimerActive(true);
     } catch (err) {
@@ -182,206 +203,275 @@ function SignUp_User({ onSwitchToLogin }) {
     }
   };
 
-  /* ---------------------------------------------------------------------- */
-  /* Render                                                                 */
-  /* ---------------------------------------------------------------------- */
+  const goToLogin = () => {
+    setSuccessModal(false);
+    onSwitchToLogin();
+  };
+
+  /* ─── UI ─── */
   return (
-    <main>
-      <div className="flex flex-col h-screen items-center justify-center gap-2">
-        {/* Floating message */}
+    <main className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-8">
+      {/* full‑screen spinner when loading */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Loader2 size={64} className="text-white animate-spin" />
+          <p className="mt-4 text-white text-lg font-semibold">Verifying…</p>
+        </div>
+      )}
+
+      <div className="w-full max-w-md flex flex-col items-center gap-4 py-8">
+        {/* floating toast */}
         {message && (
           <div
             className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${messageClass}`}
           >
-            <p className="bg-red-600 text-white font-semibold p-4 rounded-2xl border border-red-500 shadow-lg">
+            <p className="bg-[#CC0000] text-white font-semibold px-6 py-3 rounded-xl border border-red-700 shadow-lg">
               {message}
             </p>
           </div>
         )}
 
-        {/* Header / Logo */}
-        <img className="h-[150px] w-[150px]" src={Logo} alt="Logo" />
-        <h1 className="text-3xl font-serif font-semibold">University of San Agustin</h1>
-        <p className="font-semibold text-2xl text-gray-800">
+        {/* logo & header */}
+        <img src={Logo} alt="USA logo" className="h-32 w-32" />
+        <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-center">
+          University of San Agustin
+        </h1>
+        <p className="text-lg sm:text-xl font-semibold text-gray-700 text-center">
           Learning Resource Center
         </p>
 
-        {/* ====================  SIGN‑UP FORM  ==================== */}
+        {/* ---------- SIGN UP vs OTP ---------- */}
         {!otpSent ? (
+          /* ======= SIGN‑UP FORM ======= */
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col gap-4 mt-5 w-[450px]"
+            className="flex flex-col gap-4 w-full mt-4"
           >
-            <h2 className="text-2xl font-semibold text-center mb-2">Sign Up</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold text-center">
+              Sign Up
+            </h2>
 
-            {/* Name */}
-            <input
-              type="text"
-              name="name"
-              placeholder="Name"
-              value={formData.name}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            />
+            {/* Full name */}
+            <label className="text-sm font-semibold block">
+              Full Name
+              <input
+                type="text"
+                name="name"
+                placeholder="Enter your full name"
+                value={formData.name}
+                onChange={handleChange}
+                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                required
+              />
+            </label>
 
             {/* Email */}
-            <input
-              type="email"
-              name="email"
-              placeholder="Email (@usa.edu.ph)"
-              value={formData.email}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            />
+            <label className="text-sm font-semibold block">
+              Email (@usa.edu.ph)
+              <input
+                type="email"
+                name="email"
+                placeholder="e.g. juandelacruz@usa.edu.ph"
+                value={formData.email}
+                onChange={handleChange}
+                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                required
+              />
+            </label>
 
-            {/* ID Number */}
-            <input
-              type="number"
-              name="id_number"
-              placeholder="ID Number"
-              value={formData.id_number}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            />
+            {/* ID number */}
+            <label className="text-sm font-semibold block">
+              ID Number
+              <input
+                type="text"
+                name="id_number"
+                placeholder="Enter your ID number"
+                maxLength={15}
+                value={formData.id_number}
+                onChange={(e) => {
+                  const input = e.target.value;
+                  // Only allow digits and max 15 characters
+                  if (/^\d{0,15}$/.test(input)) {
+                    handleChange(e);
+                  }
+                }}
+                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                required
+              />
+            </label>
 
-            {/* User Type / Role */}
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            >
-              <option value="Student">Student</option>
-              <option value="Faculty">Faculty</option>
-              <option value="Staff">Staff</option>
-            </select>
+
+            {/* Account role */}
+            <label className="text-sm font-semibold block">
+              Account Role
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                required
+              >
+                <option value="">Select Role</option>
+                <option value="Student">Student</option>
+                <option value="Faculty">Faculty</option>
+              </select>
+            </label>
 
             {/* Department */}
-            <select
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            >
-              <option value="">Select Department</option>
-              <option value="SHS">SHS</option>
-              <option value="CLASE">CLASE</option>
-              <option value="CNND">CNND</option>
-              <option value="CPMT">CPMT</option>
-              <option value="COT">COT</option>
-              <option value="COC">COC</option>
-            </select>
-
-            {/* Program & Year Level (Students only) */}
-            {formData.role === "Student" && (
-              <>
-                {/* Program */}
+            {formData.role && (
+              <label className="text-sm font-semibold block">
+                Department
                 <select
-                  name="course"
-                  value={formData.course}
+                  name="department"
+                  value={formData.department}
                   onChange={handleChange}
-                  className="border p-3 rounded-lg hover:border-[#FFCC00]"
+                  className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
                   required
                 >
-                  <option value="">Select Program</option>
-                  {courseOptions[formData.department]?.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                  <option value="">Select Department</option>
+                  {Object.keys(courseOptions).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
                     </option>
                   ))}
                 </select>
+              </label>
+            )}
 
-                {/* Year Level */}
-                <select
-                  name="yearLevel"
-                  value={formData.yearLevel}
-                  onChange={handleChange}
-                  className="border p-3 rounded-lg hover:border-[#FFCC00]"
-                  required
-                >
-                  <option value="">Select Year Level</option>
-                  {formData.department === "SHS" ? (
-                    <>
-                      <option value="Grade 11">Grade 11</option>
-                      <option value="Grade 12">Grade 12</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="1st Year">1st Year</option>
-                      <option value="2nd Year">2nd Year</option>
-                      <option value="3rd Year">3rd Year</option>
-                      <option value="4th Year">4th Year</option>
-                    </>
-                  )}
-                </select>
+            {/* Student‑specific */}
+            {formData.role === "Student" && formData.department && (
+              <>
+                <label className="text-sm font-semibold block">
+                  Program
+                  <select
+                    name="course"
+                    value={formData.course}
+                    onChange={handleChange}
+                    className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                    required
+                  >
+                    <option value="">Select Program</option>
+                    {courseOptions[formData.department]?.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="text-sm font-semibold block">
+                  Year Level
+                  <select
+                    name="yearLevel"
+                    value={formData.yearLevel}
+                    onChange={handleChange}
+                    className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                    required
+                  >
+                    <option value="">Select Year Level</option>
+                    {formData.department === "SHS" ? (
+                      <>
+                        <option value="Grade 11">Grade 11</option>
+                        <option value="Grade 12">Grade 12</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                      </>
+                    )}
+                  </select>
+                </label>
               </>
             )}
 
             {/* Password */}
-            <input
-              type="password"
-              name="password"
-              placeholder="Password (min 8 characters)"
-              value={formData.password}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            />
+            <label className="text-sm font-semibold block">
+              Password
+              <div className="relative mt-1">
+                <input
+                  type={showPw ? "text" : "password"}
+                  name="password"
+                  placeholder="Minimum 8 characters"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="border p-3 pr-12 rounded-lg w-full focus:border-[#FFCC00] outline-none"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"
+                >
+                  {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </label>
 
-            {/* Confirm Password */}
-            <input
-              type="password"
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
-              required
-            />
+            {/* Confirm password */}
+            <label className="text-sm font-semibold block">
+              Confirm Password
+              <div className="relative mt-1">
+                <input
+                  type={showPw2 ? "text" : "password"}
+                  name="confirmPassword"
+                  placeholder="Re‑enter your password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="border p-3 pr-12 rounded-lg w-full focus:border-[#FFCC00] outline-none"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw2((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"
+                >
+                  {showPw2 ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </label>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#FFCC00] text-white p-3 rounded-lg hover:bg-[#ffcc00d5] font-semibold text-lg"
+              className="bg-[#FFCC00] text-white p-3 rounded-lg hover:bg-[#e6b800] font-semibold cursor-pointer"
             >
-              {loading ? "Sending OTP..." : "Sign Up"}
+              {loading ? "Please wait…" : "Sign Up"}
             </button>
           </form>
         ) : (
-          /* ====================  OTP FORM  ==================== */
-          <div className="flex flex-col gap-4 mt-10 w-[450px]">
+          /* ======= OTP VERIFY ======= */
+          <div className="flex flex-col gap-4 mt-6 w-full">
             <p className="text-center text-green-700">
-              OTP sent to your email: {formData.email}
+              OTP sent to: <strong>{formData.email}</strong>
             </p>
 
             <input
               type="text"
-              placeholder="Enter OTP"
+              placeholder="Enter 6‑digit OTP"
               maxLength={6}
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="border p-3 rounded-lg hover:border-[#FFCC00] focus:border-amber-300"
+              className="border p-3 rounded-lg focus:border-[#FFCC00] outline-none"
             />
 
             <button
               onClick={handleOtpVerify}
               disabled={loading}
-              className="bg-[#FFCC00] text-white p-3 rounded-lg hover:bg-[#ffcc00d5] font-semibold text-lg"
+              className="bg-[#FFCC00] text-white p-3 rounded-lg hover:bg-[#e6b800] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Verifying..." : "Verify OTP"}
+              Verify OTP
             </button>
 
             <button
               onClick={handleResendOtp}
               disabled={resendTimerActive}
               className={`p-2 text-sm ${
-                resendTimerActive ? "text-gray-400" : "text-gray-800"
+                resendTimerActive
+                  ? "text-gray-400"
+                  : "text-gray-800 hover:underline"
               }`}
             >
               {resendTimerActive
@@ -391,19 +481,46 @@ function SignUp_User({ onSwitchToLogin }) {
           </div>
         )}
 
-        {/* Switch to Login */}
+        {/* switch to login */}
         {!otpSent && (
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 text-sm">
             <p>Already have an account?</p>
             <button
               onClick={onSwitchToLogin}
-              className="text-[#FFCC00] font-semibold hover:underline"
+              className="text-[#FFCC00] font-semibold hover:underline cursor-pointer"
             >
               Login
             </button>
           </div>
         )}
       </div>
+
+      {/* ======= SUCCESS MODAL ======= */}
+      {successModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={goToLogin}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center relative animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CheckCircle size={96} className="text-green-600 mx-auto" />
+            <h3 className="text-3xl font-bold mt-6">Registration Successful!</h3>
+            <p className="mt-4 text-gray-700 text-lg">
+              Your account is now active. Click below to log in and start
+              reserving rooms.
+            </p>
+            <button
+              onClick={goToLogin}
+              className="mt-8 bg-[#FFCC00] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#e6b800] cursor-pointer"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }

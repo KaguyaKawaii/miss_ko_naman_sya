@@ -6,7 +6,7 @@ import axios from "axios";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 
-/* Helper: format created_at → “June 13 2025, 02:15 PM” */
+/* Helper: format created_at → “June 13 2025, 02:15 PM” */
 const formatPH = (date) =>
   new Date(date).toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
@@ -21,13 +21,11 @@ const formatPH = (date) =>
 function Dashboard({ user, setView, setSelectedReservation }) {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [newsList, setNewsList] = useState([]); // <-- news list state
 
-  // NEW: controls the <Calendar /> component
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  /* ------------------------------------------------------------------ */
-  /* Fetch user reservations                                             */
-  /* ------------------------------------------------------------------ */
+  /* Fetch user reservations */
   useEffect(() => {
     if (!user?._id) {
       setReservations([]);
@@ -47,9 +45,14 @@ function Dashboard({ user, setView, setSelectedReservation }) {
       .finally(() => setIsLoading(false));
   }, [user]);
 
-  /* ------------------------------------------------------------------ */
-  /* Render                                                              */
-  /* ------------------------------------------------------------------ */
+  /* Fetch news list */
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/news")
+      .then((res) => setNewsList(res.data))
+      .catch((err) => console.error("Failed to fetch news:", err));
+  }, []);
+
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       {/* Header */}
@@ -59,22 +62,47 @@ function Dashboard({ user, setView, setSelectedReservation }) {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-4 flex gap-4">
-        {/* ---------------------------------------------------------------- */}
-        {/* Left column                                                      */}
-        {/* ---------------------------------------------------------------- */}
+        {/* Left column */}
         <div className="flex-1 flex flex-col gap-4">
           {/* Welcome card */}
-          <div className="bg-red-800 shadow-sm rounded-2xl w-full h-[10rem] flex items-center justify-center">
+          <div className="bg-red-800 shadow-sm rounded-2xl w-full h-[10rem] flex items-center justify-center flex-col text-center text-white p-4">
             <h1 className="text-3xl font-semibold text-white">
               Welcome, {user?.name}
             </h1>
+            <p className="text-gray-300">We're Glad you here</p>
           </div>
 
           {/* News + Reservations */}
           <div className="flex gap-4 h-[25rem]">
-            {/* News placeholder */}
-            <div className="border border-gray-200 hover:border-gray-300 duration-200 shadow-sm rounded-2xl flex-1 flex items-center justify-center">
-              <h1>News</h1>
+            {/* News */}
+            <div className="border border-gray-200 hover:border-gray-300 duration-200 shadow-sm rounded-2xl flex-1 flex flex-col p-4">
+              <h1 className="text-xl font-semibold mb-4">Latest News</h1>
+                <div className="border-b border-gray-200 mb-2"></div>
+
+              <div className="space-y-3 overflow-y-auto max-h-[400px]">
+                {newsList.length === 0 ? (
+                  <p className="text-gray-500">No news available.</p>
+                ) : (
+                  newsList.map((news) => (
+                    <div
+                      key={news._id}
+                      className="p-3 border border-gray-200 rounded-lg"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                      
+                      <h2 className="font-bold text-gray-800">{news.title}</h2>
+                      <p className="text-xs text-end text-gray-400 mt-1">
+                        {new Date(news.createdAt).toLocaleString()}
+                      </p>
+                      </div>
+
+                      <div className="border-b border-gray-200 mb-2"></div>
+                      <p className="text-sm text-gray-600">{news.content}</p>
+                      
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Reservations */}
@@ -118,23 +146,18 @@ function Dashboard({ user, setView, setSelectedReservation }) {
                     return (
                       <div
                         key={res._id}
-                        className="border border-gray-200 rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        className="border border-gray-200 rounded-lg p-3  hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            {/* Date and Time */}
                             <p className="text-sm mb-1">
                               <span className="font-medium">Reserved&nbsp;for:</span>{" "}
-                              {dateOnly} — {startTime} to {endTime}
+                              {dateOnly} - {startTime} to {endTime}
                             </p>
-
-                            {/* Room */}
                             <p className="text-sm">
                               <span className="font-medium">Room:</span>{" "}
                               {res.roomName} at {res.location}
                             </p>
-
-                            {/* Status */}
                             <p className="text-sm mt-1">
                               Status:{" "}
                               <span
@@ -152,8 +175,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
                               </span>
                             </p>
                           </div>
-
-                          {/* Details button */}
                           <div className="flex flex-col justify-between items-end h-full">
                             <button
                               onClick={() => {
@@ -180,7 +201,7 @@ function Dashboard({ user, setView, setSelectedReservation }) {
           {/* Help & Guidelines */}
           <div className="flex gap-4">
             <div className="border border-gray-200 hover:border-gray-300 duration-200 shadow-sm rounded-2xl flex-1 h-[10rem] flex items-center justify-center">
-              <h1>Help&nbsp;Center ISLAN  NI MESSAGE</h1>
+              <h1>Help&nbsp;Center</h1>
             </div>
             <div className="border border-gray-200 hover:border-gray-300 duration-200 shadow-sm rounded-2xl flex-1 h-[10rem] flex items-center justify-center">
               <h1>Guidelines</h1>
@@ -188,18 +209,15 @@ function Dashboard({ user, setView, setSelectedReservation }) {
           </div>
         </div>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Right Sidebar                                                   */}
-        {/* ---------------------------------------------------------------- */}
+        {/* Right Sidebar */}
         <div className="w-[15rem] flex flex-col gap-4">
           {/* Calendar card */}
-          <div className="shadow border border-gray-200 rounded-2xl  bg-white hover:border-gray-300 duration-200">
+          <div className="shadow border border-gray-200 rounded-2xl bg-white hover:border-gray-300 duration-200">
             <Calendar
               onChange={setSelectedDate}
               value={selectedDate}
               className={"w-full"}
-              tileClassName={({ date, view }) => {
-                // Example: highlight today
+              tileClassName={({ date }) => {
                 const today = new Date();
                 if (
                   date.getDate() === today.getDate() &&
@@ -210,7 +228,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
                 }
               }}
             />
-
           </div>
 
           {/* Schedule placeholder */}

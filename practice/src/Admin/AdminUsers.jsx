@@ -13,9 +13,7 @@ import {
 } from "lucide-react";
 import AdminNavigation from "./AdminNavigation";
 
-/* ---------------------------------------------------------------------- */
-/* Local constants                                                        */
-/* ---------------------------------------------------------------------- */
+
 const courseOptions = {
   SHS: ["STEM", "ABM", "GAS"],
   CLASE: ["BS Psych", "BA Communication"],
@@ -25,9 +23,6 @@ const courseOptions = {
   COC: ["BS Crim"],
 };
 
-/* ---------------------------------------------------------------------- */
-/* Main component                                                         */
-/* ---------------------------------------------------------------------- */
 function AdminUsers({ setView }) {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,9 +35,7 @@ function AdminUsers({ setView }) {
     fetchUsers();
   }, []);
 
-  /* ------------------------------------------------------------------ */
-  /* Helpers                                                            */
-  /* ------------------------------------------------------------------ */
+
   const fetchUsers = async (term = "") => {
     setIsLoading(true);
     try {
@@ -76,9 +69,6 @@ function AdminUsers({ setView }) {
     }
   };
 
-  /* ------------------------------------------------------------------ */
-  /* Render                                                             */
-  /* ------------------------------------------------------------------ */
   return (
     <>
       <AdminNavigation setView={setView} currentView="adminUsers" />
@@ -263,9 +253,6 @@ function AdminUsers({ setView }) {
   );
 }
 
-/* ====================================================================== */
-/* Confirm‑Delete modal                                                   */
-/* ====================================================================== */
 function ConfirmDeleteModal({ user, onClose, onSuccess }) {
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
@@ -329,9 +316,7 @@ function ConfirmDeleteModal({ user, onClose, onSuccess }) {
   );
 }
 
-/* ====================================================================== */
-/* Add / Edit / View modal                                                */
-/* ====================================================================== */
+
 function UserFormModal({
   mode,
   user,

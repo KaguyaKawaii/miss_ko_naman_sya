@@ -1,10 +1,33 @@
-import { useState } from "react";
+// Login_User.jsx
+import { useState, useEffect } from "react";
+import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import Logo from "../assets/logo.png";
+import "../index.css"; // corrected import path
 
 function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
+  const [authedUser, setAuthedUser] = useState(null);
+
+  useEffect(() => {
+    localStorage.removeItem("userSession");
+    window.history.pushState(null, null, window.location.href);
+    const handlePopState = () => window.location.replace("/");
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -15,20 +38,14 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
       return;
     }
 
-    /* ------------------------------------------------------------------
-       1. Redirect trigger: enteradminportal + krulcifer1234567890
-    ------------------------------------------------------------------ */
     if (
       email.trim().toLowerCase() === "enteradminportal" &&
       password === "krulcifer1234567890"
     ) {
-      setView("adminLogin"); // Switch to admin login component
+      setView("adminLogin");
       return;
     }
 
-    /* ------------------------------------------------------------------
-       2. Block hard-coded admin credentials (extra safety)
-    ------------------------------------------------------------------ */
     if (
       email.trim().toLowerCase() === "admin" &&
       password === "krulcifer1234567890"
@@ -37,59 +54,88 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
       return;
     }
 
-    /* ------------------------------------------------------------------
-       3. Proceed with normal user login
-    ------------------------------------------------------------------ */
+    const start = Date.now();
+    setLoading(true);
+
     try {
-      const response = await fetch("http://localhost:5000/login", {
+      const res = await fetch("http://localhost:5000/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+      const data = await res.json();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Login failed. Please try again.");
-        return;
-      }
+      if (!res.ok) throw new Error(data.message || "Login failed. Please try again.");
 
       if (data.user?.role?.toLowerCase() === "admin") {
-        setError("Admin accounts must log in through the admin portal.");
-        return;
+        throw new Error("Admin accounts must log in through the admin portal.");
       }
 
-      onLoginSuccess(data.user);
+      const elapsed = Date.now() - start;
+      const delay = elapsed < 1000 ? 1000 - elapsed : 0;
+      setTimeout(() => {
+        setLoading(false);
+        setAuthedUser(data.user);
+        setSuccessModal(true);
+      }, delay);
     } catch (err) {
-      console.error("Login error:", err);
-      setError("An error occurred. Please try again later.");
+      setLoading(false);
+      setError(err.message || "An error occurred. Please try again later.");
+    }
+  };
+
+  const closeSuccess = () => {
+    setSuccessModal(false);
+    if (authedUser) {
+      localStorage.setItem("userSession", JSON.stringify(authedUser));
+      onLoginSuccess(authedUser);
     }
   };
 
   return (
     <main>
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Loader2 size={64} className="text-white animate-spin" />
+          <p className="mt-4 text-white text-lg font-semibold">Logging in…</p>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      <div className="flex m-6 justify-center absolute top-0 left-0 right-0">
+        {error && (
+          <p
+            key={error}
+            className="bg-red-500 text-white font-semibold p-4 rounded-2xl border border-red-400 shadow-lg text-center absolute animate-shake"
+          >
+            {error}
+          </p>
+        )}
+      </div>
+
+      {/* Main Content */}
       <div className="flex flex-col h-screen items-center justify-center gap-2">
         <img className="h-[150px] w-[150px]" src={Logo} alt="Logo" />
         <h1 className="text-3xl font-serif font-semibold text-black">
           University of San Agustin
         </h1>
-        <p>
-          General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo,
-          Philippines
+        <p>General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo, Philippines</p>
+        <p className="text-lg sm:text-xl font-semibold text-gray-700 text-center">
+          Learning Resource Center
         </p>
 
         <div className="flex flex-col items-center gap-2 mt-10">
-          {error && (
-            <p className="bg-red-500 text-white font-semibold p-4 rounded-2xl border border-red-400 shadow-lg text-center">
-              {error}
-            </p>
-          )}
+          <p className="text-lg sm:text-3xl font-semibold text-gray-700 text-center">
+            Login
+          </p>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            {/* Email */}
             <div className="flex flex-col gap-1">
               <label className="ml-2">Email</label>
               <input
-                className="border p-3 w-[450px] rounded-lg hover:border-[#FFCC00]"
+                className="border p-3 w-[450px] rounded-lg hover:border-[#FFCC00] outline-none"
                 type="text"
                 placeholder="Email"
                 value={email}
@@ -97,36 +143,71 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
               />
             </div>
 
+            {/* Password */}
             <div className="flex flex-col gap-1">
               <label className="ml-2">Password</label>
-              <input
-                className="border p-3 w-[450px] rounded-lg hover:border-[#FFCC00]"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="relative">
+                <input
+                  className="border p-3 w-[450px] pr-12 rounded-lg hover:border-[#FFCC00] outline-none"
+                  type={showPw ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer hover:text-[#FFCC00] transition-colors duration-200"
+                >
+                  {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
-              className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#bfa900]"
+              className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#bfa900] font-semibold text-white cursor-pointer transition-colors duration-200"
             >
               Login
             </button>
           </form>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-2">
             <p>Don't have an account?</p>
             <button
               onClick={onSwitchToSignUp}
-              className="text-[#FFCC00] font-semibold hover:underline"
+              className="text-[#FFCC00] font-semibold hover:underline cursor-pointer"
             >
               Sign Up
             </button>
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {successModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={closeSuccess}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CheckCircle size={96} className="text-green-600 mx-auto" />
+            <h3 className="text-3xl font-bold mt-6">Login Successful!</h3>
+            <p className="mt-4 text-gray-700 text-lg">
+              Welcome back! Click the button below to continue to your dashboard.
+            </p>
+            <button
+              onClick={closeSuccess}
+              className="mt-8 bg-[#FFCC00] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#bfa900] cursor-pointer duration-200"
+            >
+              Enter
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

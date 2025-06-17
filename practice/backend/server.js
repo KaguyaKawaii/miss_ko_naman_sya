@@ -4,32 +4,35 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("./mailer");
+const newsRoutes = require("./routes/newsRoutes");
+
+// 👈 this is at the top before app is created
+
 
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
+app.use("/news", newsRoutes);  
 
-// Helpers
+
 function nowPH() {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utc + 480 * 60000); // UTC+8
+  return new Date(utc + 480 * 60000); // UTC+8 (Asia/Manila)
 }
 
-// MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Counter
+
 const counterSchema = new mongoose.Schema({
   _id: String,
   seq: { type: Number, default: 0 },
 });
 const Counter = mongoose.model("Counter", counterSchema);
 
-// User schema
 const userSchema = new mongoose.Schema({
   id: Number,
   username: { type: String, unique: true, sparse: true, lowercase: true },
@@ -40,12 +43,16 @@ const userSchema = new mongoose.Schema({
   department: String,
   course: String,
   yearLevel: String,
-  role: { type: String, enum: ["Student", "Faculty", "Staff"], default: "Student" },
+  role: {
+    type: String,
+    enum: ["Student", "Faculty", "Staff"],
+    default: "Student",
+  },
   verified: { type: Boolean, default: false },
   created_at: { type: Date, default: nowPH },
 });
 
-// Auto‑increment ID, hash password, auto‑verify non‑students
+// Auto‑increment numeric ID, hash password, auto‑verify non‑students
 userSchema.pre("save", async function (next) {
   if (this.isNew) {
     try {
@@ -70,7 +77,7 @@ userSchema.pre("save", async function (next) {
 });
 const User = mongoose.model("User", userSchema);
 
-// Admin schema
+
 const adminSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
@@ -79,7 +86,7 @@ const adminSchema = new mongoose.Schema({
   created_at: { type: Date, default: nowPH },
 });
 
-// Hash admin password
+// Hash admin password before saving
 adminSchema.pre("save", async function (next) {
   if (this.isNew) {
     const salt = await bcrypt.genSalt(10);
@@ -89,7 +96,7 @@ adminSchema.pre("save", async function (next) {
 });
 const Admin = mongoose.model("Admin", adminSchema);
 
-// Seed default admin
+// Seed default admin (runs once on start‑up)
 (async () => {
   try {
     if (await Admin.countDocuments() === 0) {
@@ -106,13 +113,30 @@ const Admin = mongoose.model("Admin", adminSchema);
   }
 })();
 
-// OTP signup
-const pendingVerifications = {};
-const OTP_EXPIRATION = 10 * 60 * 1000;
+const pendingVerifications = {}; // email -> { … }
+const OTP_EXPIRATION = 10 * 60 * 1000; // 10 minutes
 
 app.post("/signup", async (req, res) => {
-  const { name, email, id_number, password, department, course, yearLevel, role } = req.body;
-  if (!name || !email || !id_number || !password || !department || !course || !yearLevel || !role)
+  const {
+    name,
+    email,
+    id_number,
+    password,
+    department,
+    course,
+    yearLevel,
+    role,
+  } = req.body;
+  if (
+    !name ||
+    !email ||
+    !id_number ||
+    !password ||
+    !department ||
+    !course ||
+    !yearLevel ||
+    !role
+  )
     return res.status(400).json({ message: "All fields are required." });
 
   if (!["Student", "Faculty", "Staff"].includes(role))
@@ -200,7 +224,7 @@ app.post("/verify-otp", async (req, res) => {
   }
 });
 
-// Admin login
+
 app.post("/admin/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -223,7 +247,6 @@ app.post("/admin/login", async (req, res) => {
   }
 });
 
-// User login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -252,21 +275,25 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Helper to update users
+
 async function applyUserUpdates(id, updates) {
   if (updates.password) {
     if (updates.password.length < 8) throw new Error("Password must be at least 8 characters.");
     const salt = await bcrypt.genSalt(10);
     updates.password = await bcrypt.hash(updates.password, salt);
   } else {
-    delete updates.password;
+    delete updates.password; // do not overwrite stored hash with undefined
   }
-  const updated = await User.findByIdAndUpdate(id, updates, { new: true, runValidators: true }).select("-password");
+
+  const updated = await User.findByIdAndUpdate(id, updates, {
+    new: true,
+    runValidators: true,
+  }).select("-password");
+
   if (!updated) throw new Error("User not found.");
   return updated;
 }
 
-// Get users
 app.get("/users", async (req, res) => {
   try {
     const { role, q } = req.query;
@@ -284,10 +311,18 @@ app.get("/users", async (req, res) => {
   }
 });
 
-// Add user
 app.post("/users", async (req, res) => {
   const { name, email, id_number, password, department, course, yearLevel, role } = req.body;
-  if (!name || !email || !id_number || !password || !department || !course || !yearLevel || !role)
+  if (
+    !name ||
+    !email ||
+    !id_number ||
+    !password ||
+    !department ||
+    !course ||
+    !yearLevel ||
+    !role
+  )
     return res.status(400).json({ message: "All fields are required." });
 
   if (!["Student", "Faculty", "Staff"].includes(role))
@@ -320,7 +355,6 @@ app.post("/users", async (req, res) => {
   }
 });
 
-// Delete user
 app.delete("/users/:id", async (req, res) => {
   try {
     const result = await User.findByIdAndDelete(req.params.id);
@@ -332,7 +366,6 @@ app.delete("/users/:id", async (req, res) => {
   }
 });
 
-// Full update user
 app.put("/users/:id", async (req, res) => {
   try {
     const updated = await applyUserUpdates(req.params.id, { ...req.body });
@@ -343,7 +376,6 @@ app.put("/users/:id", async (req, res) => {
   }
 });
 
-// Patch verified flag
 app.patch("/users/:id", async (req, res) => {
   if (!Object.prototype.hasOwnProperty.call(req.body, "verified"))
     return res.status(400).json({ message: "Only 'verified' can be patched." });
@@ -357,7 +389,6 @@ app.patch("/users/:id", async (req, res) => {
   }
 });
 
-// Reservation schema
 const participantSchema = new mongoose.Schema({
   name: String,
   courseYear: String,
@@ -377,11 +408,22 @@ const reservationSchema = new mongoose.Schema({
 });
 const Reservation = mongoose.model("Reservation", reservationSchema);
 
-// Create reservation
+const messageSchema = new mongoose.Schema({
+  sender: String,
+  recipient: String,
+  subject: String,
+  body: String,
+  read: { type: Boolean, default: false },
+  created_at: { type: Date, default: nowPH },
+});
+const Message = mongoose.model("Message", messageSchema);
+
 app.post("/reservations", async (req, res) => {
   try {
     const { userId, datetime, numUsers, purpose, location, roomName, participants } = req.body;
+
     if (!userId) return res.status(400).json({ message: "userId is required." });
+
     await new Reservation({ userId, datetime, numUsers, purpose, location, roomName, participants }).save();
     res.status(201).json({ message: "Reservation created successfully!" });
   } catch (err) {
@@ -390,7 +432,6 @@ app.post("/reservations", async (req, res) => {
   }
 });
 
-// Get reservations by user
 app.get("/reservations/user/:userId", async (req, res) => {
   try {
     const reservations = await Reservation.find({ userId: req.params.userId });
@@ -401,7 +442,6 @@ app.get("/reservations/user/:userId", async (req, res) => {
   }
 });
 
-// Get all reservations
 app.get("/reservations", async (req, res) => {
   try {
     const reservations = await Reservation.find().populate("userId", "name email department course role");
@@ -412,14 +452,17 @@ app.get("/reservations", async (req, res) => {
   }
 });
 
-// Verify admin password
 app.post("/admin/verify-password", async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: "Username and password required." });
+  if (!username || !password)
+    return res.status(400).json({ message: "Username and password required." });
+
   try {
     const admin = await Admin.findOne({ username: username.trim().toLowerCase() });
     if (!admin) return res.status(404).json({ message: "Admin not found." });
-    if (!(await bcrypt.compare(password, admin.password))) return res.status(401).json({ message: "Incorrect password." });
+    if (!(await bcrypt.compare(password, admin.password)))
+      return res.status(401).json({ message: "Incorrect password." });
+
     res.json({ message: "Password verified successfully." });
   } catch (err) {
     console.error("Verify admin password error:", err);
@@ -427,6 +470,23 @@ app.post("/admin/verify-password", async (req, res) => {
   }
 });
 
-// Start server
+app.get("/admin/summary", async (req, res) => {
+  try {
+    const [reservations, users, messages] = await Promise.all([
+      Reservation.countDocuments(),
+      User.countDocuments(),
+      Message.countDocuments(),
+    ]);
+
+    res.json({ reservations, users, messages });
+  } catch (err) {
+    console.error("Error fetching admin summary:", err);
+    res.status(500).json({ message: "Failed to fetch summary data." });
+  }
+});
+
+// Routes
+app.use("/news", newsRoutes); // 👈 use news routes
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

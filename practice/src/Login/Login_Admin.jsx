@@ -50,7 +50,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
      UI
   ------------------------------------------------------------ */
   return (
-    <main className="flex items-center justify-center h-screen bg-gray-100">
+    <main className="flex items-center justify-center h-screen bg-gray-900">
       <div className="bg-white p-10 rounded-2xl shadow-2xl w-[500px] flex flex-col items-center gap-5">
         <img className="h-[150px] w-[150px]" src={Logo} alt="Logo" />
         <h1 className="text-3xl font-serif font-semibold text-black text-center">
@@ -73,7 +73,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
           <div className="flex flex-col gap-1">
             <label className="ml-2">Admin Username</label>
             <input
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
+              className="border p-3 rounded-lg hover:border-[#FFCC00] outline-none focus:border-[#FFCC00]  duration-100"
               type="text"
               placeholder="Admin Username"
               value={username}
@@ -84,7 +84,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
           <div className="flex flex-col gap-1">
             <label className="ml-2">Password</label>
             <input
-              className="border p-3 rounded-lg hover:border-[#FFCC00]"
+              className="border p-3 rounded-lg hover:border-[#FFCC00] outline-none focus:border-[#FFCC00] duration-100"
               type="password"
               placeholder="Password"
               value={password}
@@ -94,7 +94,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
 
           <button
             type="submit"
-            className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#bfa900]"
+            className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#bfa900] cursor-pointer font-semibold text-black duration-100 shadow-lg hover:shadow-xl transition-all"
           >
             Login
           </button>
@@ -102,7 +102,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
 
         <button
           onClick={onBackToUserLogin}
-          className="text-[#FFCC00] font-semibold hover:underline"
+          className="text-[#FFCC00] font-semibold hover:underline cursor-pointer duration-100"
         >
           Back to User Login
         </button>
