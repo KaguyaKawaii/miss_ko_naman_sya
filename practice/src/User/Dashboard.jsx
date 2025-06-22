@@ -155,7 +155,7 @@ function Dashboard({ user, setView, setSelectedReservation }) {
                           <p><span className="font-medium">Purpose:</span> {r.purpose}</p>
                         </div>
                         <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-                          <p className="text-xs text-gray-500 italic">Submitted: {formatPH(r.created_at)}</p>
+                          <p className="text-xs text-gray-500 italic">Submitted: {formatPH(r.createdAt)}</p>
                           <button onClick={() => { setSelectedReservation?.(r); setView?.("reservationDetails"); }} className="text-[#CC0000] font-medium text-sm hover:underline">View Details</button>
                         </div>
                       </div>

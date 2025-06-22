@@ -95,7 +95,7 @@ function History({ user }) {
                     {statusBadge(res.status)}
                     <p className="text-xs text-gray-500 italic">
                       Reserved on:{" "}
-                      {new Date(res.created_at).toLocaleDateString("en-PH", {
+                      {new Date(res.createdAt).toLocaleDateString("en-PH", {
                         timeZone: "Asia/Manila",
                         year: "numeric",
                         month: "long",
