@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import AdminNavigation from "./AdminNavigation";
 
-
 const courseOptions = {
   SHS: ["STEM", "ABM", "GAS"],
   CLASE: ["BS Psych", "BA Communication"],
@@ -22,6 +21,8 @@ const courseOptions = {
   COT: ["BS Tourism"],
   COC: ["BS Crim"],
 };
+
+const floorOptions = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
 
 function AdminUsers({ setView }) {
   const [users, setUsers] = useState([]);
@@ -35,39 +36,46 @@ function AdminUsers({ setView }) {
     fetchUsers();
   }, []);
 
+const fetchUsers = async (term = "") => {
+  setIsLoading(true);
+  try {
+    const params = term ? { q: term } : {};
+    const usersRes = await axios.get("http://localhost:5000/users", { params });
+    setUsers(usersRes.data);
+  } catch (err) {
+    console.error("Failed to fetch users:", err);
+    alert("Failed to fetch users.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const fetchUsers = async (term = "") => {
-    setIsLoading(true);
-    try {
-      const params = term ? { q: term } : {};
-      const { data } = await axios.get("http://localhost:5000/users", {
-        params,
-      });
-      setUsers(data);
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
+
 
   const toggleVerified = async (user) => {
-    try {
-      await axios.patch(`http://localhost:5000/users/${user._id}`, {
-        verified: !user.verified,
-      });
-      fetchUsers(search);
-      // If the modal is open, keep it in sync
-      setModal((m) =>
-        m.user && m.user._id === user._id
-          ? { ...m, user: { ...m.user, verified: !m.user.verified } }
-          : m
-      );
-    } catch (err) {
-      console.error("Failed to toggle verification:", err);
-      alert("Failed to change verification status.");
-    }
-  };
+  try {
+    const endpoint = user.role === "Staff"
+      ? `http://localhost:5000/staffs/${user._id}`
+      : `http://localhost:5000/users/${user._id}`;
+
+    await axios.patch(endpoint, {
+      verified: !user.verified,
+    });
+
+    fetchUsers(search);
+
+    // If the modal is open, keep it in sync
+    setModal((m) =>
+      m.user && m.user._id === user._id
+        ? { ...m, user: { ...m.user, verified: !m.user.verified } }
+        : m
+    );
+  } catch (err) {
+    console.error("Failed to toggle verification:", err);
+    alert("Failed to change verification status.");
+  }
+};
 
   return (
     <>
@@ -191,8 +199,6 @@ function AdminUsers({ setView }) {
 
                       {/* ---------- Row actions ---------- */}
                       <td className="p-3 flex items-center justify-center gap-3">
-
-
                         {/* View / Edit / Delete */}
                         <Eye
                           size={18}
@@ -259,20 +265,25 @@ function ConfirmDeleteModal({ user, onClose, onSuccess }) {
   const [working, setWorking] = useState(false);
 
   const confirmAndDelete = async () => {
-    if (confirmation !== "DELETE") {
-      setError('You must type "DELETE" to confirm.');
-      return;
-    }
-    setWorking(true);
-    try {
-      await axios.delete(`http://localhost:5000/users/${user._id}`);
-      onSuccess();
-    } catch (err) {
-      setError("Server error while deleting.");
-    } finally {
-      setWorking(false);
-    }
-  };
+  if (confirmation !== "DELETE") {
+    setError('You must type "DELETE" to confirm.');
+    return;
+  }
+  setWorking(true);
+  try {
+    const endpoint = user.role === "Staff"
+      ? `http://localhost:5000/staffs/${user._id}`
+      : `http://localhost:5000/users/${user._id}`;
+
+    await axios.delete(endpoint);
+    onSuccess();
+  } catch (err) {
+    setError("Server error while deleting.");
+  } finally {
+    setWorking(false);
+  }
+};
+
 
   return (
     <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50">
@@ -316,7 +327,6 @@ function ConfirmDeleteModal({ user, onClose, onSuccess }) {
   );
 }
 
-
 function UserFormModal({
   mode,
   user,
@@ -337,6 +347,7 @@ function UserFormModal({
       department: "",
       course: "",
       yearLevel: "",
+      floor: "",
       password: "",
       verified: false,
     }
@@ -347,6 +358,9 @@ function UserFormModal({
   useEffect(() => {
     if (form.role !== "Student") {
       setForm((f) => ({ ...f, course: "", yearLevel: "" }));
+    }
+    if (form.role !== "Staff") {
+      setForm((f) => ({ ...f, floor: "" }));
     }
   }, [form.role]);
 
@@ -364,43 +378,36 @@ function UserFormModal({
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const payload = {
-        name: form.name,
-        email: form.email,
-        id_number: form.id_number,
-        role: form.role,
-        department: form.department || "N/A",
-        course:
-          form.role === "Student" ? form.course || "N/A" : "N/A",
-        yearLevel:
-          form.role === "Student" ? form.yearLevel || "N/A" : "N/A",
-        password: form.password || undefined, // omit empty on edit
-        verified: form.verified,
-      };
+  e.preventDefault();
+  setSaving(true);
+  try {
+    const payload = {
+      name: form.name,
+      email: form.email,
+      id_number: form.id_number,
+      role: form.role,
+      department: form.role === "Staff" ? "N/A" : form.department || "N/A",
+      course: form.role === "Student" ? form.course || "N/A" : "N/A",
+      yearLevel: form.role === "Student" ? form.yearLevel || "N/A" : "N/A",
+      floor: form.role === "Staff" ? form.floor || "N/A" : "N/A",
+      password: form.password || undefined, // omit empty on edit
+      verified: form.verified,
+    };
 
-      if (isEdit) {
-        await axios.put(
-          `http://localhost:5000/users/${user._id}`,
-          payload
-        );
-      } else if (isAdd) {
-        await axios.post("http://localhost:5000/users", payload);
-      }
-
-      onSuccess();
-    } catch (err) {
-      console.error("Save failed:", err);
-      alert(
-        "Save failed: " +
-          (err.response?.data?.message || err.message)
-      );
-    } finally {
-      setSaving(false);
+    if (isEdit) {
+      await axios.put(`http://localhost:5000/users/${user._id}`, payload);
+    } else if (isAdd) {
+      await axios.post("http://localhost:5000/users", payload);
     }
-  };
+
+    onSuccess();
+  } catch (err) {
+    console.error("Save failed:", err);
+    alert("Save failed: " + (err.response?.data?.message || err.message));
+  } finally {
+    setSaving(false);
+  }
+};
 
   /* ---------------------------- Render ---------------------------- */
   return (
@@ -445,18 +452,32 @@ function UserFormModal({
                   <span className="font-medium">Role:</span>{" "}
                   {user.role}
                 </p>
-                <p>
-                  <span className="font-medium">Department:</span>{" "}
-                  {user.department || "—"}
-                </p>
-                <p>
-                  <span className="font-medium">Course:</span>{" "}
-                  {user.course || "—"}
-                </p>
-                <p>
-                  <span className="font-medium">Year Level:</span>{" "}
-                  {user.yearLevel || "—"}
-                </p>
+                {user.role === "Staff" ? (
+  <p>
+    <span className="font-medium">Assigned Floor:</span>{" "}
+    {user.floor || "—"}
+  </p>
+) : (
+  <>
+    <p>
+      <span className="font-medium">Department:</span>{" "}
+      {user.department || "—"}
+    </p>
+    {user.role === "Student" && (
+      <>
+        <p>
+          <span className="font-medium">Course:</span>{" "}
+          {user.course || "—"}
+        </p>
+        <p>
+          <span className="font-medium">Year Level:</span>{" "}
+          {user.yearLevel || "—"}
+        </p>
+      </>
+    )}
+  </>
+)}
+
                 <p>
                   <span className="font-medium">Created At:</span>{" "}
                   {user.created_at ? new Date(user.created_at).toLocaleString() : "—"}
@@ -536,7 +557,7 @@ function UserFormModal({
                 className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
 
-              {/* Role & department */}
+              {/* Role */}
               <select
                 value={form.role}
                 onChange={(e) =>
@@ -549,55 +570,73 @@ function UserFormModal({
                 <option>Staff</option>
               </select>
 
-              <select
-                value={form.department}
-                onChange={(e) =>
-                  handleChange("department", e.target.value)
-                }
-                className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                <option value="">Select Department</option>
-                {Object.keys(courseOptions).map((d) => (
-                  <option key={d}>{d}</option>
-                ))}
-              </select>
-
-              {/* Course & year (Students only) */}
-              {form.role === "Student" && (
+              {/* Department or Floor assignment based on role */}
+              {form.role === "Staff" ? (
+                <select
+                  value={form.floor}
+                  onChange={(e) =>
+                    handleChange("floor", e.target.value)
+                  }
+                  className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Assign Floor</option>
+                  {floorOptions.map((floor) => (
+                    <option key={floor}>{floor}</option>
+                  ))}
+                </select>
+              ) : (
                 <>
                   <select
-                    value={form.course}
+                    value={form.department}
                     onChange={(e) =>
-                      handleChange("course", e.target.value)
+                      handleChange("department", e.target.value)
                     }
                     className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   >
-                    <option value="">Select Course</option>
-                    {courseOptions[form.department]?.map((c) => (
-                      <option key={c}>{c}</option>
+                    <option value="">Select Department</option>
+                    {Object.keys(courseOptions).map((d) => (
+                      <option key={d}>{d}</option>
                     ))}
                   </select>
 
-                  <select
-                    value={form.yearLevel}
-                    onChange={(e) =>
-                      handleChange("yearLevel", e.target.value)
-                    }
-                    className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  >
-                    <option value="">Select Year</option>
-                    {(form.department === "SHS"
-                      ? ["Grade 11", "Grade 12"]
-                      : [
-                          "1st Year",
-                          "2nd Year",
-                          "3rd Year",
-                          "4th Year",
-                        ]
-                    ).map((y) => (
-                      <option key={y}>{y}</option>
-                    ))}
-                  </select>
+                  {/* Course & year (Students only) */}
+                  {form.role === "Student" && (
+                    <>
+                      <select
+                        value={form.course}
+                        onChange={(e) =>
+                          handleChange("course", e.target.value)
+                        }
+                        className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      >
+                        <option value="">Select Course</option>
+                        {courseOptions[form.department]?.map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={form.yearLevel}
+                        onChange={(e) =>
+                          handleChange("yearLevel", e.target.value)
+                        }
+                        className="border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      >
+                        <option value="">Select Year</option>
+                        {(form.department === "SHS"
+                          ? ["Grade 11", "Grade 12"]
+                          : [
+                              "1st Year",
+                              "2nd Year",
+                              "3rd Year",
+                              "4th Year",
+                            ]
+                        ).map((y) => (
+                          <option key={y}>{y}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                 </>
               )}
 

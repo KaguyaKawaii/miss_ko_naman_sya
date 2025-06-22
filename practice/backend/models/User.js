@@ -1,42 +1,36 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const Counter = require('./Counter');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+
+function nowPH() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc + 480 * 60000);
+}
 
 const userSchema = new mongoose.Schema({
-  id: Number,
   name: String,
-  email: { type: String, unique: true },
+  email: { type: String, lowercase: true, unique: true },
   id_number: String,
   password: String,
   department: String,
   course: String,
   yearLevel: String,
-  created_at: {
-    type: Date,
-    default: () => new Date(Date.now() + 8 * 60 * 60 * 1000),
+  role: {
+    type: String,
+    enum: ["Student", "Faculty", "Staff"],
+    default: "Student",
   },
+  verified: { type: Boolean, default: false },
+  created_at: { type: Date, default: nowPH },
 });
 
-userSchema.pre('save', async function (next) {
+userSchema.pre("save", async function (next) {
   if (this.isNew) {
-    try {
-      const counter = await Counter.findByIdAndUpdate(
-        'userId',
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      );
-      this.id = counter.seq;
-
-      const salt = await bcrypt.genSalt(10);
-      this.password = await bcrypt.hash(this.password, salt);
-
-      next();
-    } catch (err) {
-      next(err);
-    }
-  } else {
-    next();
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    this.verified = ["Faculty", "Staff"].includes(this.role);
   }
+  next();
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);

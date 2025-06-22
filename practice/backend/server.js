@@ -5,14 +5,70 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("./mailer");
 const newsRoutes = require("./routes/newsRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const User = require("./models/User");
+const Message = require("./models/Message");
+const reservationRoutes = require("./routes/reservations");
 
-// 👈 this is at the top before app is created
+const axios = require("axios");
 
+const cron = require("node-cron");
+
+
+const http = require("http");            // <-- Add this
+const { Server } = require("socket.io");
 
 const app = express();
+const server = http.createServer(app);   // <-- Create the HTTP server first
+
+const Reservation = require("./models/Reservation");
+
+const notificationRoutes = require("./routes/notificationRoutes");
+
+
 app.use(cors({ origin: "*" }));
 app.use(express.json());
-app.use("/news", newsRoutes);  
+app.use("/news", newsRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/reservations", reservationRoutes);
+app.use("/notifications", notificationRoutes);
+
+
+
+
+// Socket.io setup (attach to server)
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
+});
+
+
+// ✅ Attach `io` to the Express app so routes can access it
+app.set("io", io);
+
+// Socket.io connection listener
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Join a room by userId (or floor name)
+  socket.on("join", ({ userId }) => {
+    socket.join(userId);
+    console.log(`Socket ${socket.id} joined room: ${userId}`);
+  });
+
+  // Broadcast new messages to appropriate room(s)
+socket.on("sendMessage", (msg) => {
+  io.to(msg.receiver).emit("newMessage", msg);
+  io.to(msg.sender).emit("newMessage", msg);
+});
+
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
 
 
 function nowPH() {
@@ -21,11 +77,20 @@ function nowPH() {
   return new Date(utc + 480 * 60000); // UTC+8 (Asia/Manila)
 }
 
+// Check for expired reservations every 5 minutes
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    await axios.get("http://localhost:5000/reservations/check-expired");
+    console.log("Expired reservations checked.");
+  } catch (err) {
+    console.error("Failed to check expired reservations:", err);
+  }
+});
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
-
 
 const counterSchema = new mongoose.Schema({
   _id: String,
@@ -75,7 +140,7 @@ userSchema.pre("save", async function (next) {
     next();
   }
 });
-const User = mongoose.model("User", userSchema);
+
 
 
 const adminSchema = new mongoose.Schema({
@@ -389,24 +454,7 @@ app.patch("/users/:id", async (req, res) => {
   }
 });
 
-const participantSchema = new mongoose.Schema({
-  name: String,
-  courseYear: String,
-  department: String,
-  idNumber: String,
-});
-const reservationSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  datetime: { type: Date, required: true },
-  numUsers: { type: Number, required: true },
-  purpose: { type: String, required: true },
-  location: { type: String, required: true },
-  roomName: { type: String, required: true },
-  participants: [participantSchema],
-  status: { type: String, default: "Pending" },
-  created_at: { type: Date, default: nowPH },
-});
-const Reservation = mongoose.model("Reservation", reservationSchema);
+
 
 const messageSchema = new mongoose.Schema({
   sender: String,
@@ -416,41 +464,7 @@ const messageSchema = new mongoose.Schema({
   read: { type: Boolean, default: false },
   created_at: { type: Date, default: nowPH },
 });
-const Message = mongoose.model("Message", messageSchema);
 
-app.post("/reservations", async (req, res) => {
-  try {
-    const { userId, datetime, numUsers, purpose, location, roomName, participants } = req.body;
-
-    if (!userId) return res.status(400).json({ message: "userId is required." });
-
-    await new Reservation({ userId, datetime, numUsers, purpose, location, roomName, participants }).save();
-    res.status(201).json({ message: "Reservation created successfully!" });
-  } catch (err) {
-    console.error("Reservation error:", err);
-    res.status(500).json({ error: "Failed to create reservation." });
-  }
-});
-
-app.get("/reservations/user/:userId", async (req, res) => {
-  try {
-    const reservations = await Reservation.find({ userId: req.params.userId });
-    res.json(reservations);
-  } catch (err) {
-    console.error("Fetch reservations error:", err);
-    res.status(500).json({ error: "Failed to fetch reservations." });
-  }
-});
-
-app.get("/reservations", async (req, res) => {
-  try {
-    const reservations = await Reservation.find().populate("userId", "name email department course role");
-    res.json(reservations);
-  } catch (err) {
-    console.error("Fetch all reservations error:", err);
-    res.status(500).json({ error: "Failed to fetch reservations." });
-  }
-});
 
 app.post("/admin/verify-password", async (req, res) => {
   const { username, password } = req.body;
@@ -485,8 +499,7 @@ app.get("/admin/summary", async (req, res) => {
   }
 });
 
-// Routes
-app.use("/news", newsRoutes); // 👈 use news routes
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`✅ Server with Socket.io running on port ${PORT}`));
+

@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   History,
   Bell,
+  MessageSquare,
   UserCircle,
   LogOut,
 } from "lucide-react";
@@ -13,6 +14,7 @@ function Navigation_User({ user, setView, currentView, onLogout }) {
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "history", label: "History", icon: <History size={18} /> },
     { id: "notification", label: "Notification", icon: <Bell size={18} /> },
+    { id: "messages", label: "Messages", icon: <MessageSquare size={18} /> },
     { id: "profile", label: "Profile", icon: <UserCircle size={18} /> },
   ];
 

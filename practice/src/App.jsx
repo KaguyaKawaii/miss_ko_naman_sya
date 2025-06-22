@@ -20,6 +20,7 @@ import Notification from "./User/Notification.jsx";
 import Profile from "./User/Profile.jsx";
 import ReserveRoom from "./User/ReserveRoom.jsx";
 import ReservationDetails from "./User/ReservationDetails.jsx";
+import Messages from "./User/Message.jsx";
 
 /* ---- admin ---- */
 import AdminNavigation from "./Admin/AdminNavigation.jsx";
@@ -29,6 +30,14 @@ import AdminRooms from "./Admin/AdminRooms.jsx";
 import AdminUsers from "./Admin/AdminUsers.jsx";
 import AdminMessages from "./Admin/AdminMessages.jsx";
 import AdminReports from "./Admin/AdminReports.jsx";
+
+/* ---- staff ---- */
+import StaffNavigation from "./Staff/StaffNavigation.jsx";
+import StaffDashboard from "./Staff/StaffDashboard.jsx";
+import StaffReservations from "./Staff/StaffReservations.jsx";
+import StaffUsers from "./Staff/StaffUsers.jsx";
+import StaffMessages from "./Staff/StaffMessages.jsx";
+import StaffNotification from "./Staff/StaffNotifications.jsx";
 
 function App() {
   const [view, setView] = useState("home");
@@ -44,62 +53,63 @@ function App() {
     login: "/login",
     signup: "/signup",
     adminLogin: "/admin-login",
-
-    // user views
     dashboard: "/dashboard",
     history: "/history",
     notification: "/notification",
+    messages: "/messages",
     profile: "/profile",
     reserve: "/reserve",
     reservationDetails: "/reservation-details",
-
-    // admin views
     adminDashboard: "/admin/dashboard",
     adminReservation: "/admin/reservations",
     adminRoom: "/admin/rooms",
     adminUsers: "/admin/users",
     adminMessage: "/admin/messages",
     adminReports: "/admin/reports",
+    staffDashboard: "/staff/dashboard",
+    staffReservation: "/staff/reservations",
+    staffUsers: "/staff/users",
+    staffMessages: "/staff/messages",
+    staffNotification: "/staff/notifications",
   };
 
   const pathToView = Object.fromEntries(
     Object.entries(viewToPath).map(([v, p]) => [p, v])
   );
 
-  // Sync URL when `view` changes
   useEffect(() => {
     const path = viewToPath[view];
-    if (path && path !== location.pathname) {
-      navigate(path);
-    }
-  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (path && path !== location.pathname) navigate(path);
+  }, [view]);
 
-  // Sync `view` when URL changes
   useEffect(() => {
     const newView = pathToView[location.pathname] || "home";
     if (newView !== view) setView(newView);
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
-  // Back button behavior — trap only on user/admin dashboard
   useEffect(() => {
     const handlePopState = () => {
       setShowLogoutModal(true);
       window.history.pushState(null, null, window.location.pathname);
     };
 
-    if (view === "dashboard" || view === "adminDashboard") {
+    if (
+      view === "dashboard" ||
+      view === "adminDashboard" ||
+      view === "staffDashboard"
+    ) {
       window.history.pushState(null, null, window.location.pathname);
       window.addEventListener("popstate", handlePopState);
     }
 
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [view]);
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
-    setView("dashboard");
+    const role = userData.role.toLowerCase();
+    if (role === "staff") setView("staffDashboard");
+    else setView("dashboard");
   };
 
   const handleAdminLoginSuccess = (adminData) => {
@@ -113,7 +123,7 @@ function App() {
     setView("login");
   };
 
-  const renderUserNavigation = (component) => (
+  const renderUserNavigation = (Component) => (
     <>
       <Navigation
         user={user}
@@ -121,11 +131,11 @@ function App() {
         currentView={view}
         onLogout={() => setShowLogoutModal(true)}
       />
-      {component}
+      {Component}
     </>
   );
 
-  const renderAdminNavigation = (component) => (
+  const renderAdminNavigation = (Component) => (
     <>
       <AdminNavigation
         admin={user}
@@ -133,25 +143,34 @@ function App() {
         currentView={view}
         onLogout={() => setShowLogoutModal(true)}
       />
-      {component}
+      {Component}
+    </>
+  );
+
+  const renderStaffNavigation = (Component) => (
+    <>
+      <StaffNavigation
+        staff={user}
+        setView={setView}
+        currentView={view}
+        onLogout={() => setShowLogoutModal(true)}
+      />
+      {Component}
     </>
   );
 
   return (
     <div>
-      {/* Home */}
       {view === "home" && (
         <>
           <Header onLoginClick={() => setView("login")} />
-          <Body onReserveClick={() => setView("login")}/>
+          <Body onReserveClick={() => setView("login")} />
           <Body2 />
           <Body3 />
           <Body4 />
-
         </>
       )}
 
-      {/* Auth Screens */}
       {view === "login" && (
         <Login_User
           onSwitchToSignUp={() => setView("signup")}
@@ -159,9 +178,11 @@ function App() {
           setView={setView}
         />
       )}
+
       {view === "signup" && (
         <SignUp_User onSwitchToLogin={() => setView("login")} />
       )}
+
       {view === "adminLogin" && (
         <Login_Admin
           onAdminLoginSuccess={handleAdminLoginSuccess}
@@ -169,7 +190,7 @@ function App() {
         />
       )}
 
-      {/* User Screens */}
+      {/* USER */}
       {view === "dashboard" &&
         renderUserNavigation(<Dashboard user={user} setView={setView} />)}
       {view === "history" &&
@@ -182,6 +203,8 @@ function App() {
             setSelectedReservation={setSelectedReservation}
           />
         )}
+      {view === "messages" &&
+        renderUserNavigation(<Messages user={user} setView={setView} />)}
       {view === "profile" &&
         renderUserNavigation(<Profile user={user} setView={setView} />)}
       {view === "reserve" &&
@@ -194,7 +217,7 @@ function App() {
           />
         )}
 
-      {/* Admin Screens */}
+      {/* ADMIN */}
       {view === "adminDashboard" &&
         renderAdminNavigation(<AdminDashboard setView={setView} />)}
       {view === "adminReservation" &&
@@ -208,7 +231,18 @@ function App() {
       {view === "adminReports" &&
         renderAdminNavigation(<AdminReports setView={setView} />)}
 
-      {/* LOGOUT */}
+      {/* STAFF */}
+      {view === "staffDashboard" &&
+        renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}
+      {view === "staffReservation" &&
+        renderStaffNavigation(<StaffReservations setView={setView} staff={user} />)}
+      {view === "staffUsers" &&
+        renderStaffNavigation(<StaffUsers setView={setView} staff={user} />)}
+      {view === "staffMessages" &&
+        renderStaffNavigation(<StaffMessages setView={setView} staff={user} />)}
+      {view === "staffNotification" &&
+        renderStaffNavigation(<StaffNotification setView={setView} staff={user} />)}
+
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-[360px] rounded-xl bg-white shadow-2xl px-6 py-8 relative">
@@ -223,17 +257,17 @@ function App() {
                 You’ll need to sign in again to access your dashboard.
               </p>
             </div>
-            <div className="border-t border-gray-200 mb-6"></div>
+            <div className="border-t border-gray-200 mb-6" />
             <div className="flex justify-between">
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 duration-150 cursor-pointer"
+                className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 No, stay
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600 duration-150 cursor-pointer"
+                className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600"
               >
                 Yes, log out
               </button>

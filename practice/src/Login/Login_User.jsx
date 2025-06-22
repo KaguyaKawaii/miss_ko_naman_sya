@@ -1,8 +1,7 @@
-// Login_User.jsx
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import Logo from "../assets/logo.png";
-import "../index.css"; // corrected import path
+import "../index.css";
 
 function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   const [email, setEmail] = useState("");
@@ -38,9 +37,10 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
       return;
     }
 
+    // Secret override: Admin portal shortcut
     if (
       email.trim().toLowerCase() === "enteradminportal" &&
-      password === "krulcifer1234567890"
+      password === "1"
     ) {
       setView("adminLogin");
       return;
@@ -65,7 +65,8 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.message || "Login failed. Please try again.");
+      if (!res.ok)
+        throw new Error(data.message || "Login failed. Please try again.");
 
       if (data.user?.role?.toLowerCase() === "admin") {
         throw new Error("Admin accounts must log in through the admin portal.");
@@ -94,7 +95,6 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
 
   return (
     <main>
-      {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
           <Loader2 size={64} className="text-white animate-spin" />
@@ -102,7 +102,6 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
         </div>
       )}
 
-      {/* Error Toast */}
       <div className="flex m-6 justify-center absolute top-0 left-0 right-0">
         {error && (
           <p
@@ -114,13 +113,15 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
         )}
       </div>
 
-      {/* Main Content */}
       <div className="flex flex-col h-screen items-center justify-center gap-2">
         <img className="h-[150px] w-[150px]" src={Logo} alt="Logo" />
         <h1 className="text-3xl font-serif font-semibold text-black">
           University of San Agustin
         </h1>
-        <p>General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo, Philippines</p>
+        <p>
+          General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo,
+          Philippines
+        </p>
         <p className="text-lg sm:text-xl font-semibold text-gray-700 text-center">
           Learning Resource Center
         </p>
@@ -131,7 +132,6 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
           </p>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            {/* Email */}
             <div className="flex flex-col gap-1">
               <label className="ml-2">Email</label>
               <input
@@ -143,7 +143,6 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
               />
             </div>
 
-            {/* Password */}
             <div className="flex flex-col gap-1">
               <label className="ml-2">Password</label>
               <div className="relative">
@@ -184,7 +183,6 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
         </div>
       </div>
 
-      {/* Success Modal */}
       {successModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -197,7 +195,8 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
             <CheckCircle size={96} className="text-green-600 mx-auto" />
             <h3 className="text-3xl font-bold mt-6">Login Successful!</h3>
             <p className="mt-4 text-gray-700 text-lg">
-              Welcome back! Click the button below to continue to your dashboard.
+              Welcome back! Click the button below to continue to your
+              dashboard.
             </p>
             <button
               onClick={closeSuccess}

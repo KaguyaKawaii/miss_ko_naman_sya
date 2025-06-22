@@ -4,34 +4,25 @@ import { io } from "socket.io-client";
 
 const socket = io("http://localhost:5000");
 
-function AdminMessages() {
+function StaffMessages() {
   const [messages, setMessages] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [selectedId, setSelectedId] = useState("Ground Floor");
   const [selectedName, setSelectedName] = useState("Ground Floor");
   const [newMessage, setNewMessage] = useState("");
 
-  /* refs */
-  const listRef   = useRef(null);   // container holding the messages
-  const bottomRef = useRef(null);   // dummy div for scroll‑to‑bottom
+  const listRef = useRef(null);
+  const bottomRef = useRef(null);
 
-  const floors = [
-    "Ground Floor",
-    "2nd Floor",
-    "3rd Floor",
-    "4th Floor",
-    "5th Floor",
-  ];
+  const floors = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
 
-  /* ─────────────── Socket + recipients list ─────────────── */
   useEffect(() => {
     fetchRecipients();
-    socket.emit("join", { userId: "admin" });
+    socket.emit("join", { userId: "staff" });
 
     const handleNewMessage = (msg) => {
       const isCurrent = msg.sender === selectedId || msg.receiver === selectedId;
 
-      // swap optimistic temp with real one
       if (isCurrent) {
         setMessages((prev) => {
           const idx = prev.findIndex(
@@ -50,8 +41,7 @@ function AdminMessages() {
         });
       }
 
-      // update recipients sidebar (skip floor literals)
-      const otherId = msg.sender !== "admin" ? msg.sender : msg.receiver;
+      const otherId = msg.sender !== "staff" ? msg.sender : msg.receiver;
       if (floors.includes(otherId)) return;
 
       setRecipients((prev) => {
@@ -84,28 +74,21 @@ function AdminMessages() {
     return () => socket.off("newMessage", handleNewMessage);
   }, [selectedId]);
 
-  /* ─────────────── Load conversation on selection ─────────────── */
   useEffect(() => {
     socket.emit("join", { userId: selectedId });
     fetchMessages();
   }, [selectedId]);
 
-  /* ─────────────── Auto‑scroll ─────────────── */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ─────────────── Helpers ─────────────── */
   const fetchRecipients = async () => {
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/messages/recipients/admin"
-      );
+      const res = await axios.get("http://localhost:5000/api/messages/recipients/staff");
       const filtered = res.data
         .filter((r) => !floors.includes(r.name))
-        .sort(
-          (a, b) => new Date(b.latestMessageAt) - new Date(a.latestMessageAt)
-        );
+        .sort((a, b) => new Date(b.latestMessageAt) - new Date(a.latestMessageAt));
       setRecipients(filtered);
     } catch (err) {
       console.error("Failed to fetch recipients:", err);
@@ -115,7 +98,7 @@ function AdminMessages() {
   const fetchMessages = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/messages/conversation/admin/${selectedId}`
+        `http://localhost:5000/api/messages/conversation/staff/${selectedId}`
       );
       setMessages(res.data);
     } catch (err) {
@@ -126,11 +109,10 @@ function AdminMessages() {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
-    /* optimistic temp message */
     const tempMsg = {
       _id: "temp-" + Date.now(),
       localId: Date.now(),
-      sender: "admin",
+      sender: "staff",
       senderName: "You",
       receiver: selectedId,
       content: newMessage,
@@ -143,7 +125,7 @@ function AdminMessages() {
 
     try {
       await axios.post("http://localhost:5000/api/messages", {
-        sender: "admin",
+        sender: "staff",
         receiver: selectedId,
         content: newMessage,
       });
@@ -160,15 +142,13 @@ function AdminMessages() {
       : d.toLocaleString();
   };
 
-  /* ─────────────── UI ─────────────── */
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-        <h1 className="text-2xl font-semibold">Admin Messages</h1>
+        <h1 className="text-2xl font-semibold">Staff Messages</h1>
       </header>
 
       <div className="flex flex-1 h-[calc(100vh-50px)]">
-        {/* Left panel */}
         <div className="w-[20rem] p-4 bg-white border-r border-gray-300">
           <div className="border border-gray-200 rounded-lg h-full overflow-y-auto p-4 space-y-2">
             <h2 className="text-lg font-semibold mb-2 text-center">Conversations</h2>
@@ -181,9 +161,7 @@ function AdminMessages() {
                   setSelectedName(floor);
                 }}
                 className={`p-3 rounded-lg cursor-pointer ${
-                  selectedId === floor
-                    ? "bg-[#CC0000] text-white"
-                    : "hover:bg-gray-200"
+                  selectedId === floor ? "bg-[#CC0000] text-white" : "hover:bg-gray-200"
                 }`}
               >
                 {floor}
@@ -200,9 +178,7 @@ function AdminMessages() {
                   setSelectedName(r.name);
                 }}
                 className={`p-3 rounded-lg cursor-pointer ${
-                  selectedId === r._id
-                    ? "bg-[#CC0000] text-white"
-                    : "hover:bg-gray-200"
+                  selectedId === r._id ? "bg-[#CC0000] text-white" : "hover:bg-gray-200"
                 }`}
               >
                 {r.name}
@@ -211,32 +187,25 @@ function AdminMessages() {
           </div>
         </div>
 
-        {/* Right panel */}
         <div className="flex-1 p-4 bg-white flex flex-col">
-          {/* Message list */}
           <div
             ref={listRef}
             className="border border-gray-200 rounded-lg flex-1 overflow-y-auto p-4 space-y-2 flex flex-col"
           >
             {messages.length ? (
               messages.map((msg) => {
-                const isMe = msg.sender === "admin";
+                const isMe = msg.sender === "staff";
 
                 return (
                   <div
                     key={msg._id}
                     className={`p-3 rounded-xl max-w-[70%] border border-gray-200 ${
-                      isMe
-                        ? "bg-blue-300 ml-auto text-right"
-                        : "bg-gray-200 mr-auto"
+                      isMe ? "bg-blue-300 ml-auto text-right" : "bg-gray-200 mr-auto"
                     }`}
                   >
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{msg.content}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {isMe ? "You" : msg.senderName || msg.sender} •{" "}
-                      {formatTime(msg.createdAt)}
+                      {isMe ? "You" : msg.senderName || msg.sender} • {formatTime(msg.createdAt)}
                       {msg.status === "sending" && " • Sending..."}
                     </p>
                   </div>
@@ -248,7 +217,6 @@ function AdminMessages() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
           <div className="mt-4 flex">
             <input
               className="flex-1 border border-gray-200 rounded-l-lg px-4 py-2 focus:outline-none"
@@ -270,4 +238,4 @@ function AdminMessages() {
   );
 }
 
-export default AdminMessages;
+export default StaffMessages;
