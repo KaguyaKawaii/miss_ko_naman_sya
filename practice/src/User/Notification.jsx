@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Clock, CheckCircle } from "lucide-react";
+import socket from "../utils/socket";
 
 function Notification({ user, setView, setSelectedReservation }) {
   const [notifications, setNotifications] = useState([]);
 
+  // Fetch notifications initially and set up real-time listener
   useEffect(() => {
-    let interval;
     if (user?._id) {
       fetchNotifications();
-      interval = setInterval(() => {
+
+      // Listen for real-time notification events
+      socket.on("notification", (newNotif) => {
         fetchNotifications();
-      }, 5000);
+      });
+
+      return () => {
+        socket.off("notification");
+      };
     }
-    return () => clearInterval(interval);
   }, [user]);
 
   const fetchNotifications = () => {
@@ -44,13 +50,6 @@ function Notification({ user, setView, setSelectedReservation }) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-    });
-
-  const formatDateOnly = (dateStr) =>
-    new Date(dateStr).toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
     });
 
   const statusColor = (status) => {

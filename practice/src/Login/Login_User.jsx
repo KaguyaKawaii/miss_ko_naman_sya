@@ -58,7 +58,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/login", {
+      const res = await fetch("http://localhost:5000/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -135,7 +135,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
             <div className="flex flex-col gap-1">
               <label className="ml-2">Email</label>
               <input
-                className="border p-3 w-[450px] rounded-lg hover:border-[#FFCC00] outline-none"
+                className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                 type="text"
                 placeholder="Email"
                 value={email}
@@ -147,7 +147,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
               <label className="ml-2">Password</label>
               <div className="relative">
                 <input
-                  className="border p-3 w-[450px] pr-12 rounded-lg hover:border-[#FFCC00] outline-none"
+                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                   type={showPw ? "text" : "password"}
                   placeholder="Password"
                   value={password}
@@ -156,7 +156,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
                 <button
                   type="button"
                   onClick={() => setShowPw((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer hover:text-[#FFCC00] transition-colors duration-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer hover:text-[#CC0000]  transition-colors duration-200"
                 >
                   {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -165,7 +165,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
 
             <button
               type="submit"
-              className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#bfa900] font-semibold text-white cursor-pointer transition-colors duration-200"
+              className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#e6b800] font-semibold text-white cursor-pointer transition-colors duration-200"
             >
               Login
             </button>
@@ -200,7 +200,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
             </p>
             <button
               onClick={closeSuccess}
-              className="mt-8 bg-[#FFCC00] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#bfa900] cursor-pointer duration-200"
+              className="mt-8 bg-[#CC0000] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#990000] cursor-pointer duration-200"
             >
               Enter
             </button>

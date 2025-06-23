@@ -1,6 +1,8 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const Admin = require("../models/Admin");
+const Reservation = require("../models/Reservation");  // ✅ add this
+const User = require("../models/User");                // ✅ and this
 
 const router = express.Router();
 
@@ -52,10 +54,34 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    res.status(200).json({ message: "Login successful", user: admin });
+    res.status(200).json({
+      message: "Login successful",
+      admin: {
+        _id: admin._id,
+        username: admin.username,
+        name: admin.name,
+        email: admin.email,
+      },
+    });
   } catch (err) {
     console.error("Admin login error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// GET system summary counts for dashboard
+router.get("/summary", async (req, res) => {
+  try {
+    const reservations = await Reservation.countDocuments();
+    const users = await User.countDocuments();
+
+    res.status(200).json({
+      reservations,
+      users,
+    });
+  } catch (err) {
+    console.error("Summary fetch error:", err);
+    res.status(500).json({ message: "Failed to fetch summary counts." });
   }
 });
 

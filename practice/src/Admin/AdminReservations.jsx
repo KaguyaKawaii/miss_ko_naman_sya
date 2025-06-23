@@ -280,6 +280,7 @@ function ReservationModal({ reservation, formatPHDateTime, formatPHDate, onClose
           <p><strong>Status:</strong> {status}</p>
           <p><strong>Created At:</strong> {formatPHDateTime(created_at)}</p>
 
+
           {participants.length > 0 && (
             <div>
               <p className="font-semibold">Participants:</p>

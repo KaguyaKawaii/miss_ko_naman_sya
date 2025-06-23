@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import {
   Search,
   RefreshCcw,
@@ -12,6 +13,8 @@ import {
   XCircle,
 } from "lucide-react";
 import AdminNavigation from "./AdminNavigation";
+
+const socket = io("http://localhost:5000");
 
 const courseOptions = {
   SHS: ["STEM", "ABM", "GAS"],
@@ -36,46 +39,54 @@ function AdminUsers({ setView }) {
     fetchUsers();
   }, []);
 
-const fetchUsers = async (term = "") => {
-  setIsLoading(true);
-  try {
-    const params = term ? { q: term } : {};
-    const usersRes = await axios.get("http://localhost:5000/users", { params });
-    setUsers(usersRes.data);
-  } catch (err) {
-    console.error("Failed to fetch users:", err);
-    alert("Failed to fetch users.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  useEffect(() => {
+    socket.on("user-updated", (updatedUserId) => {
+      fetchUsers();
+    });
+    return () => {
+      socket.off("user-updated");
+    };
+  }, []);
 
-
-
+  const fetchUsers = async (term = "") => {
+    setIsLoading(true);
+    try {
+      const params = term ? { q: term } : {};
+      const usersRes = await axios.get(
+        "http://localhost:5000/api/users",
+        { params }
+      );
+      setUsers(usersRes.data);
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+      alert("Failed to fetch users.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const toggleVerified = async (user) => {
-  try {
-    const endpoint = user.role === "Staff"
-      ? `http://localhost:5000/staffs/${user._id}`
-      : `http://localhost:5000/users/${user._id}`;
+    try {
+      const endpoint = `http://localhost:5000/api/users/${user._id}`;
 
-    await axios.patch(endpoint, {
-      verified: !user.verified,
-    });
 
-    fetchUsers(search);
+      await axios.patch(endpoint, {
+        verified: !user.verified,
+      });
 
-    // If the modal is open, keep it in sync
-    setModal((m) =>
-      m.user && m.user._id === user._id
-        ? { ...m, user: { ...m.user, verified: !m.user.verified } }
-        : m
-    );
-  } catch (err) {
-    console.error("Failed to toggle verification:", err);
-    alert("Failed to change verification status.");
-  }
-};
+      fetchUsers(search);
+
+      setModal((m) =>
+        m.user && m.user._id === user._id
+          ? { ...m, user: { ...m.user, verified: !m.user.verified } }
+          : m
+      );
+    } catch (err) {
+      console.error("Failed to toggle verification:", err);
+      alert("Failed to change verification status.");
+    }
+  };
+
 
   return (
     <>
@@ -271,9 +282,7 @@ function ConfirmDeleteModal({ user, onClose, onSuccess }) {
   }
   setWorking(true);
   try {
-    const endpoint = user.role === "Staff"
-      ? `http://localhost:5000/staffs/${user._id}`
-      : `http://localhost:5000/users/${user._id}`;
+    const endpoint = `http://localhost:5000/api/users/${user._id}`;
 
     await axios.delete(endpoint);
     onSuccess();
@@ -395,10 +404,11 @@ function UserFormModal({
     };
 
     if (isEdit) {
-      await axios.put(`http://localhost:5000/users/${user._id}`, payload);
-    } else if (isAdd) {
-      await axios.post("http://localhost:5000/users", payload);
-    }
+  await axios.put(`http://localhost:5000/api/users/${user._id}`, payload);
+} else if (isAdd) {
+  await axios.post("http://localhost:5000/api/users", payload);
+}
+
 
     onSuccess();
   } catch (err) {

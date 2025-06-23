@@ -14,77 +14,74 @@ function SignUp_User({ onSwitchToLogin }) {
     role: "",
     department: "",
     course: "",
-    yearLevel: "",
+    year_level: "",
   });
 
-  /* UI state */
   const [showPw, setShowPw] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
   const [message, setMessage] = useState("");
   const [messageClass, setMessageClass] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [loading, setLoading] = useState(false);        // full‑screen loader
+  const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(60);
   const [resendTimerActive, setResendTimerActive] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
 
-  /* Program options */
   const courseOptions = {
     SHS: ["STEM", "ABM", "HUMSS"],
     CLASE: [
-  "Bachelor of Arts in Communication", 
-  "Bachelor of Arts in Philosophy",
-  "Bachelor of Arts in Political Science",
-  "Bachelor of Science in Foreign Service",
-  "Bachelor of Science in Psychology",
-  "Bachelor of Science in Biology (Medical)",
-  "Bachelor of Science in Biology (Biological)",
-  "Bachelor of Science in Chemistry",
-  "Bachelor of Science in Computer Science",
-  "Bachelor of Science in Information Technology",
-  "Bachelor of Library and Information Science", 
-  "Bachelor of Music in Music Education",
-  "Bachelor of Music in Music Performance (Piano)",
-  "Bachelor of Music in Music Performance (Voice)",
-  "Bachelor of Elementary Education",
-  "Bachelor of Science in Secondary Education (English)",
-  "Bachelor of Science in Secondary Education (Filipino)",
-  "Bachelor of Science in Secondary Education (Mathematics)",
-  "Bachelor of Science in Secondary Education (Social Studies)",
-  "Bachelor of Culture And Arts Education",
-  "Bachelor of Special Need Education (Early Childhood Education)"
-],
+      "Bachelor of Arts in Communication",
+      "Bachelor of Arts in Philosophy",
+      "Bachelor of Arts in Political Science",
+      "Bachelor of Science in Foreign Service",
+      "Bachelor of Science in Psychology",
+      "Bachelor of Science in Biology (Medical)",
+      "Bachelor of Science in Biology (Biological)",
+      "Bachelor of Science in Chemistry",
+      "Bachelor of Science in Computer Science",
+      "Bachelor of Science in Information Technology",
+      "Bachelor of Library and Information Science",
+      "Bachelor of Music in Music Education",
+      "Bachelor of Music in Music Performance (Piano)",
+      "Bachelor of Music in Music Performance (Voice)",
+      "Bachelor of Elementary Education",
+      "Bachelor of Science in Secondary Education (English)",
+      "Bachelor of Science in Secondary Education (Filipino)",
+      "Bachelor of Science in Secondary Education (Mathematics)",
+      "Bachelor of Science in Secondary Education (Social Studies)",
+      "Bachelor of Culture And Arts Education",
+      "Bachelor of Special Need Education (Early Childhood Education)",
+    ],
     CNND: [
-  "Bachelor of Science in Nursing",
-  "Bachelor of Science in Nutrition and Dietetics"
-],
+      "Bachelor of Science in Nursing",
+      "Bachelor of Science in Nutrition and Dietetics",
+    ],
     CPMT: [
-  "Bachelor of Science in Medical Laboratory Science",
-  "Bachelor of Science in Pharmacy"
-],
+      "Bachelor of Science in Medical Laboratory Science",
+      "Bachelor of Science in Pharmacy",
+    ],
     COT: [
-  "Bachelor of Science in Architecture",
-  "Bachelor of Science in Landscape Architecture",
-  "Bachelor of Science in Interior Design",
-  "Bachelor of Science in Chemical Engineering",
-  "Bachelor of Science in Civil Engineering",
-  "Bachelor of Science in Computer Engineering",
-  "Bachelor of Science in Electronics Engineering",
-  "Bachelor of Science in Mechanical Engineering",
-  "Bachelor of Fine Arts"
-],
+      "Bachelor of Science in Architecture",
+      "Bachelor of Science in Landscape Architecture",
+      "Bachelor of Science in Interior Design",
+      "Bachelor of Science in Chemical Engineering",
+      "Bachelor of Science in Civil Engineering",
+      "Bachelor of Science in Computer Engineering",
+      "Bachelor of Science in Electronics Engineering",
+      "Bachelor of Science in Mechanical Engineering",
+      "Bachelor of Fine Arts",
+    ],
     COC: [
-  "Bachelor of Science in Accountancy",
-  "Bachelor of Science in Management Accounting",
-  "Bachelor of Science in Business Administration (Financial Management)", 
-  "Bachelor of Science in Business Administration (Marketing Management)", 
-  "Bachelor of Science in Hospitality Management",
-  "Bachelor of Science in Tourism Management (Certificate of Culinary Arts)"
-],
+      "Bachelor of Science in Accountancy",
+      "Bachelor of Science in Management Accounting",
+      "Bachelor of Science in Business Administration (Financial Management)",
+      "Bachelor of Science in Business Administration (Marketing Management)",
+      "Bachelor of Science in Hospitality Management",
+      "Bachelor of Science in Tourism Management (Certificate of Culinary Arts)",
+    ],
   };
 
-  /* ─── intro animations & resend timer ─── */
   useEffect(() => {
     if (message) {
       setMessageClass("animate-shake");
@@ -106,7 +103,6 @@ function SignUp_User({ onSwitchToLogin }) {
     return () => clearTimeout(t);
   }, [resendCooldown, resendTimerActive]);
 
-  /* ─── handlers ─── */
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -116,7 +112,7 @@ function SignUp_User({ onSwitchToLogin }) {
         role: value,
         department: "",
         course: "",
-        yearLevel: "",
+        year_level: "",
       }));
       return;
     }
@@ -125,58 +121,64 @@ function SignUp_User({ onSwitchToLogin }) {
         ...p,
         department: value,
         course: "",
-        yearLevel: "",
+        year_level: "",
       }));
       return;
     }
     setFormData((p) => ({ ...p, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setMessage("");
 
-    /* basic validation */
-    if (!formData.email.endsWith("@usa.edu.ph"))
-      return setMessage("Email must end with @usa.edu.ph");
-    if (formData.password.length < 8)
-      return setMessage("Password must be at least 8 characters");
-    if (formData.password !== formData.confirmPassword)
-      return setMessage("Passwords do not match");
-    if (!formData.role) return setMessage("Please select an account role");
-    if (!formData.department) return setMessage("Please select a department");
-    if (
-      formData.role === "Student" &&
-      (!formData.course || !formData.yearLevel)
-    )
-      return setMessage("Program and Year Level are required for students");
+  if (!formData.email.endsWith("@usa.edu.ph"))
+    return setMessage("Email must end with @usa.edu.ph");
+  if (formData.password.length < 8)
+    return setMessage("Password must be at least 8 characters");
+  if (formData.password !== formData.confirmPassword)
+    return setMessage("Passwords do not match");
+  if (!formData.role) return setMessage("Please select an account role");
+  if (!formData.department) return setMessage("Please select a department");
+  if (
+    formData.role === "Student" &&
+    (!formData.course || !formData.year_level)
+  )
+    return setMessage("Program and Year Level are required for students");
 
-    try {
-      setLoading(true);
-      await axios.post("http://localhost:5000/signup", formData);
-      setMessage("OTP sent to your email.");
-      setOtpSent(true);
-      setResendCooldown(60);
-      setResendTimerActive(true);
-    } catch (err) {
-      setMessage(err.response?.data?.message || "Signup failed. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const payload = {
+  ...formData,
+  course: formData.role === "Student" ? formData.course : "N/A",
+  year_level: formData.role === "Student" ? formData.year_level : "N/A",
+};
 
-  /* ========== OTP VERIFY ========== */
+
+    await axios.post("http://localhost:5000/api/auth/signup", payload);
+
+    setMessage("OTP sent to your email.");
+    setOtpSent(true);
+    setResendCooldown(60);
+    setResendTimerActive(true);
+  } catch (err) {
+    setMessage(err.response?.data?.message || "Signup failed. Try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
   const handleOtpVerify = async () => {
     if (!otp) return setMessage("Please enter the OTP");
 
-    setLoading(true);               // show spinner immediately
+    setLoading(true);
     try {
-      await axios.post("http://localhost:5000/verify-otp", {
+      await axios.post("http://localhost:5000/api/auth/verify-otp", {
         email: formData.email,
         otp,
       });
 
-      /* keep spinner on screen at least ~2 s for UX */
       setTimeout(() => {
         setLoading(false);
         setSuccessModal(true);
@@ -190,7 +192,7 @@ function SignUp_User({ onSwitchToLogin }) {
   const handleResendOtp = async () => {
     try {
       setLoading(true);
-      await axios.post("http://localhost:5000/resend-otp", {
+      await axios.post("http://localhost:5000/api/auth/resend-otp", {
         email: formData.email,
       });
       setMessage("OTP resent successfully.");
@@ -208,7 +210,6 @@ function SignUp_User({ onSwitchToLogin }) {
     onSwitchToLogin();
   };
 
-  /* ─── UI ─── */
   return (
     <main className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-8">
       {/* full‑screen spinner when loading */}
@@ -260,7 +261,7 @@ function SignUp_User({ onSwitchToLogin }) {
                 placeholder="Enter your full name"
                 value={formData.name}
                 onChange={handleChange}
-                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                 required
               />
             </label>
@@ -274,7 +275,7 @@ function SignUp_User({ onSwitchToLogin }) {
                 placeholder="e.g. juandelacruz@usa.edu.ph"
                 value={formData.email}
                 onChange={handleChange}
-                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                 required
               />
             </label>
@@ -295,7 +296,7 @@ function SignUp_User({ onSwitchToLogin }) {
                     handleChange(e);
                   }
                 }}
-                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                 required
               />
             </label>
@@ -308,7 +309,7 @@ function SignUp_User({ onSwitchToLogin }) {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                 required
               >
                 <option value="">Select Role</option>
@@ -325,7 +326,7 @@ function SignUp_User({ onSwitchToLogin }) {
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                   required
                 >
                   <option value="">Select Department</option>
@@ -347,7 +348,7 @@ function SignUp_User({ onSwitchToLogin }) {
                     name="course"
                     value={formData.course}
                     onChange={handleChange}
-                    className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                    className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                     required
                   >
                     <option value="">Select Program</option>
@@ -362,10 +363,10 @@ function SignUp_User({ onSwitchToLogin }) {
                 <label className="text-sm font-semibold block">
                   Year Level
                   <select
-                    name="yearLevel"
-                    value={formData.yearLevel}
+                    name="year_level"
+                    value={formData.year_level}
                     onChange={handleChange}
-                    className="border p-3 rounded-lg w-full mt-1 focus:border-[#FFCC00] outline-none"
+                    className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                     required
                   >
                     <option value="">Select Year Level</option>
@@ -397,13 +398,13 @@ function SignUp_User({ onSwitchToLogin }) {
                   placeholder="Minimum 8 characters"
                   value={formData.password}
                   onChange={handleChange}
-                  className="border p-3 pr-12 rounded-lg w-full focus:border-[#FFCC00] outline-none"
+                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#CC0000] cursor-pointer duration-100"
                 >
                   {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -420,13 +421,13 @@ function SignUp_User({ onSwitchToLogin }) {
                   placeholder="Re‑enter your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="border p-3 pr-12 rounded-lg w-full focus:border-[#FFCC00] outline-none"
+                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw2((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#CC0000] cursor-pointer  duration-100"
                 >
                   {showPw2 ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -436,7 +437,7 @@ function SignUp_User({ onSwitchToLogin }) {
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#FFCC00] text-white p-3 rounded-lg hover:bg-[#e6b800] font-semibold cursor-pointer"
+              className="bg-[#FFCC00] text-white p-3 rounded-lg hover:bg-[#e6b800] font-semibold cursor-pointer duration-150"
             >
               {loading ? "Please wait…" : "Sign Up"}
             </button>
