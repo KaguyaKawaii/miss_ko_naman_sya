@@ -12,20 +12,23 @@ function AdminDashboard({ setView }) {
   const [newsTitle, setNewsTitle] = useState("");
   const [newsContent, setNewsContent] = useState("");
 
-  const refreshData = () => {
-    axios
-      .get("http://localhost:5000/admin/summary")
-      .then((res) => {
-        setReservationCount(res.data.reservations);
-        setUserCount(res.data.users);
-      })
-      .catch((err) => console.error("Error fetching summary:", err));
+  
 
-    axios
-      .get("http://localhost:5000/news")
-      .then((res) => setNewsList(res.data))
-      .catch((err) => console.error("Error fetching news:", err));
-  };
+const refreshData = () => {
+  axios
+    .get("http://localhost:5000/api/admin/summary")  // 👈 correct endpoint now
+    .then((res) => {
+      setReservationCount(res.data.reservations);
+      setUserCount(res.data.users);
+    })
+    .catch((err) => console.error("Error fetching summary:", err));
+
+  axios
+    .get("http://localhost:5000/news")
+    .then((res) => setNewsList(res.data))
+    .catch((err) => console.error("Error fetching news:", err));
+};
+
 
   useEffect(() => {
     refreshData();
