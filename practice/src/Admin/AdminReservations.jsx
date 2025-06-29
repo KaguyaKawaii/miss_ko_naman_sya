@@ -43,8 +43,8 @@ function AdminReservations({ setView }) {
       .get("http://localhost:5000/reservations")
       .then((res) => {
         const sorted = res.data.sort((a, b) => {
-          const aTime = a.created_at ? new Date(a.created_at) : 0;
-          const bTime = b.created_at ? new Date(b.created_at) : 0;
+          const aTime = a.createdAt ? new Date(a.createdAt) : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt) : 0;
           return bTime - aTime;
         });
         setReservations(sorted);
@@ -155,7 +155,7 @@ function AdminReservations({ setView }) {
                   </tr>
                 ) : (
                   filteredReservations.map((r, i) => {
-                    const createdAt = r.created_at ? new Date(r.created_at) : null;
+                    const createdAt = r.createdAt ? new Date(r.createdAt) : null;
                     const startDate = new Date(r.datetime);
                     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
@@ -241,7 +241,7 @@ function ReservationModal({ reservation, formatPHDateTime, formatPHDate, onClose
     purpose,
     participants = [],
     status,
-    created_at,
+    createdAt,
   } = reservation;
 
   const startDate = new Date(datetime);
@@ -278,7 +278,7 @@ function ReservationModal({ reservation, formatPHDateTime, formatPHDate, onClose
           <p><strong>Number of Users:</strong> {numUsers}</p>
           <p><strong>Purpose:</strong> {purpose}</p>
           <p><strong>Status:</strong> {status}</p>
-          <p><strong>Created At:</strong> {formatPHDateTime(created_at)}</p>
+          <p><strong>Created At:</strong> {formatPHDateTime(createdAt)}</p>
 
 
           {participants.length > 0 && (

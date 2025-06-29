@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 
 const participantSchema = new mongoose.Schema({
   name: String,
-  courseYear: String,
+  course: String,
+  year_level: String,
   department: String,
   idNumber: String,
 });
@@ -21,7 +22,7 @@ const reservationSchema = new mongoose.Schema(
     status: { type: String, default: "Pending" }
   },
   {
-    timestamps: true // ✅ auto adds createdAt and updatedAt
+    timestamps: true
   }
 );
 

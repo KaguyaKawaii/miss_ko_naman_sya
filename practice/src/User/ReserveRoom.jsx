@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import socket from "../utils/socket"; // Make sure you have this exported in a `socket.js` file
 import GroundFloorImg from "../assets/GroundFloor.jpg";
 
-function ReserveRoom({ user }) {
+function ReserveRoom({ user, setView }) {
   const navigate = useNavigate();
+
+
+
 
   const [formData, setFormData] = useState({
     date: "",
@@ -14,104 +18,348 @@ function ReserveRoom({ user }) {
     location: "",
     roomName: "",
     participants: Array.from({ length: 4 }, () => ({
-      name: "", courseYear: "", department: "", idNumber: "",
+      name: "",
+      course: "",
+      yearLevel: "",
+      department: "",
+      idNumber: "",
+      role: "",
     })),
   });
 
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
 
-  const handleParticipantChange = (idx, field, val) => {
+  const [validation, setValidation] = useState(
+    Array.from({ length: 4 }, () => ({ status: null, message: "" }))
+  );
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+useEffect(() => {
+  if (user) {
     const updated = [...formData.participants];
-    updated[idx][field] = val;
-    setFormData({ ...formData, participants: updated });
+    updated[0] = {
+      name: user.name || "",
+      course: user.course || "",
+      yearLevel: user.year_level || "",
+      department: user.department || "",
+      idNumber: user.id_number || "",
+      role: user.role || "",
+    };
+
+    const v = [...validation];
+    
+    if (user.verified) {
+      v[0] = { status: "valid", message: "Verified ✓" };
+    } else {
+      v[0] = { status: "invalid", message: "Not Verified" };
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      participants: updated,
+    }));
+    setValidation(v);
+  }
+}, [user]);
+
+
+
+const [showNotVerifiedWarning, setShowNotVerifiedWarning] = useState(false);
+
+useEffect(() => {
+  if (user && !user.verified) {
+    setShowNotVerifiedWarning(true);
+  }
+}, [user]);
+
+useEffect(() => {
+  if (!user?._id) return;
+
+  const handleVerification = (data) => {
+    if (data?.message?.includes("verified")) {
+      window.location.reload(); // Force refresh so `user.verified` becomes true
+    }
   };
+
+  socket.on("notification", handleVerification);
+
+  return () => {
+    socket.off("notification", handleVerification);
+  };
+}, [user]);
+
+useEffect(() => {
+  if (user?._id) {
+    socket.emit("join", { userId: user._id });
+  }
+}, [user]);
+
+
+
+const handleParticipantChange = async (idx, field, val) => {
+  if (idx === 0 && validation[0]?.status === "valid") return;
+
+  const updated = [...formData.participants];
+  updated[idx][field] = val;
+
+  // Check for duplicate ID numbers (except current idx)
+  if (field === "idNumber" && val.trim()) {
+    const isDuplicate = formData.participants.some(
+      (p, i) => i !== idx && p.idNumber === val
+    );
+
+    const v = [...validation];
+
+    if (isDuplicate) {
+      v[idx] = { status: "invalid", message: "Duplicate ID Number" };
+      setValidation(v);
+      setFormData({ ...formData, participants: updated });
+      return;
+    }
+
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/reservations/check-participant?idNumber=${val}`
+      );
+
+      if (!res.data.exists) {
+        v[idx] = { status: "invalid", message: "Not registered." };
+        updated[idx] = {
+          name: "",
+          course: "",
+          yearLevel: "",
+          department: "",
+          idNumber: val,
+          role: "",
+        };
+      } else if (!res.data.verified) {
+        v[idx] = { status: "invalid", message: "Not verified." };
+        updated[idx] = {
+          name: "",
+          course: "",
+          yearLevel: "",
+          department: "",
+          idNumber: val,
+          role: "",
+        };
+      } else {
+        // Auto-fill based on role
+        if (res.data.role === "Faculty") {
+          updated[idx] = {
+            name: res.data.name,
+            department: res.data.department,
+            idNumber: val,
+            course: "",
+            yearLevel: "",
+            role: res.data.role,
+          };
+        } else {
+          updated[idx] = {
+            name: res.data.name,
+            course: res.data.course,
+            yearLevel: res.data.yearLevel,
+            department: res.data.department,
+            idNumber: val,
+            role: res.data.role,
+          };
+        }
+        v[idx] = { status: "valid", message: "Verified ✓" };
+      }
+
+      setFormData({ ...formData, participants: updated });
+      setValidation(v);
+    } catch (err) {
+      console.error("Validation error", err);
+    }
+  } else {
+    setFormData({ ...formData, participants: updated });
+  }
+};
+
 
   const handleNumUsersChange = (val) => {
     const n = parseInt(val, 10);
     const updated = [...formData.participants];
-    while (updated.length < n)
-      updated.push({ name: "", courseYear: "", department: "", idNumber: "" });
+    const v = [...validation];
+    while (updated.length < n) {
+      updated.push({
+        name: "",
+        course: "",
+        yearLevel: "",
+        department: "",
+        idNumber: "",
+        role: "",
+      });
+      v.push({ status: null, message: "" });
+    }
+
     updated.length = n;
+    v.length = n;
     setFormData({ ...formData, numUsers: val, participants: updated });
+    setValidation(v);
   };
 
   const validateForm = () => {
-    if (!formData.date || !formData.time || !formData.location || !formData.roomName || !formData.purpose) {
+    if (
+      !formData.date ||
+      !formData.time ||
+      !formData.location ||
+      !formData.roomName ||
+      !formData.purpose
+    ) {
       alert("Please complete all required fields.");
       return false;
     }
     for (let i = 0; i < formData.participants.length; i++) {
       const p = formData.participants[i];
-      if (!p.name || !p.courseYear || !p.department || !p.idNumber) {
+      if (!p.name || !p.department || !p.idNumber) {
         alert(`Please complete all fields for participant ${i + 1}.`);
+        return false;
+      }
+
+      // Check course and yearLevel only for students (not Faculty or Staff)
+      if (p.role !== "Faculty" && p.role !== "Staff") {
+        if (!p.course || !p.yearLevel) {
+          alert(`Please complete all fields for participant ${i + 1}.`);
+          return false;
+        }
+      }
+
+      if (validation[i].status !== "valid") {
+        alert(`Participant ${i + 1} is not verified or registered.`);
         return false;
       }
     }
     return true;
   };
 
-const submitReservation = async () => {
-  if (!validateForm()) return;
+  const submitReservation = async () => {
+    if (!validateForm()) return;
+    setLoading(true); // <-- start loading
+    const datetime = `${formData.date}T${formData.time}`;
+    try {
+      await axios.post("http://localhost:5000/reservations", {
+        userId: user._id,
+        ...formData,
+        datetime,
+      });
+      setShowSuccessModal(true);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Reservation submission failed.");
+    } finally {
+      setLoading(false); // <-- stop loading after completion
+    }
+  };
 
-  const datetime = `${formData.date}T${formData.time}`;
-
-  try {
-    await axios.post("http://localhost:5000/reservations", {
-      userId: user._id,
-      ...formData,
-      datetime,
-    });
-    setShowSuccessModal(true);
-  } catch (err) {
-    console.error(err);
-    alert(err.response?.data?.message || "Reservation submission failed.");
-  }
-};
-
-
-  
-
-  const closeSuccess = () => { setShowSuccessModal(false); navigate("/dashboard"); };
+  const closeSuccess = () => {
+    setShowSuccessModal(false);
+    navigate("/dashboard");
+  };
 
   const roomLocations = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
-  const roomNames     = ["Discussion Room", "Collaboration Corner", "Graduate Research Hub", "Faculty Corner"];
-  const now  = new Date();
+  const roomNames = [
+    "Discussion Room",
+    "Collaboration Corner",
+    "Graduate Research Hub",
+    "Faculty Corner",
+  ];
+  const now = new Date();
   const minDate = now.toISOString().split("T")[0];
   const maxDate = `${now.getFullYear() + 1}-12-31`;
-  const times = ["07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30",
-                 "13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
+  const times = [
+    "07:00",
+    "07:30",
+    "08:00",
+    "08:30",
+    "09:00",
+    "09:30",
+    "10:00",
+    "10:30",
+    "11:00",
+    "11:30",
+    "13:00",
+    "13:30",
+    "14:00",
+    "14:30",
+    "15:00",
+    "15:30",
+    "16:00",
+    "16:30",
+    "17:00",
+  ];
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col">
-          <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+          <svg
+            className="animate-spin h-16 w-16 text-white mb-4"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+            ></path>
+          </svg>
+          <p className="text-white text-lg">Submitting Reservation...</p>
+        </div>
+      )}
+
+      {/* form header */}
+      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
         <h1 className="text-2xl font-semibold">Room Reservation Request</h1>
       </header>
 
-      {/* Form */}
       <div className="m-5 flex flex-col items-center">
         {/* Date / Time / Users */}
         <div className="flex flex-wrap gap-6">
+          {/* Date */}
           <div>
             <p>Select Date</p>
             <input
               type="date"
               className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
-              min={minDate} max={maxDate}
+              min={minDate}
+              max={maxDate}
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, date: e.target.value })
+              }
             />
           </div>
+
+          {/* Time */}
           <div>
             <p>Time</p>
             <select
               className="w-[250px] h-[40px] p-2 border rounded-[7px] bg-white border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
               value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, time: e.target.value })
+              }
             >
               <option value="">Select Time</option>
-              {times.map((t) => <option key={t} value={t}>{t}</option>)}
+              {times.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
             </select>
           </div>
+
+          {/* Number of users */}
           <div>
             <p>Number of Users</p>
             <select
@@ -119,7 +367,11 @@ const submitReservation = async () => {
               value={formData.numUsers}
               onChange={(e) => handleNumUsersChange(e.target.value)}
             >
-              {[4,5,6,7,8].map((n) => <option key={n} value={n}>{n} Users</option>)}
+              {[4, 5, 6, 7, 8].map((n) => (
+                <option key={n} value={n}>
+                  {n} Users
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -131,13 +383,15 @@ const submitReservation = async () => {
             className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
             type="text"
             value={formData.purpose}
-            onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, purpose: e.target.value })
+            }
           />
         </div>
 
-        {/* Room Location tiles */}
+        {/* Room Location */}
         <div className="flex flex-col items-center gap-5">
-          <p>Room Location</p>
+          <p className="font-semibold font-sans text-lg">Room Location</p>
           <div className="flex flex-wrap gap-5 justify-center">
             {roomLocations.map((loc) => (
               <div
@@ -149,7 +403,11 @@ const submitReservation = async () => {
               >
                 {loc === "Ground Floor" ? (
                   <>
-                    <img src={GroundFloorImg} alt={loc} className="absolute w-full h-full object-cover" />
+                    <img
+                      src={GroundFloorImg}
+                      alt={loc}
+                      className="absolute w-full h-full object-cover"
+                    />
                     <p className="absolute bottom-2 left-0 w-full text-center text-white text-lg font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                       {loc}
                     </p>
@@ -162,16 +420,18 @@ const submitReservation = async () => {
           </div>
         </div>
 
-        {/* Room names */}
+        {/* Room Names */}
         <div className="flex flex-col h-[25rem] items-center gap-5 mt-8">
-          <p>Room’s Name</p>
+          <p className="font-semibold font-sans text-lg">Room’s Name</p>
           <div className="flex flex-wrap gap-5 justify-center">
             {roomNames.map((name) => (
               <div
                 key={name}
                 onClick={() => setFormData({ ...formData, roomName: name })}
                 className={`border border-gray-200 shadow-sm rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer ${
-                  formData.roomName === name ? "bg-red-100 border-red-600" : "opacity-40"
+                  formData.roomName === name
+                    ? "bg-red-100 border-red-600"
+                    : "opacity-40"
                 }`}
               >
                 {name}
@@ -180,102 +440,231 @@ const submitReservation = async () => {
           </div>
         </div>
 
-        {/* Participants table */}
+        <p className="font-semibold font-sans text-lg">Participants</p>
+
+        {/* Participants Table */}
         <div className="overflow-x-auto mt-6 flex justify-center">
           <table className="bg-white shadow rounded-xl overflow-hidden w-[80rem]">
             <thead className="bg-[#FFCC00]">
               <tr>
-                <th className="py-3 px-4 text-left">Name</th>
-                <th className="py-3 px-4 text-left">Course & Year</th>
-                <th className="py-3 px-4 text-left">Department</th>
                 <th className="py-3 px-4 text-left">ID Number</th>
+                <th className="py-3 px-4 text-left">Name</th>
+                <th className="py-3 px-4 text-left">Course</th>
+                <th className="py-3 px-4 text-left">Year Level</th>
+                <th className="py-3 px-4 text-left">Department</th>
               </tr>
             </thead>
             <tbody>
               {formData.participants.map((p, idx) => (
                 <tr key={idx} className="even:bg-gray-50">
+                  {/* ID Number */}
+                  <td className="py-2 px-4">
+                    <div className="relative">
+  <input
+    type="text"
+    placeholder="ID Number"
+    className={`w-full p-2 pr-10 rounded-lg outline-none border shadow-sm
+      ${
+        validation[idx]?.status === "valid"
+          ? "border-green-600"
+          : validation[idx]?.status === "invalid"
+          ? "border-red-600 focus:border-red-600"
+          : "border-gray-300 focus:border-red-600"
+      }`}
+    value={p.idNumber}
+    disabled={idx === 0}
+    onChange={(e) =>
+      handleParticipantChange(idx, "idNumber", e.target.value)
+    }
+  />
+
+  {validation[idx]?.status === "valid" && (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 text-sm select-none pointer-events-none">
+      Verified ✓
+    </span>
+  )}
+
+  {validation[idx]?.status === "invalid" && (
+    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-600 text-sm whitespace-nowrap select-none pointer-events-none">
+      {validation[idx]?.message === "Duplicate ID Number"
+        ? "Duplicate ID Number !"
+        : "Not Verified !"}
+    </div>
+  )}
+</div>
+
+                  </td>
+                  {/* Name */}
                   <td className="py-2 px-4">
                     <input
                       type="text"
-                      placeholder="Stephen Pogi"
+                      placeholder="Full Name"
                       className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
                       value={p.name}
-                      onChange={(e) => handleParticipantChange(idx,"name",e.target.value)}
+                      disabled={idx === 0 || validation[idx].status === "valid"}
+                      onChange={(e) =>
+                        handleParticipantChange(idx, "name", e.target.value)
+                      }
                     />
                   </td>
+
+                  {/* Course - show only if not Faculty/Staff */}
+                  {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
+                    <td className="py-2 px-4">
+                      <input
+                        type="text"
+                        placeholder="Course"
+                        className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
+                        value={p.course}
+                        disabled={idx === 0 || validation[idx].status === "valid"}
+                        onChange={(e) =>
+                          handleParticipantChange(idx, "course", e.target.value)
+                        }
+                      />
+                    </td>
+                  ) : (
+                    <td className="py-2 px-4 text-gray-400 italic">N/A</td>
+                  )}
+
+                  {/* Year Level - show only if not Faculty/Staff */}
+                  {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
+                    <td className="py-2 px-4">
+                      <input
+                        type="text"
+                        placeholder="Year Level"
+                        className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
+                        value={p.yearLevel}
+                        disabled={idx === 0 || validation[idx].status === "valid"}
+                        onChange={(e) =>
+                          handleParticipantChange(
+                            idx,
+                            "yearLevel",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </td>
+                  ) : (
+                    <td className="py-2 px-4 text-gray-400 italic">N/A</td>
+                  )}
+
+                  {/* Department */}
                   <td className="py-2 px-4">
                     <input
                       type="text"
-                      placeholder="BSIT 3"
-                      className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
-                      value={p.courseYear}
-                      onChange={(e) => handleParticipantChange(idx,"courseYear",e.target.value)}
-                    />
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      type="text"
-                      placeholder="CLASE"
+                      placeholder="Department"
                       className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
                       value={p.department}
-                      onChange={(e) => handleParticipantChange(idx,"department",e.target.value)}
-                    />
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      type="text"
-                      placeholder="ID Number"
-                      className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
-                      value={p.idNumber}
-                      onChange={(e) => handleParticipantChange(idx,"idNumber",e.target.value)}
+                      disabled={idx === 0 || validation[idx].status === "valid"}
+                      onChange={(e) =>
+                        handleParticipantChange(
+                          idx,
+                          "department",
+                          e.target.value
+                        )
+                      }
                     />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          
+        </div>
+        <p className="text-sm text-gray-600 italic mt-3">
+          * Enter ID Number to auto-fill participant details. Verified fields
+          will be locked.
+        </p>
+
+        <div className="w-full flex flex-col self-start mt-6 px-45">
+          <h4 className="font-semibold text-md font-sans text-gray-800"><span className="text-red-700">* </span>Note</h4>
+<ul className="list-disc pl-5">
+  <li className="text-sm text-gray-600 mb-1">
+    The group will be notified fifteen (15) minutes before the usage is terminated. If there are no standing reservations for the next hour, the group may request a one-hour extension.
+  </li>
+  <li className="text-sm text-gray-600 mb-1">
+    The Learning Resource Center reserves the right to cancel the reservation of any group that does not arrive within fifteen (15) minutes of the scheduled reservation time.
+  </li>
+</ul>
+
         </div>
 
-        {/* Note */}
-        <div className="flex flex-col ml-[180px] mt-5 self-start">
-          <h1 className="font-semibold">
-            <span className="text-red-600">*</span> Note
-          </h1>
-          <li className="text-[15px]">Group will be notified 15 minutes before session ends. Extensions allowed if no conflict follows.</li>
-          <li className="text-[15px]">LRC may cancel reservations if the group doesn’t arrive within 15 minutes.</li>
-        </div>
-        </div>
 
-      {/* Submit button */}
-      <div className="flex justify-center mt-5">
-        <button
-          onClick={submitReservation}
-          disabled={!formData.date || !formData.time || !formData.location || !formData.roomName || !formData.purpose}
-          type="button"
-          className="cursor-pointer"
-        >
-          <div className={`px-4 py-2 rounded-lg transition duration-300 ${
-            !formData.date || !formData.time || !formData.location || !formData.roomName || !formData.purpose
-              ? "bg-gray-400"
-              : "bg-[#CC0000] text-white hover:bg-red-700"
-          }`}>
-            Submit Reservation
-          </div>
-        </button>
+        {/* Submit Button */}
+        <div className="flex justify-center mt-5">
+          <button
+            onClick={submitReservation}
+            type="button"
+            disabled={loading}
+            className={`bg-[#CC0000] text-white px-6 py-2 rounded-lg transition cursor-pointer ${
+              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700"
+            }`}
+          >
+            {loading ? (
+              <svg
+                className="animate-spin h-5 w-5 mr-2 inline-block text-white"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                ></path>
+              </svg>
+            ) : null}
+            {loading ? "Submitting..." : "Submit Reservation"}
+          </button>
+        </div>
       </div>
 
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-xl max-w-sm w-full text-center animate-scaleIn">
-            <h2 className="text-2xl font-semibold mb-4">Reservation Submitted!</h2>
-            <p className="mb-6">We’ll notify your group 15 minutes before the session ends.</p>
-            <button onClick={closeSuccess} className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+          <div className="bg-white p-8 rounded-xl max-w-sm w-full text-center">
+            <h2 className="text-lg font-semibold mb-4 ">
+              Reservation Submitted!
+            </h2>
+            <p className="text-gray-600 text-sm">
+  Thank you for your request. A confirmation will be sent once it’s reviewed.
+</p>
+            <button
+              onClick={closeSuccess}
+              className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer mt-6"
+            >
               Go to Dashboard
             </button>
           </div>
         </div>
       )}
+
+      {showNotVerifiedWarning && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-xl max-w-md w-full text-center border-t-5 border-[#CC0000]">
+      <h2 className="text-xl font-semibold text-red-600 mb-3">
+        Not Verified Account
+      </h2>
+      <p className="text-gray-700 mb-4">
+        Your account is not verified. You may fill out the form, but you cannot submit a reservation until verification is completed.
+      </p>
+      <button
+        onClick={() => setShowNotVerifiedWarning(false)}
+        className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer"
+      >
+        I Understand
+      </button>
+    </div>
+  </div>
+)}
+
     </main>
   );
 }

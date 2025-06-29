@@ -5,15 +5,13 @@ const Notification = require("../models/Notification");
 const sendEmail = require("../mailer");
 const bcrypt = require("bcryptjs");
 
-// ─────────────────────────────────────────────
 // 📌 USER SIGNUP
-// ─────────────────────────────────────────────
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, id_number, password, department, course, yearLevel, role } = req.body;
 
-    if (!name || !email || !id_number || !password || !department || !course || !yearLevel || !role) {
-      return res.status(400).json({ message: "All fields are required." });
+    if (!name || !email || !id_number || !password || !department || !role) {
+      return res.status(400).json({ message: "Missing required fields." });
     }
 
     if (!email.endsWith("@usa.edu.ph")) {
@@ -27,15 +25,21 @@ router.post("/signup", async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ message: "Email already used." });
 
+    // Validate course and yearLevel for Students
+    if (role === "Student") {
+      if (!course || !yearLevel)
+        return res.status(400).json({ message: "Course and year level required for students." });
+    }
+
     const newUser = new User({
       name,
-      email,
+      email: email.toLowerCase(),
       id_number,
       password,
       department,
-      course,
-      yearLevel,
-      role
+      course: role === "Student" ? course : "N/A",
+      year_level: role === "Student" ? yearLevel : "N/A",
+      role,
     });
 
     await newUser.save();
@@ -43,7 +47,8 @@ router.post("/signup", async (req, res) => {
     await sendEmail(
       email,
       "Welcome to USA-FLD!",
-      `<h3>Hi ${name},</h3><p>Your account was created successfully as a ${yearLevel} student of ${course} in the ${department} department!</p>`
+      `<h2>Hi ${name},</h2>
+       <p>Your account was created successfully as a ${role}${role === "Student" ? ` (${yearLevel} - ${course})` : ""} in the ${department} department!</p>`
     );
 
     res.status(201).json({ message: "User registered successfully and welcome email sent." });
@@ -53,9 +58,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
 // 📌 USER LOGIN
-// ─────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -76,10 +79,10 @@ router.post("/login", async (req, res) => {
         id_number: user.id_number,
         department: user.department,
         course: user.course,
-        yearLevel: user.yearLevel,
+        year_level: user.year_level,
         role: user.role,
-        verified: user.verified
-      }
+        verified: user.verified,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -87,18 +90,19 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 📌 FETCH ALL USERS (optional filtering)
-// ─────────────────────────────────────────────
+// 📌 FETCH ALL USERS
 router.get("/", async (req, res) => {
   try {
     const { role, q } = req.query;
     const filter = {};
+
     if (role && ["Student", "Faculty", "Staff"].includes(role)) filter.role = role;
+
     if (q && q.trim()) {
       const regex = new RegExp(q.trim(), "i");
       filter.$or = [{ name: regex }, { email: regex }, { id_number: regex }];
     }
+
     const users = await User.find(filter).select("-password").sort({ created_at: -1 });
     res.json(users);
   } catch (err) {
@@ -107,9 +111,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
 // 📌 UPDATE USER VERIFIED STATUS + Emit Notification
-// ─────────────────────────────────────────────
 router.patch("/:id", async (req, res) => {
   try {
     if (!Object.prototype.hasOwnProperty.call(req.body, "verified"))
@@ -128,11 +130,11 @@ router.patch("/:id", async (req, res) => {
       await Notification.create({
         userId: user._id,
         message: "Your account has been verified!",
-        status: "Info"
+        status: "Info",
       });
 
       io.to(user._id.toString()).emit("notification", {
-        message: "Your account has been verified!"
+        message: "Your account has been verified!",
       });
     }
 
@@ -143,9 +145,7 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 📌 UPDATE USER (General edit) ← NEW
-// ─────────────────────────────────────────────
+// 📌 GENERAL USER EDIT
 router.put("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -161,18 +161,18 @@ router.put("/:id", async (req, res) => {
       role,
       floor,
       password,
-      verified
+      verified,
     } = req.body;
 
-    user.name        = name;
-    user.email       = email.toLowerCase();
-    user.id_number   = id_number;
-    user.department  = department || "N/A";
-    user.course      = course || "N/A";
-    user.year_level  = yearLevel || "N/A";
-    user.role        = role;
-    user.verified    = verified;
-    user.floor       = floor || "N/A";
+    user.name = name;
+    user.email = email.toLowerCase();
+    user.id_number = id_number;
+    user.department = department || "N/A";
+    user.course = course || "N/A";
+    user.year_level = yearLevel || "N/A";
+    user.role = role;
+    user.verified = verified;
+    user.floor = floor || "N/A";
 
     if (password && password.length >= 8) {
       const salt = await bcrypt.genSalt(10);
@@ -187,9 +187,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
 // 📌 DELETE USER
-// ─────────────────────────────────────────────
 router.delete("/:id", async (req, res) => {
   try {
     const result = await User.findByIdAndDelete(req.params.id);
@@ -201,9 +199,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
 // 📌 GET USER BY ID
-// ─────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");

@@ -7,16 +7,16 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  logger: true,  // Enable logs
-  // debug: true,   // Enable debug output
+  logger: true,
 });
 
-const sendEmail = async (to, subject, htmlContent) => {
+const sendEmail = async ({ to, subject, text, html }) => {
   const mailOptions = {
     from: `"USA-FLD" <${process.env.EMAIL_USER}>`,
     to,
     subject,
-    html: htmlContent,
+    text,   // optional — you can pass null or leave out if unused
+    html,   // safe now because it's destructured from parameters
   };
 
   try {

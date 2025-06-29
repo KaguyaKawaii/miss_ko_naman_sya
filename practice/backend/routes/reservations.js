@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Reservation = require("../models/Reservation");
 const Notification = require("../models/Notification");
+const sendEmail = require("../mailer");
+
 
 // GET all reservations (admin)
 router.get("/", async (req, res) => {
@@ -110,6 +112,9 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 });
+
+
+
 
 // GET user's reservations
 router.get("/user/:userId", async (req, res) => {

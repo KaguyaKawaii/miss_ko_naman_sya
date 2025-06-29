@@ -103,36 +103,42 @@ function SignUp_User({ onSwitchToLogin }) {
     return () => clearTimeout(t);
   }, [resendCooldown, resendTimerActive]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+const handleChange = (e) => {
+  const { name, value } = e.target;
 
-    if (name === "role") {
-      setFormData((p) => ({
-        ...p,
-        role: value,
-        department: "",
-        course: "",
-        year_level: "",
-      }));
-      return;
-    }
-    if (name === "department") {
-      setFormData((p) => ({
-        ...p,
-        department: value,
-        course: "",
-        year_level: "",
-      }));
-      return;
-    }
-    setFormData((p) => ({ ...p, [name]: value }));
-  };
+  if (name === "role") {
+    setFormData((p) => ({
+      ...p,
+      role: value,
+      department: "",
+      course: "",
+      year_level: "",
+    }));
+    return;
+  }
+
+  if (name === "department") {
+    setFormData((p) => ({
+      ...p,
+      department: value,
+      course: "",
+      year_level: "",
+    }));
+    return;
+  }
+
+  setFormData((p) => ({
+    ...p,
+    [name]: name === "email" ? value.toLowerCase() : value,
+  }));
+};
+
 
 const handleSubmit = async (e) => {
   e.preventDefault();
   setMessage("");
 
-  if (!formData.email.endsWith("@usa.edu.ph"))
+  if (!formData.email.toLowerCase().endsWith("@usa.edu.ph"))
     return setMessage("Email must end with @usa.edu.ph");
   if (formData.password.length < 8)
     return setMessage("Password must be at least 8 characters");
@@ -140,20 +146,18 @@ const handleSubmit = async (e) => {
     return setMessage("Passwords do not match");
   if (!formData.role) return setMessage("Please select an account role");
   if (!formData.department) return setMessage("Please select a department");
-  if (
-    formData.role === "Student" &&
-    (!formData.course || !formData.year_level)
-  )
+  if (formData.role === "Student" && (!formData.course || !formData.year_level))
     return setMessage("Program and Year Level are required for students");
 
   try {
     setLoading(true);
-    const payload = {
-  ...formData,
-  course: formData.role === "Student" ? formData.course : "N/A",
-  year_level: formData.role === "Student" ? formData.year_level : "N/A",
-};
 
+    const payload = {
+      ...formData,
+      email: formData.email.toLowerCase(),  // normalize email
+      course: formData.role === "Student" ? formData.course : "N/A",
+      year_level: formData.role === "Student" ? formData.year_level : "N/A",
+    };
 
     await axios.post("http://localhost:5000/api/auth/signup", payload);
 
@@ -455,7 +459,7 @@ const handleSubmit = async (e) => {
               maxLength={6}
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="border p-3 rounded-lg focus:border-[#FFCC00] outline-none"
+              className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
             />
 
             <button
@@ -514,7 +518,7 @@ const handleSubmit = async (e) => {
             </p>
             <button
               onClick={goToLogin}
-              className="mt-8 bg-[#FFCC00] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#e6b800] cursor-pointer"
+              className="mt-8 bg-[#FFCC00] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#e6b800] cursor-pointer duration-150"
             >
               Go to Login
             </button>

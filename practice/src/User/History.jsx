@@ -51,6 +51,33 @@ function History({ user }) {
     );
   };
 
+  const SkeletonLoader = () => (
+    <div className="animate-pulse space-y-4">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className="flex gap-4 items-start border-b border-gray-100 pb-6"
+        >
+          <div className="mt-1.5">
+            <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <div className="flex-1 space-y-3">
+            <div className="h-5 bg-gray-300 rounded w-1/3"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 rounded w-2/5"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/5"></div>
+            <div className="flex gap-2 mt-2">
+              <div className="h-5 w-20 bg-gray-200 rounded-full"></div>
+              <div className="h-4 w-28 bg-gray-200 rounded"></div>
+              <div className="h-4 w-16 bg-gray-200 rounded ml-auto"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       {/* Header */}
@@ -60,7 +87,7 @@ function History({ user }) {
 
       <div className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto space-y-6">
         {loading ? (
-          <p className="text-gray-600">Loading your history...</p>
+          <SkeletonLoader />
         ) : reservations.length === 0 ? (
           <p className="text-gray-600">No reservation records found.</p>
         ) : (
@@ -103,7 +130,9 @@ function History({ user }) {
                       })}
                     </p>
                     <button
-                      onClick={() => alert("Detailed view not yet implemented")}
+                      onClick={() =>
+                        alert("Detailed view not yet implemented")
+                      }
                       className="text-[#CC0000] text-sm font-medium hover:underline ml-auto"
                     >
                       View Details

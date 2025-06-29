@@ -2,68 +2,62 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 function Message({ user }) {
-  // ──────────────────────────────── state
-  const [messages, setMessages]         = useState([]);
-  const [newMessage, setNewMessage]     = useState("");
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
   const [selectedRecipient, setSelectedRecipient] = useState("admin");
   const [recipients] = useState([
-    { id: "admin",        label: "Admin" },
+    { id: "admin", label: "Admin" },
     { id: "Ground Floor", label: "Ground Floor" },
-    { id: "2nd Floor",    label: "2nd Floor" },
-    { id: "4th Floor",    label: "4th Floor" },
-    { id: "5th Floor",    label: "5th Floor" },
+    { id: "2nd Floor", label: "2nd Floor" },
+    { id: "4th Floor", label: "4th Floor" },
+    { id: "5th Floor", label: "5th Floor" },
   ]);
+  const [loading, setLoading] = useState(true);
 
-  // ──────────────────────────────── refs
-  const listRef      = useRef(null);  // messages scroll container
-  const bottomRef    = useRef(null);  // dummy div at the end
-  const forceScroll  = useRef(true);  // «scroll‑to‑bottom» flag
+  const listRef = useRef(null);
+  const bottomRef = useRef(null);
+  const forceScroll = useRef(true);
 
-  // ──────────────────────────────── effects
   useEffect(() => {
     if (!user?._id || !selectedRecipient) return;
 
-    fetchMessages();
-    const id = setInterval(fetchMessages, 3000);     // poll every 3 s
+    fetchMessages(true); // first load
+
+    const id = setInterval(() => fetchMessages(false), 3000);
     return () => clearInterval(id);
   }, [user, selectedRecipient]);
 
-  // when messages update ──> possibly scroll
   useEffect(() => {
     if (!listRef.current) return;
-
-    const el        = listRef.current;
-    const nearBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight <= 100; // ~100 px slack
-
-    // if forced (initial / switch) OR already at bottom  -> scroll
+    const el = listRef.current;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 100;
     if (forceScroll.current || nearBottom) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      forceScroll.current = false;                       // reset after first use
+      forceScroll.current = false;
     }
   }, [messages]);
 
-  // when user picks a different recipient ──> force one initial scroll
   useEffect(() => {
     forceScroll.current = true;
   }, [selectedRecipient]);
 
-  // ──────────────────────────────── helpers
-  async function fetchMessages() {
+  async function fetchMessages(isInitial = false) {
     try {
+      if (isInitial) setLoading(true);
+
       const { data } = await axios.get(
         `http://localhost:5000/api/messages/conversation/${user._id}/${selectedRecipient}`
       );
       setMessages(data);
     } catch (err) {
       console.error("Failed to fetch messages:", err);
+    } finally {
+      if (isInitial) setLoading(false);
     }
   }
 
   async function sendMessage() {
     if (!newMessage.trim()) return;
-
-    // optimistic bubble
     setMessages((prev) => [
       ...prev,
       {
@@ -77,7 +71,7 @@ function Message({ user }) {
       },
     ]);
     setNewMessage("");
-    forceScroll.current = true;               // ensure it scrolls after sending
+    forceScroll.current = true;
 
     try {
       await axios.post("http://localhost:5000/api/messages", {
@@ -85,14 +79,14 @@ function Message({ user }) {
         receiver: selectedRecipient,
         content: newMessage,
       });
-      await fetchMessages();
+      await fetchMessages(false);
     } catch (err) {
       console.error("Failed to send message:", err);
     }
   }
 
   const formatTime = (iso) => {
-    const now  = new Date();
+    const now = new Date();
     const date = new Date(iso);
     const opts = { hour: "numeric", minute: "2-digit", hour12: true };
     return now.toDateString() === date.toDateString()
@@ -100,29 +94,28 @@ function Message({ user }) {
       : date.toLocaleString();
   };
 
-  // ──────────────────────────────── render
   return (
-    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
+    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
+      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center shadow-sm">
         <h1 className="text-2xl font-semibold">Messages</h1>
       </header>
 
       <div className="flex flex-1 h-[calc(100vh-50px)]">
-        {/* Recipients */}
-        <aside className="w-[20rem] p-4 bg-white border-r border-gray-300">
-          <div className="border border-gray-200 rounded-lg h-full overflow-y-auto p-4">
-            <h2 className="text-lg font-semibold mb-4 text-center">Conversations</h2>
-            <div className="border-t border-gray-300 my-3" />
+        <aside className="w-[20rem] p-4 bg-white border-r border-gray-200 shadow-inner">
+          <div className="border border-gray-200 rounded-xl h-full overflow-y-auto p-4 bg-white shadow-sm">
+            <h2 className="text-lg font-semibold mb-4 text-center text-gray-700">
+              Conversations
+            </h2>
+            <div className="border-t border-gray-200 my-3" />
 
             {recipients.map(({ id, label }) => (
               <div
                 key={id}
                 onClick={() => setSelectedRecipient(id)}
-                className={`p-3 mb-2 rounded-lg cursor-pointer ${
+                className={`p-3 mb-2 rounded-lg cursor-pointer transition-all ${
                   selectedRecipient === id
-                    ? "bg-[#CC0000] text-white"
-                    : "hover:bg-gray-200"
+                    ? "bg-[#DC2626] text-white shadow-md"
+                    : "hover:bg-gray-100 text-gray-700"
                 }`}
               >
                 {label}
@@ -131,51 +124,52 @@ function Message({ user }) {
           </div>
         </aside>
 
-        {/* Messages */}
-        <section className="flex-1 p-4 bg-white flex flex-col">
+        <section className="flex-1 p-4 flex flex-col">
           <div
             ref={listRef}
-            className="border border-gray-200 rounded-lg flex-1 overflow-y-auto p-4 space-y-2 flex flex-col"
+            className="border border-gray-200 rounded-xl flex-1 overflow-y-auto p-4 space-y-3 flex flex-col bg-white shadow-inner"
           >
-            {messages.length ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="inline-block border-4 border-gray-200 border-t-red-500 rounded-full w-12 h-12 animate-spin mb-4"></div>
+                <p className="text-gray-600">Loading messages...</p>
+              </div>
+            ) : messages.length ? (
               messages.map((msg) => {
-                const isMe =
-                  msg.sender === user._id || msg.sender?._id === user._id;
-
+                const isMe = msg.sender === user._id || msg.sender?._id === user._id;
                 return (
                   <div
                     key={msg._id}
-                    className={`p-3 rounded-xl max-w-[70%] border border-gray-200 ${
+                    className={`p-3 rounded-2xl max-w-[75%] shadow-sm ${
                       isMe
-                        ? "bg-blue-300 ml-auto text-right"
-                        : "bg-gray-200 mr-auto"
+                        ? "bg-[#2563EB] text-white ml-auto rounded-br-none"
+                        : "bg-gray-100 text-gray-800 mr-auto rounded-bl-none"
                     }`}
                   >
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {isMe
-                        ? "You"
-                        : msg.senderName ||
-                          msg.sender?.name ||
-                          msg.sender}{" "}
-                      • {formatTime(msg.createdAt)}
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p
+                      className={`text-xs mt-1 ${
+                        isMe ? "text-blue-100" : "text-gray-500"
+                      }`}
+                    >
+                      {isMe ? "You" : msg.senderName || msg.sender?.name || msg.sender} •{" "}
+                      {formatTime(msg.createdAt)}
                       {msg.status === "sending" && " • Sending..."}
                     </p>
                   </div>
                 );
               })
             ) : (
-              <p className="text-gray-500">No messages yet.</p>
+              <p className="text-gray-400 text-center mt-8 italic">
+                No messages yet. Start a conversation!
+              </p>
             )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div className="mt-4 flex">
+          <div className="mt-4 flex shadow-lg rounded-lg overflow-hidden">
             <input
-              className="flex-1 border border-gray-200 rounded-l-lg px-4 py-2 focus:outline-none"
+              className="flex-1 px-4 py-3 focus:outline-none border-none bg-white"
               placeholder={`Message ${
                 recipients.find((r) => r.id === selectedRecipient)?.label || "..."
               }...`}
@@ -185,7 +179,7 @@ function Message({ user }) {
             />
             <button
               onClick={sendMessage}
-              className="bg-[#CC0000] text-white px-6 rounded-r-lg hover:bg-red-700 cursor-pointer"
+              className="bg-[#DC2626] text-white px-6 hover:bg-red-700 transition-colors"
             >
               Send
             </button>

@@ -40,13 +40,21 @@ import StaffMessages from "./Staff/StaffMessages.jsx";
 import StaffNotification from "./Staff/StaffNotifications.jsx";
 
 function App() {
-  const [view, setView] = useState("home");
-  const [user, setUser] = useState(null);
-  const [selectedReservation, setSelectedReservation] = useState(null);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem("user");
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [view, setView] = useState(() => {
+    const saved = localStorage.getItem("view");
+    return saved || "home";
+  });
+
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const viewToPath = {
     home: "/",
@@ -78,6 +86,7 @@ function App() {
   );
 
   useEffect(() => {
+    localStorage.setItem("view", view);
     const path = viewToPath[view];
     if (path && path !== location.pathname) navigate(path);
   }, [view]);
@@ -87,16 +96,26 @@ function App() {
     if (newView !== view) setView(newView);
   }, [location.pathname]);
 
+  // 🛑 Prevent back button from leaving dashboard
   useEffect(() => {
     const handlePopState = () => {
-      setShowLogoutModal(true);
-      window.history.pushState(null, null, window.location.pathname);
+      if (
+        view === "dashboard" ||
+        view === "adminDashboard" ||
+        view === "staffDashboard"
+      ) {
+        setShowLogoutModal(true);
+        window.history.pushState(null, null, window.location.pathname);
+      } else if (view === "login") {
+        setView("home");
+      }
     };
 
     if (
       view === "dashboard" ||
       view === "adminDashboard" ||
-      view === "staffDashboard"
+      view === "staffDashboard" ||
+      view === "login"
     ) {
       window.history.pushState(null, null, window.location.pathname);
       window.addEventListener("popstate", handlePopState);
@@ -106,6 +125,7 @@ function App() {
   }, [view]);
 
   const handleLoginSuccess = (userData) => {
+    localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
     const role = userData.role.toLowerCase();
     if (role === "staff") setView("staffDashboard");
@@ -113,14 +133,17 @@ function App() {
   };
 
   const handleAdminLoginSuccess = (adminData) => {
+    localStorage.setItem("user", JSON.stringify(adminData));
     setUser(adminData);
     setView("adminDashboard");
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("view");
     setUser(null);
     setShowLogoutModal(false);
-    setView("login");
+    setView("home");
   };
 
   const renderUserNavigation = (Component) => (
@@ -192,7 +215,13 @@ function App() {
 
       {/* USER */}
       {view === "dashboard" &&
-        renderUserNavigation(<Dashboard user={user} setView={setView} />)}
+        renderUserNavigation(
+          <Dashboard
+            user={user}
+            setView={setView}
+            setSelectedReservation={setSelectedReservation}
+          />
+        )}
       {view === "history" &&
         renderUserNavigation(<History user={user} setView={setView} />)}
       {view === "notification" &&
@@ -233,16 +262,25 @@ function App() {
 
       {/* STAFF */}
       {view === "staffDashboard" &&
-        renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}
+        renderStaffNavigation(
+          <StaffDashboard setView={setView} staff={user} />
+        )}
       {view === "staffReservation" &&
-        renderStaffNavigation(<StaffReservations setView={setView} staff={user} />)}
+        renderStaffNavigation(
+          <StaffReservations setView={setView} staff={user} />
+        )}
       {view === "staffUsers" &&
         renderStaffNavigation(<StaffUsers setView={setView} staff={user} />)}
       {view === "staffMessages" &&
-        renderStaffNavigation(<StaffMessages setView={setView} staff={user} />)}
+        renderStaffNavigation(
+          <StaffMessages setView={setView} staff={user} />
+        )}
       {view === "staffNotification" &&
-        renderStaffNavigation(<StaffNotification setView={setView} staff={user} />)}
+        renderStaffNavigation(
+          <StaffNotification setView={setView} staff={user} />
+        )}
 
+      {/* Logout Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-[360px] rounded-xl bg-white shadow-2xl px-6 py-8 relative">
@@ -261,13 +299,13 @@ function App() {
             <div className="flex justify-between">
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer" 
               >
                 No, stay
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600"
+                className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600 cursor-pointer"
               >
                 Yes, log out
               </button>

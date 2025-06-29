@@ -5,24 +5,28 @@ import socket from "../utils/socket";
 
 function Notification({ user, setView, setSelectedReservation }) {
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch notifications initially and set up real-time listener
   useEffect(() => {
     if (user?._id) {
       fetchNotifications();
 
-      // Listen for real-time notification events
-      socket.on("notification", (newNotif) => {
-        fetchNotifications();
-      });
+      const handleNewNotification = (newNotif) => {
+        if (newNotif.userId === user._id) {
+          fetchNotifications();
+        }
+      };
+
+      socket.on("notification", handleNewNotification);
 
       return () => {
-        socket.off("notification");
+        socket.off("notification", handleNewNotification);
       };
     }
   }, [user]);
 
   const fetchNotifications = () => {
+    setLoading(true);
     axios
       .get(`http://localhost:5000/notifications/user/${user._id}`)
       .then((res) => {
@@ -30,8 +34,12 @@ function Notification({ user, setView, setSelectedReservation }) {
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
         setNotifications(sorted);
+        setLoading(false);
       })
-      .catch((err) => console.error("Failed to fetch notifications:", err));
+      .catch((err) => {
+        console.error("Failed to fetch notifications:", err);
+        setLoading(false);
+      });
   };
 
   const markAsRead = (id) => {
@@ -59,18 +67,65 @@ function Notification({ user, setView, setSelectedReservation }) {
       case "Rejected":
         return "bg-red-100 text-red-700";
       case "Pending":
-      default:
         return "bg-yellow-100 text-yellow-700";
+      case "Cancelled":
+        return "bg-red-100 text-red-700";
+      case "Expired":
+        return "bg-gray-200 text-gray-800";
+      case "Ongoing":
+        return "bg-blue-100 text-blue-700";
+      default:
+        return "bg-gray-100 text-gray-600";
     }
   };
 
+  if (loading) {
+    return (
+      <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
+        <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
+          <h1 className="text-2xl font-semibold">Notification</h1>
+        </header>
+
+        <div
+          className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto space-y-4"
+          style={{ height: "calc(100vh - 50px - 40px)" }}
+        >
+          <div className="animate-pulse space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="border border-gray-200 rounded-2xl p-4 bg-gray-50 flex justify-between items-start"
+              >
+                <div className="space-y-2 w-full">
+                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                  <div className="h-3 bg-gray-100 rounded w-1/4"></div>
+                  <div className="flex gap-2 mt-2">
+                    <div className="h-5 w-20 bg-gray-200 rounded-full"></div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-16 bg-gray-200 rounded"></div>
+                  <div className="h-4 w-24 bg-gray-100 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] min-h-[50px] flex-shrink-0 flex items-center">
+      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
         <h1 className="text-2xl font-semibold">Notification</h1>
       </header>
 
-      <div className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto">
+      <div
+        className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto"
+        style={{ height: "calc(100vh - 50px - 40px)" }}
+      >
         {notifications.length === 0 ? (
           <p className="text-gray-600">No notifications yet.</p>
         ) : (
@@ -78,7 +133,7 @@ function Notification({ user, setView, setSelectedReservation }) {
             {notifications.map((notif) => (
               <li
                 key={notif._id}
-                className={`border border-gray-200 rounded-2xl shadow-sm w-full p-4 transition ${
+                className={`border border-gray-200 rounded-2xl shadow-sm p-4 transition ${
                   notif.isRead ? "bg-gray-50" : "bg-blue-50"
                 }`}
               >
@@ -109,7 +164,7 @@ function Notification({ user, setView, setSelectedReservation }) {
                           setView("reservationDetails");
                           markAsRead(notif._id);
                         }}
-                        className="text-[#CC0000] font-medium text-sm hover:underline"
+                        className="text-[#CC0000] font-medium text-sm hover:underline cursor-pointer"
                       >
                         View
                       </button>
