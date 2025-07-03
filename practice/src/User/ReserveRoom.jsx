@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import socket from "../utils/socket"; // Make sure you have this exported in a `socket.js` file
+import socket from "../utils/socket";
+import moment from "moment-timezone";
 import GroundFloorImg from "../assets/GroundFloor.jpg";
+import FifthFloorImg from "../assets/picture2.jpg";
+
+import FacultyRoomImg from "../assets/FacultyRoom.jpg";
+import Collab from "../assets/CollabRoom.jpg";
 
 function ReserveRoom({ user, setView }) {
   const navigate = useNavigate();
-
-
-
 
   const [formData, setFormData] = useState({
     date: "",
@@ -17,6 +19,7 @@ function ReserveRoom({ user, setView }) {
     purpose: "",
     location: "",
     roomName: "",
+    room_Id: "",
     participants: Array.from({ length: 4 }, () => ({
       name: "",
       course: "",
@@ -27,135 +30,178 @@ function ReserveRoom({ user, setView }) {
     })),
   });
 
-  
-
   const [validation, setValidation] = useState(
     Array.from({ length: 4 }, () => ({ status: null, message: "" }))
   );
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showNotVerifiedWarning, setShowNotVerifiedWarning] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [rooms, setRooms] = useState([]);
 
-useEffect(() => {
-  if (user) {
-    const updated = [...formData.participants];
-    updated[0] = {
-      name: user.name || "",
-      course: user.course || "",
-      yearLevel: user.year_level || "",
-      department: user.department || "",
-      idNumber: user.id_number || "",
-      role: user.role || "",
+  // Calendar generation functions
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const daysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+
+  const generateCalendarDays = (month, year) => {
+    const days = [];
+    const totalDays = daysInMonth(month, year);
+    const firstDay = firstDayOfMonth(month, year);
+    const now = new Date();
+    const today = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    for (let i = 0; i < firstDay; i++) days.push(null);
+
+    for (let i = 1; i <= totalDays; i++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const isPastDate = year < currentYear || 
+                       (year === currentYear && month < currentMonth) || 
+                       (year === currentYear && month === currentMonth && i < today);
+      
+      days.push({ day: i, date: dateStr, disabled: isPastDate });
+    }
+
+    return days;
+  };
+
+  const [calendarDays, setCalendarDays] = useState(generateCalendarDays(currentMonth, currentYear));
+
+  const groupedRooms = rooms.reduce((acc, room) => {
+    if (!acc[room.floor]) acc[room.floor] = [];
+    acc[room.floor].push(room);
+    return acc;
+  }, {});
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/rooms");
+        setRooms(res.data);
+      } catch (err) {
+        console.error("Failed to fetch rooms:", err);
+      }
+    };
+    fetchRooms();
+  }, []);
+
+  useEffect(() => {
+    setCalendarDays(generateCalendarDays(currentMonth, currentYear));
+  }, [currentMonth, currentYear]);
+
+  const handleMonthChange = (increment) => {
+    let newMonth = currentMonth + increment;
+    let newYear = currentYear;
+    
+    if (newMonth < 0) {
+      newMonth = 11;
+      newYear--;
+    } else if (newMonth > 11) {
+      newMonth = 0;
+      newYear++;
+    }
+    
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
+  };
+
+  useEffect(() => {
+    if (user) {
+      const updated = [...formData.participants];
+      updated[0] = {
+        name: user.name || "",
+        course: user.course || "",
+        yearLevel: user.year_level || "",
+        department: user.department || "",
+        idNumber: user.id_number || "",
+        role: user.role || "",
+      };
+
+      const v = [...validation];
+      v[0] = user.verified 
+        ? { status: "valid", message: "Verified ✓" } 
+        : { status: "invalid", message: "Not Verified" };
+
+      setFormData(prev => ({ ...prev, participants: updated }));
+      setValidation(v);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && !user.verified) {
+      setShowNotVerifiedWarning(true);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const handleVerification = (data) => {
+      if (data?.message?.includes("verified")) {
+        window.location.reload();
+      }
     };
 
-    const v = [...validation];
-    
-    if (user.verified) {
-      v[0] = { status: "valid", message: "Verified ✓" };
-    } else {
-      v[0] = { status: "invalid", message: "Not Verified" };
+    socket.on("notification", handleVerification);
+    return () => socket.off("notification", handleVerification);
+  }, [user]);
+
+  useEffect(() => {
+    if (user?._id) {
+      socket.emit("join", { userId: user._id });
     }
+  }, [user]);
 
-    setFormData((prev) => ({
-      ...prev,
-      participants: updated,
-    }));
-    setValidation(v);
-  }
-}, [user]);
+  const handleParticipantChange = async (idx, field, val) => {
+    if (idx === 0 && validation[0]?.status === "valid") return;
 
+    const updated = [...formData.participants];
+    updated[idx][field] = val;
 
-
-const [showNotVerifiedWarning, setShowNotVerifiedWarning] = useState(false);
-
-useEffect(() => {
-  if (user && !user.verified) {
-    setShowNotVerifiedWarning(true);
-  }
-}, [user]);
-
-useEffect(() => {
-  if (!user?._id) return;
-
-  const handleVerification = (data) => {
-    if (data?.message?.includes("verified")) {
-      window.location.reload(); // Force refresh so `user.verified` becomes true
-    }
-  };
-
-  socket.on("notification", handleVerification);
-
-  return () => {
-    socket.off("notification", handleVerification);
-  };
-}, [user]);
-
-useEffect(() => {
-  if (user?._id) {
-    socket.emit("join", { userId: user._id });
-  }
-}, [user]);
-
-
-
-const handleParticipantChange = async (idx, field, val) => {
-  if (idx === 0 && validation[0]?.status === "valid") return;
-
-  const updated = [...formData.participants];
-  updated[idx][field] = val;
-
-  // Check for duplicate ID numbers (except current idx)
-  if (field === "idNumber" && val.trim()) {
-    const isDuplicate = formData.participants.some(
-      (p, i) => i !== idx && p.idNumber === val
-    );
-
-    const v = [...validation];
-
-    if (isDuplicate) {
-      v[idx] = { status: "invalid", message: "Duplicate ID Number" };
-      setValidation(v);
-      setFormData({ ...formData, participants: updated });
-      return;
-    }
-
-    try {
-      const res = await axios.get(
-        `http://localhost:5000/reservations/check-participant?idNumber=${val}`
+    if (field === "idNumber" && val.trim()) {
+      const isDuplicate = formData.participants.some(
+        (p, i) => i !== idx && p.idNumber === val
       );
 
-      if (!res.data.exists) {
-        v[idx] = { status: "invalid", message: "Not registered." };
-        updated[idx] = {
-          name: "",
-          course: "",
-          yearLevel: "",
-          department: "",
-          idNumber: val,
-          role: "",
-        };
-      } else if (!res.data.verified) {
-        v[idx] = { status: "invalid", message: "Not verified." };
-        updated[idx] = {
-          name: "",
-          course: "",
-          yearLevel: "",
-          department: "",
-          idNumber: val,
-          role: "",
-        };
-      } else {
-        // Auto-fill based on role
-        if (res.data.role === "Faculty") {
-          updated[idx] = {
+      const v = [...validation];
+
+      if (isDuplicate) {
+        v[idx] = { status: "invalid", message: "Duplicate ID Number" };
+        setValidation(v);
+        setFormData({ ...formData, participants: updated });
+        return;
+      }
+
+      try {
+        const res = await axios.get(
+          `http://localhost:5000/reservations/check-participant?idNumber=${val}`
+        );
+
+        if (!res.data.exists) {
+          v[idx] = { status: "invalid", message: "Not registered." };
+          updated[idx] = { name: "", course: "", yearLevel: "", department: "", idNumber: val, role: "" };
+        } else if (!res.data.verified) {
+          v[idx] = { status: "invalid", message: "Not verified." };
+          updated[idx] = { name: "", course: "", yearLevel: "", department: "", idNumber: val, role: "" };
+        } else {
+          updated[idx] = res.data.role === "Faculty" ? {
             name: res.data.name,
             department: res.data.department,
             idNumber: val,
             course: "",
             yearLevel: "",
             role: res.data.role,
-          };
-        } else {
-          updated[idx] = {
+          } : {
             name: res.data.name,
             course: res.data.course,
             yearLevel: res.data.yearLevel,
@@ -163,34 +209,26 @@ const handleParticipantChange = async (idx, field, val) => {
             idNumber: val,
             role: res.data.role,
           };
+          v[idx] = { status: "valid", message: "Verified ✓" };
         }
-        v[idx] = { status: "valid", message: "Verified ✓" };
+
+        setFormData({ ...formData, participants: updated });
+        setValidation(v);
+      } catch (err) {
+        console.error("Validation error", err);
       }
-
+    } else {
       setFormData({ ...formData, participants: updated });
-      setValidation(v);
-    } catch (err) {
-      console.error("Validation error", err);
     }
-  } else {
-    setFormData({ ...formData, participants: updated });
-  }
-};
-
+  };
 
   const handleNumUsersChange = (val) => {
     const n = parseInt(val, 10);
     const updated = [...formData.participants];
     const v = [...validation];
+    
     while (updated.length < n) {
-      updated.push({
-        name: "",
-        course: "",
-        yearLevel: "",
-        department: "",
-        idNumber: "",
-        role: "",
-      });
+      updated.push({ name: "", course: "", yearLevel: "", department: "", idNumber: "", role: "" });
       v.push({ status: null, message: "" });
     }
 
@@ -198,19 +236,15 @@ const handleParticipantChange = async (idx, field, val) => {
     v.length = n;
     setFormData({ ...formData, numUsers: val, participants: updated });
     setValidation(v);
+    setShowUsersModal(false);
   };
 
   const validateForm = () => {
-    if (
-      !formData.date ||
-      !formData.time ||
-      !formData.location ||
-      !formData.roomName ||
-      !formData.purpose
-    ) {
+    if (!formData.date || !formData.time || !formData.location || !formData.roomName || !formData.purpose) {
       alert("Please complete all required fields.");
       return false;
     }
+
     for (let i = 0; i < formData.participants.length; i++) {
       const p = formData.participants[i];
       if (!p.name || !p.department || !p.idNumber) {
@@ -218,12 +252,9 @@ const handleParticipantChange = async (idx, field, val) => {
         return false;
       }
 
-      // Check course and yearLevel only for students (not Faculty or Staff)
-      if (p.role !== "Faculty" && p.role !== "Staff") {
-        if (!p.course || !p.yearLevel) {
-          alert(`Please complete all fields for participant ${i + 1}.`);
-          return false;
-        }
+      if (p.role !== "Faculty" && p.role !== "Staff" && (!p.course || !p.yearLevel)) {
+        alert(`Please complete all fields for participant ${i + 1}.`);
+        return false;
       }
 
       if (validation[i].status !== "valid") {
@@ -236,20 +267,44 @@ const handleParticipantChange = async (idx, field, val) => {
 
   const submitReservation = async () => {
     if (!validateForm()) return;
-    setLoading(true); // <-- start loading
-    const datetime = `${formData.date}T${formData.time}`;
+    setLoading(true);
+
     try {
-      await axios.post("http://localhost:5000/reservations", {
+      // Create moment objects in Manila timezone
+      const manilaTime = moment.tz(
+        `${formData.date}T${formData.time}`,
+        "YYYY-MM-DDTHH:mm",
+        "Asia/Manila"
+      );
+
+      // Calculate end time (1 hour later)
+      const endManilaTime = manilaTime.clone().add(1, 'hour');
+
+      const reservationData = {
         userId: user._id,
-        ...formData,
-        datetime,
-      });
+        room_Id: formData.room_Id,
+        roomName: formData.roomName,
+        location: formData.location,
+        datetime: manilaTime.format(), // ISO string in Manila time
+        datetimeUTC: manilaTime.utc().format(), // UTC version
+        date: formData.date,
+        time: formData.time,
+        endDatetime: endManilaTime.format(),
+        endDatetimeUTC: endManilaTime.utc().format(),
+        numUsers: formData.numUsers,
+        purpose: formData.purpose,
+        participants: formData.participants,
+        timezone: "Asia/Manila",
+        status: "Pending" // Initial status
+      };
+
+      await axios.post("http://localhost:5000/reservations", reservationData);
       setShowSuccessModal(true);
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Reservation submission failed.");
+    } catch (error) {
+      console.error("Reservation failed:", error);
+      alert(`Reservation failed: ${error.response?.data?.message || error.message}`);
     } finally {
-      setLoading(false); // <-- stop loading after completion
+      setLoading(false);
     }
   };
 
@@ -259,36 +314,12 @@ const handleParticipantChange = async (idx, field, val) => {
   };
 
   const roomLocations = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
-  const roomNames = [
-    "Discussion Room",
-    "Collaboration Corner",
-    "Graduate Research Hub",
-    "Faculty Corner",
-  ];
-  const now = new Date();
-  const minDate = now.toISOString().split("T")[0];
-  const maxDate = `${now.getFullYear() + 1}-12-31`;
   const times = [
-    "07:00",
-    "07:30",
-    "08:00",
-    "08:30",
-    "09:00",
-    "09:30",
-    "10:00",
-    "10:30",
-    "11:00",
-    "11:30",
-    "13:00",
-    "13:30",
-    "14:00",
-    "14:30",
-    "15:00",
-    "15:30",
-    "16:00",
-    "16:30",
-    "17:00",
+    "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
+    "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", 
+    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
   ];
+
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col">
@@ -317,64 +348,235 @@ const handleParticipantChange = async (idx, field, val) => {
         </div>
       )}
 
-      {/* form header */}
       <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
         <h1 className="text-2xl font-semibold">Room Reservation Request</h1>
       </header>
 
       <div className="m-5 flex flex-col items-center">
-        {/* Date / Time / Users */}
         <div className="flex flex-wrap gap-6">
-          {/* Date */}
+          {/* Date Selector */}
           <div>
             <p>Select Date</p>
-            <input
-              type="date"
-              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
-              min={minDate}
-              max={maxDate}
-              value={formData.date}
-              onChange={(e) =>
-                setFormData({ ...formData, date: e.target.value })
-              }
-            />
+            <div
+              onClick={() => setShowDateModal(true)}
+              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
+            >
+              {formData.date ? (
+                new Date(formData.date).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })
+              ) : (
+                <span className="text-gray-400">Select Date</span>
+              )}
+            </div>
           </div>
 
-          {/* Time */}
+          {/* Time Selector */}
           <div>
             <p>Time</p>
-            <select
-              className="w-[250px] h-[40px] p-2 border rounded-[7px] bg-white border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
-              value={formData.time}
-              onChange={(e) =>
-                setFormData({ ...formData, time: e.target.value })
-              }
+            <div
+              onClick={() => setShowTimeModal(true)}
+              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
             >
-              <option value="">Select Time</option>
-              {times.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              {formData.time || <span className="text-gray-400">Select Time</span>}
+            </div>
           </div>
 
-          {/* Number of users */}
+          {/* Number of Users Selector */}
           <div>
             <p>Number of Users</p>
-            <select
-              className="w-[250px] h-[40px] p-2 border rounded-[7px] bg-white border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
-              value={formData.numUsers}
-              onChange={(e) => handleNumUsersChange(e.target.value)}
+            <div
+              onClick={() => setShowUsersModal(true)}
+              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
             >
-              {[4, 5, 6, 7, 8].map((n) => (
-                <option key={n} value={n}>
-                  {n} Users
-                </option>
-              ))}
-            </select>
+              {formData.numUsers ? `${formData.numUsers} Users` : <span className="text-gray-400">Select Users</span>}
+            </div>
           </div>
         </div>
+
+        {/* Date Selection Modal */}
+        {showDateModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl w-[350px]">
+              <div className="flex justify-between items-center mb-4">
+                <button 
+                  onClick={() => handleMonthChange(-1)}
+                  className="p-2 rounded-full hover:bg-gray-100 font-bold cursor-pointer"
+                >
+                  &lt;
+                </button>
+                <h2 className="text-xl font-semibold">
+                  {months[currentMonth]} {currentYear}
+                </h2>
+                <button 
+                  onClick={() => handleMonthChange(1)}
+                  className="p-2 rounded-full hover:bg-gray-100 font-bold cursor-pointer"
+                >
+                  &gt;
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-7 gap-1 mb-4">
+                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                  <div key={day} className="text-center font-medium text-gray-500 text-sm">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((day, index) => (
+                  <div key={index} className="text-center">
+                    {day ? (
+                      <button
+                        onClick={() => {
+                          if (!day.disabled) {
+                            setFormData({ ...formData, date: day.date });
+                            setShowDateModal(false);
+                          }
+                        }}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center
+                          ${day.disabled ? 'text-gray-300 cursor-not-allowed' : 
+                            formData.date === day.date ? 
+                              'bg-[#CC0000] text-white' : 
+                              'hover:bg-gray-100'}
+                        `}
+                        disabled={day.disabled}
+                      >
+                        {day.day}
+                      </button>
+                    ) : (
+                      <div className="w-10 h-10"></div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <button
+                onClick={() => setShowDateModal(false)}
+                className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Time Selection Modal */}
+{showTimeModal && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-xl w-[350px] md:w-[600px] max-h-[90vh] overflow-y-auto">
+      <h2 className="text-xl font-semibold mb-4">Select Time</h2>
+
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Morning */}
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-gray-500 mb-2">
+            Morning (7:00 AM – 11:30 AM)
+          </h3>
+          <div className="grid grid-cols-1 gap-2">
+            {times
+              .filter((time) => {
+                const [hourStr] = time.split(":");
+                const hour = parseInt(hourStr, 10);
+                return hour >= 7 && hour < 12;
+              })
+              .map((time) => (
+                <button
+                  key={time}
+                  onClick={() => {
+                    setFormData({ ...formData, time });
+                    setShowTimeModal(false);
+                  }}
+                  className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
+                    formData.time === time
+                      ? "bg-[#CC0000] text-white border-[#CC0000]"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  {time}
+                </button>
+              ))}
+          </div>
+        </div>
+
+        {/* Afternoon */}
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-gray-500 mb-2">
+            Afternoon (1:00 PM – 5:00 PM)
+          </h3>
+          <div className="grid grid-cols-1 gap-2">
+            {times
+              .filter((time) => {
+                const [hourStr] = time.split(":");
+                const hour = parseInt(hourStr, 10);
+                return hour >= 13 && hour <= 17;
+              })
+              .map((time) => (
+                <button
+                  key={time}
+                  onClick={() => {
+                    setFormData({ ...formData, time });
+                    setShowTimeModal(false);
+                  }}
+                  className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
+                    formData.time === time
+                      ? "bg-[#CC0000] text-white"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  {time}
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setShowTimeModal(false)}
+        className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+
+
+        {/* Number of Users Modal */}
+        {showUsersModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl w-[350px]">
+              <h2 className="text-xl font-semibold mb-4">Number of Users</h2>
+              <div className="grid grid-cols-1 gap-3 mb-4">
+                {[4, 5, 6, 7, 8].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => {
+                      handleNumUsersChange(num.toString());
+                      setShowUsersModal(false);
+                    }}
+                    className={`p-4 border rounded-lg text-center cursor-pointer border-gray-500 ${
+                      formData.numUsers === num.toString()
+                        ? "bg-[#CC0000] text-white"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    {num} Users
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowUsersModal(false)}
+                className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Purpose */}
         <div className="my-4 w-[800px]">
@@ -389,58 +591,119 @@ const handleParticipantChange = async (idx, field, val) => {
           />
         </div>
 
-        {/* Room Location */}
-        <div className="flex flex-col items-center gap-5">
-          <p className="font-semibold font-sans text-lg">Room Location</p>
-          <div className="flex flex-wrap gap-5 justify-center">
-            {roomLocations.map((loc) => (
+<div className="flex flex-col items-center gap-5">
+  <p className="font-semibold font-sans text-lg">Room Location</p>
+  <div className="flex flex-wrap gap-5 justify-center">
+    {roomLocations.map((loc) => {
+      let imageSrc = null;
+      if (loc === "Ground Floor") imageSrc = GroundFloorImg;
+      if (loc === "5th Floor") imageSrc = FifthFloorImg;
+
+      return (
+        <div
+          key={loc}
+          onClick={() =>
+            setFormData({
+              ...formData,
+              location: loc,
+              roomName: "",
+              room_Id: "",
+            })
+          }
+          className={`border border-gray-200 shadow-sm rounded-2xl w-[200px] h-[200px] flex justify-center items-center cursor-pointer transition duration-200 overflow-hidden relative ${
+            formData.location === loc ? "border-red-600 opacity-100" : "opacity-40"
+          }`}
+        >
+          {imageSrc && (
+            <img
+              src={imageSrc}
+              alt={loc}
+              className="absolute w-full h-full object-cover"
+              loading="lazy"
+            />
+          )}
+          <p className="absolute bottom-2 left-0 w-full text-center text-white text-lg font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            {loc}
+          </p>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+{/* Room Selection */}
+<div className="flex flex-col items-center gap-5 mt-8 w-full">
+  <p className="font-semibold font-sans text-lg">Select Room</p>
+
+  {formData.location ? (
+    <div className="w-full px-5">
+      <div className="flex flex-wrap flex-row gap-5 justify-center">
+        {rooms
+          .filter((room) => {
+            const floor = formData.location;
+
+            if (floor === "5th Floor") {
+              // For 5th Floor: only show Faculty Room and Collaboration Room
+              return (
+                room.floor === floor &&
+                (room.room === "Faculty Room" ||
+                  room.room === "Collaboration Room")
+              );
+            } else {
+              // For other floors: show all rooms on that floor
+              return room.floor === floor;
+            }
+          })
+          .map((room) => {
+            let roomImage = null;
+            if (room.room === "Faculty Room") roomImage = FacultyRoomImg;
+            if (room.room === "Collaboration Room") roomImage = Collab;
+
+            return (
               <div
-                key={loc}
-                onClick={() => setFormData({ ...formData, location: loc })}
-                className={`border border-gray-200 shadow-sm rounded-2xl w-[200px] h-[200px] flex flex-col justify-center items-center cursor-pointer transition duration-200 overflow-hidden relative ${
-                  formData.location === loc ? "border-red-600" : "opacity-40"
+                key={room._id}
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    roomName: room.room,
+                    room_Id: room._id,
+                  }))
+                }
+                className={`border border-gray-200 shadow-sm rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden ${
+                  formData.room_Id === room._id
+                    ? "bg-red-100 border-red-600 opacity-100"
+                    : "hover:opacity-100 opacity-80"
                 }`}
               >
-                {loc === "Ground Floor" ? (
-                  <>
-                    <img
-                      src={GroundFloorImg}
-                      alt={loc}
-                      className="absolute w-full h-full object-cover"
-                    />
-                    <p className="absolute bottom-2 left-0 w-full text-center text-white text-lg font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                      {loc}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-center z-10">{loc}</p>
+                {roomImage && (
+                  <img
+                    src={roomImage}
+                    alt={room.room}
+                    className="absolute w-full h-full object-cover"
+                    loading="lazy"
+                  />
                 )}
+                <div className="absolute inset-0 bg-black/30 z-0"></div>
+                <p className="text-white text-xl font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] z-10">
+                  {room.room}
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
+            );
+          })}
+      </div>
+    </div>
+  ) : (
+    <div className="text-gray-500 italic">Please select a floor location first</div>
+  )}
+</div>
 
-        {/* Room Names */}
-        <div className="flex flex-col h-[25rem] items-center gap-5 mt-8">
-          <p className="font-semibold font-sans text-lg">Room’s Name</p>
-          <div className="flex flex-wrap gap-5 justify-center">
-            {roomNames.map((name) => (
-              <div
-                key={name}
-                onClick={() => setFormData({ ...formData, roomName: name })}
-                className={`border border-gray-200 shadow-sm rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer ${
-                  formData.roomName === name
-                    ? "bg-red-100 border-red-600"
-                    : "opacity-40"
-                }`}
-              >
-                {name}
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <p className="font-semibold font-sans text-lg">Participants</p>
+
+
+
+
+
+        <p className="font-semibold font-sans text-lg mt-6">Participants</p>
 
         {/* Participants Table */}
         <div className="overflow-x-auto mt-6 flex justify-center">
@@ -457,44 +720,39 @@ const handleParticipantChange = async (idx, field, val) => {
             <tbody>
               {formData.participants.map((p, idx) => (
                 <tr key={idx} className="even:bg-gray-50">
-                  {/* ID Number */}
                   <td className="py-2 px-4">
                     <div className="relative">
-  <input
-    type="text"
-    placeholder="ID Number"
-    className={`w-full p-2 pr-10 rounded-lg outline-none border shadow-sm
-      ${
-        validation[idx]?.status === "valid"
-          ? "border-green-600"
-          : validation[idx]?.status === "invalid"
-          ? "border-red-600 focus:border-red-600"
-          : "border-gray-300 focus:border-red-600"
-      }`}
-    value={p.idNumber}
-    disabled={idx === 0}
-    onChange={(e) =>
-      handleParticipantChange(idx, "idNumber", e.target.value)
-    }
-  />
-
-  {validation[idx]?.status === "valid" && (
-    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 text-sm select-none pointer-events-none">
-      Verified ✓
-    </span>
-  )}
-
-  {validation[idx]?.status === "invalid" && (
-    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-600 text-sm whitespace-nowrap select-none pointer-events-none">
-      {validation[idx]?.message === "Duplicate ID Number"
-        ? "Duplicate ID Number !"
-        : "Not Verified !"}
-    </div>
-  )}
-</div>
-
+                      <input
+                        type="text"
+                        placeholder="ID Number"
+                        className={`w-full p-2 pr-10 rounded-lg outline-none border shadow-sm
+                          ${
+                            validation[idx]?.status === "valid"
+                              ? "border-green-600"
+                              : validation[idx]?.status === "invalid"
+                              ? "border-red-600 focus:border-red-600"
+                              : "border-gray-300 focus:border-red-600"
+                          }`}
+                        value={p.idNumber}
+                        disabled={idx === 0}
+                        onChange={(e) =>
+                          handleParticipantChange(idx, "idNumber", e.target.value)
+                        }
+                      />
+                      {validation[idx]?.status === "valid" && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 text-sm select-none pointer-events-none">
+                          Verified ✓
+                        </span>
+                      )}
+                      {validation[idx]?.status === "invalid" && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-600 text-sm whitespace-nowrap select-none pointer-events-none">
+                          {validation[idx]?.message === "Duplicate ID Number"
+                            ? "Duplicate ID Number !"
+                            : "Not Verified !"}
+                        </div>
+                      )}
+                    </div>
                   </td>
-                  {/* Name */}
                   <td className="py-2 px-4">
                     <input
                       type="text"
@@ -507,8 +765,6 @@ const handleParticipantChange = async (idx, field, val) => {
                       }
                     />
                   </td>
-
-                  {/* Course - show only if not Faculty/Staff */}
                   {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
                     <td className="py-2 px-4">
                       <input
@@ -525,8 +781,6 @@ const handleParticipantChange = async (idx, field, val) => {
                   ) : (
                     <td className="py-2 px-4 text-gray-400 italic">N/A</td>
                   )}
-
-                  {/* Year Level - show only if not Faculty/Staff */}
                   {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
                     <td className="py-2 px-4">
                       <input
@@ -536,19 +790,13 @@ const handleParticipantChange = async (idx, field, val) => {
                         value={p.yearLevel}
                         disabled={idx === 0 || validation[idx].status === "valid"}
                         onChange={(e) =>
-                          handleParticipantChange(
-                            idx,
-                            "yearLevel",
-                            e.target.value
-                          )
+                          handleParticipantChange(idx, "yearLevel", e.target.value)
                         }
                       />
                     </td>
                   ) : (
                     <td className="py-2 px-4 text-gray-400 italic">N/A</td>
                   )}
-
-                  {/* Department */}
                   <td className="py-2 px-4">
                     <input
                       type="text"
@@ -557,11 +805,7 @@ const handleParticipantChange = async (idx, field, val) => {
                       value={p.department}
                       disabled={idx === 0 || validation[idx].status === "valid"}
                       onChange={(e) =>
-                        handleParticipantChange(
-                          idx,
-                          "department",
-                          e.target.value
-                        )
+                        handleParticipantChange(idx, "department", e.target.value)
                       }
                     />
                   </td>
@@ -569,7 +813,6 @@ const handleParticipantChange = async (idx, field, val) => {
               ))}
             </tbody>
           </table>
-          
         </div>
         <p className="text-sm text-gray-600 italic mt-3">
           * Enter ID Number to auto-fill participant details. Verified fields
@@ -578,17 +821,15 @@ const handleParticipantChange = async (idx, field, val) => {
 
         <div className="w-full flex flex-col self-start mt-6 px-45">
           <h4 className="font-semibold text-md font-sans text-gray-800"><span className="text-red-700">* </span>Note</h4>
-<ul className="list-disc pl-5">
-  <li className="text-sm text-gray-600 mb-1">
-    The group will be notified fifteen (15) minutes before the usage is terminated. If there are no standing reservations for the next hour, the group may request a one-hour extension.
-  </li>
-  <li className="text-sm text-gray-600 mb-1">
-    The Learning Resource Center reserves the right to cancel the reservation of any group that does not arrive within fifteen (15) minutes of the scheduled reservation time.
-  </li>
-</ul>
-
+          <ul className="list-disc pl-5">
+            <li className="text-sm text-gray-600 mb-1">
+              The group will be notified fifteen (15) minutes before the usage is terminated. If there are no standing reservations for the next hour, the group may request a one-hour extension.
+            </li>
+            <li className="text-sm text-gray-600 mb-1">
+              The Learning Resource Center reserves the right to cancel the reservation of any group that does not arrive within fifteen (15) minutes of the scheduled reservation time.
+            </li>
+          </ul>
         </div>
-
 
         {/* Submit Button */}
         <div className="flex justify-center mt-5">
@@ -630,12 +871,12 @@ const handleParticipantChange = async (idx, field, val) => {
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-xl max-w-sm w-full text-center">
-            <h2 className="text-lg font-semibold mb-4 ">
+            <h2 className="text-lg font-semibold mb-4">
               Reservation Submitted!
             </h2>
             <p className="text-gray-600 text-sm">
-  Thank you for your request. A confirmation will be sent once it’s reviewed.
-</p>
+              Thank you for your request. A confirmation will be sent once it's reviewed.
+            </p>
             <button
               onClick={closeSuccess}
               className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer mt-6"
@@ -647,24 +888,23 @@ const handleParticipantChange = async (idx, field, val) => {
       )}
 
       {showNotVerifiedWarning && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white p-6 rounded-xl max-w-md w-full text-center border-t-5 border-[#CC0000]">
-      <h2 className="text-xl font-semibold text-red-600 mb-3">
-        Not Verified Account
-      </h2>
-      <p className="text-gray-700 mb-4">
-        Your account is not verified. You may fill out the form, but you cannot submit a reservation until verification is completed.
-      </p>
-      <button
-        onClick={() => setShowNotVerifiedWarning(false)}
-        className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer"
-      >
-        I Understand
-      </button>
-    </div>
-  </div>
-)}
-
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl max-w-md w-full text-center border-t-5 border-[#CC0000]">
+            <h2 className="text-xl font-semibold text-red-600 mb-3">
+              Not Verified Account
+            </h2>
+            <p className="text-gray-700 mb-4">
+              Your account is not verified. You may fill out the form, but you cannot submit a reservation until verification is completed.
+            </p>
+            <button
+              onClick={() => setShowNotVerifiedWarning(false)}
+              className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer"
+            >
+              I Understand
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

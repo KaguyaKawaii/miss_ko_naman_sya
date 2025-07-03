@@ -171,6 +171,15 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
             </button>
           </form>
 
+          <div className="mt-4">
+  <button
+    onClick={() => setView("resetPassword")}
+    className="text-[#FFCC00] font-semibold hover:underline cursor-pointer"
+  >
+    Forgot password?
+  </button>
+</div>
+
           <div className="flex gap-2 mt-2">
             <p>Don't have an account?</p>
             <button

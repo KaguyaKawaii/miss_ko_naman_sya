@@ -4,6 +4,8 @@ const Reservation = require("../models/Reservation");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const sendEmail = require("../mailer");
+const Room = require("../models/Room");
+
 
 // Get any reservation for today involving the user
 router.get("/reservations/user-has-any/:userId", async (req, res) => {
@@ -349,26 +351,60 @@ router.get("/check-participant", async (req, res) => {
 });
 
 
-// POST — Create reservation + notifications for participants
+// In reservationRoutes.js - complete POST endpoint
 router.post("/", async (req, res) => {
   try {
-    const { userId, date, time, numUsers, purpose, location, roomName, participants } = req.body;
+    const {
+  userId,
+  room_Id, // ✅ FIXED — ADD THIS
+  date,
+  time,
+  numUsers,
+  purpose,
+  location,
+  roomName,
+  participants,
+  datetime, // if still using it
+} = req.body;
 
-    if (!userId || !date || !time || !location || !roomName || !purpose) {
-      return res.status(400).json({ message: "Missing required fields." });
-    }
 
-    const datetime = new Date(`${date}T${time}`);
-    if (isNaN(datetime.getTime())) {
-      return res.status(400).json({ message: "Invalid date or time format." });
-    }
+if (!userId || !date || !datetime || !location || !roomName || !purpose) {
+  return res.status(400).json({ message: "Missing required fields." });
+}
 
-    const endDatetime = new Date(datetime.getTime() + 2 * 60 * 60 * 1000);
+const parsedDatetime = new Date(datetime);
+if (isNaN(parsedDatetime.getTime())) {
+  return res.status(400).json({ message: "Invalid datetime format." });
+}
+
+// ✅ FIXED: Use parsedDatetime instead of datetime string
+const endDatetime = new Date(parsedDatetime.getTime() + 2 * 60 * 60 * 1000);
+
+
+    // Calculate end time (2 hours duration)
+    
     const now = new Date();
     const dayStart = new Date(`${date}T00:00:00`);
     const nextDay = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    // 1️⃣ Check active overlapping reservation for this user
+    // 1️⃣ Check room availability
+    const conflictingReservation = await Reservation.findOne({
+  roomName,
+  location,
+  status: { $in: ["Approved", "Ongoing"] },
+  $or: [
+    { datetime: { $lt: endDatetime }, endDatetime: { $gt: parsedDatetime } },
+  ],
+});
+
+
+    if (conflictingReservation) {
+      return res.status(400).json({ 
+        message: `This room is already booked from ${new Date(conflictingReservation.datetime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} to ${new Date(conflictingReservation.endDatetime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+      });
+    }
+
+    // 2️⃣ Check active reservation for this user
     const activeReservation = await Reservation.findOne({
       userId,
       status: { $in: ["Pending", "Approved", "Ongoing"] },
@@ -378,34 +414,21 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "You already have an active reservation." });
     }
 
-    // 2️⃣ Check same-day reservation for this user
+    // 3️⃣ Check same-day reservation for this user
     const sameDayReservation = await Reservation.findOne({
-  userId,
-  datetime: { $gte: dayStart, $lt: nextDay },
-});
-
+      userId,
+      datetime: { $gte: dayStart, $lt: nextDay },
+    });
     if (sameDayReservation) {
       return res.status(400).json({ message: "You already made a reservation for this day." });
     }
 
-    // 3️⃣ Check for overlapping reservation in same room and location
-    const overlappingReservation = await Reservation.findOne({
-      roomName,
-      location,
-      status: { $in: ["Pending", "Approved", "Ongoing"] },
-      $or: [
-        { datetime: { $lt: endDatetime }, endDatetime: { $gt: datetime } },
-      ],
-    });
-    if (overlappingReservation) {
-      return res.status(400).json({ message: "This room is already reserved for the selected time." });
-    }
-
-    // 4️⃣ Check participants' existence, verification, and active reservations
+    // 4️⃣ Validate participants
+    const enrichedParticipants = [];
     for (const participant of participants) {
       const user = await User.findOne({ id_number: participant.idNumber });
       if (!user) {
-        return res.status(400).json({ message: `Participant with ID Number ${participant.idNumber} is not registered.` });
+        return res.status(400).json({ message: `Participant with ID ${participant.idNumber} not found.` });
       }
 
       if (!user.verified) {
@@ -414,15 +437,16 @@ router.post("/", async (req, res) => {
 
       if (user.name !== participant.name) {
         return res.status(400).json({
-          message: `Name mismatch for ID Number ${participant.idNumber}. Expected: ${user.name}, but received: ${participant.name}`
+          message: `Name mismatch for ID ${participant.idNumber}. Expected: ${user.name}`
         });
       }
 
+      // Check participant's active reservations
       const hasActiveRes = await Reservation.findOne({
         status: { $in: ["Pending", "Approved", "Ongoing"] },
         $or: [
           { userId: user._id },
-          { "participants.userId": user._id },
+          { "participants.idNumber": user.id_number },
         ],
         endDatetime: { $gte: now },
       });
@@ -432,29 +456,22 @@ router.post("/", async (req, res) => {
           message: `Participant ${user.name} already has an active reservation.`,
         });
       }
+
+      enrichedParticipants.push({
+        idNumber: user.id_number,
+        name: user.name,
+        course: user.course || "N/A",
+        year_level: user.yearLevel || "N/A",
+        department: user.department || "N/A",
+      });
     }
 
-    // Build enrichedParticipants array before saving
-const enrichedParticipants = [];
-
-for (const participant of participants) {
-  const user = await User.findOne({ id_number: participant.idNumber });
-  if (!user) continue;
-
-  enrichedParticipants.push({
-    idNumber: user.id_number,
-    name: user.name,
-    course: user.course || "N/A",
-    year_level: user.yearLevel || "N/A", // ✅ use snake_case here
-    department: user.department || "N/A",
-  });
-}
-
-// ✅ Create the reservation
-const reservation = await Reservation.create({
+    // ✅ Create the reservation
+    const reservation = await Reservation.create({
   userId,
+  room_Id, // ✅ CRITICAL LINE
   date,
-  datetime,
+  datetime: parsedDatetime,
   endDatetime,
   numUsers,
   purpose,
@@ -463,8 +480,6 @@ const reservation = await Reservation.create({
   participants: enrichedParticipants,
   status: "Pending",
 });
-
-
 
 
     const formattedDate = new Date(reservation.date).toLocaleDateString("en-PH", {
@@ -499,7 +514,7 @@ const reservation = await Reservation.create({
 
           await sendEmail({
             to: user.email,
-            subject: "USA-FLD Room Reservation Notification",
+            subject: "Room Reservation Notification",
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
                 <h2 style="color: #CC0000;">Room Reservation Notification</h2>
@@ -509,7 +524,7 @@ const reservation = await Reservation.create({
                   <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Date:</strong></td><td style="padding: 8px; border: 1px solid #eee;">${formattedDate}</td></tr>
                   <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Time:</strong></td><td style="padding: 8px; border: 1px solid #eee;">${time}</td></tr>
                   <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Location:</strong></td><td style="padding: 8px; border: 1px solid #eee;">${location}</td></tr>
-                  <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Room:</strong></td><td style="padding: 8px; border: 1px solid #eee;">${reservation.roomName}</td></tr>
+                  <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Room:</strong></td><td style="padding: 8px; border: 1px solid #eee;">${roomName}</td></tr>
                   <tr><td style="padding: 8px; border: 1px solid #eee;"><strong>Purpose:</strong></td><td style="padding: 8px; border: 1px solid #eee;">${purpose}</td></tr>
                 </table>
                 <h4>Participants:</h4>
@@ -522,8 +537,6 @@ const reservation = await Reservation.create({
               </div>
             `,
           });
-        } else {
-          console.warn(`⚠️ Skipped sending email to ${user.name} — no email defined.`);
         }
       }
     }
@@ -784,6 +797,117 @@ router.get("/check-no-show", async (req, res) => {
     res.status(500).json({ message: "Failed to check no-shows." });
   }
 });
+
+
+// GET /reservations/availability?date=2025-04-05&floor=Ground%20Floor
+
+
+
+const moment = require("moment-timezone");
+
+router.get("/availability", async (req, res) => {
+  const { date, floor } = req.query;
+  if (!date) return res.status(400).json({ error: "Date is required" });
+
+  try {
+    // Convert query date to Manila time range
+    const manilaStart = moment.tz(date, "Asia/Manila").startOf("day");
+    const manilaEnd = moment.tz(date, "Asia/Manila").endOf("day");
+
+    // Convert to UTC for database query
+    const startUTC = manilaStart.utc().toDate();
+    const endUTC = manilaEnd.utc().toDate();
+
+    // Build room query
+    const roomQuery = { isActive: true };
+    if (floor) roomQuery.floor = floor;
+
+    // Get all active rooms
+    const rooms = await Room.find(roomQuery);
+
+    // Find reservations that overlap with the date
+    const reservations = await Reservation.find({
+      status: { $in: ["Approved", "Ongoing"] },
+      $or: [
+        { datetime: { $gte: startUTC, $lt: endUTC } },
+        { endDatetime: { $gt: startUTC, $lte: endUTC } },
+        { datetime: { $lte: startUTC }, endDatetime: { $gte: endUTC } }
+      ]
+    });
+
+    // Format response
+    const result = rooms.map((room) => {
+      const roomReservations = reservations.filter(
+        (r) => r.room_Id?.toString() === room._id.toString()
+      );
+
+      const occupied = roomReservations.map((r) => {
+        // Convert back to Manila time for display
+        const startManila = moment.utc(r.datetime).tz("Asia/Manila").format();
+        const endManila = moment.utc(r.endDatetime).tz("Asia/Manila").format();
+
+        return {
+          start: startManila,
+          end: endManila,
+          status: r.status,
+          purpose: r.purpose,
+          groupName: r.participants[0]?.name || "Unknown"
+        };
+      });
+
+      return {
+        _id: room._id,
+        floor: room.floor,
+        room: room.room,
+        capacity: room.capacity,
+        occupied,
+        available: occupied.length === 0
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Availability check error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+
+// PATCH /reservations/:id/status
+router.patch("/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    const reservation = await Reservation.findById(id);
+    if (!reservation) {
+      return res.status(404).json({ error: "Reservation not found." });
+    }
+
+    reservation.status = status;
+
+    if (status === "Approved") {
+      // recalculate UTC values for accuracy
+      const startManila = moment.tz(reservation.datetime, "Asia/Manila");
+      const endManila = startManila.clone().add(1, "hour");
+
+      reservation.datetimeUTC = startManila.utc().toDate();
+      reservation.endDatetimeUTC = endManila.utc().toDate();
+    }
+
+    await reservation.save();
+
+    req.app.get("io")?.emit("reservationUpdate", reservation);
+    res.json({ success: true, reservation });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update status." });
+  }
+});
+
 
 
 module.exports = router;

@@ -53,20 +53,20 @@ function AdminReservations({ setView }) {
       .finally(() => setIsLoading(false));
   };
 
-  const handleStatusChange = (id, newStatus) => {
+ const handleStatusChange = (id, newStatus) => {
     if (
       newStatus === "Rejected" &&
       !window.confirm("Are you sure to reject this reservation?")
-    ) {
-      return;
-    }
+    ) return;
 
-    axios
-      .put(`http://localhost:5000/reservations/${id}`, { status: newStatus })
+    axios.put(`http://localhost:5000/reservations/${id}`, { status: newStatus })
       .then(() => {
         alert(`Reservation ${newStatus}. Notification sent.`);
         fetchReservations();
         setModalRes(null);
+
+        // ✅ Trigger calendar availability refresh if callback is provided
+        if (onReservationUpdated) onReservationUpdated();
       })
       .catch((err) => console.error(err));
   };

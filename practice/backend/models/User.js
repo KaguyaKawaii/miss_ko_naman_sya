@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-/* Helper — PH time (UTC+8) */
 function nowPH() {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
@@ -16,7 +15,7 @@ const userSchema = new mongoose.Schema({
 
   department:  { type: String, default: "N/A" },
   course:      { type: String, default: "N/A" },
-  year_level:  { type: String, default: "N/A" },  // use snake_case in DB consistently
+  year_level:  { type: String, default: "N/A" },
 
   role: {
     type: String,
@@ -26,9 +25,14 @@ const userSchema = new mongoose.Schema({
 
   verified:   { type: Boolean, default: false },
   created_at: { type: Date, default: nowPH },
+
+  otp:        { type: String },
+  otpExpiry:  { type: Date },
+
+  // Skip hash flag for password reset
+  skipPasswordHash: { type: Boolean, select: false },
 });
 
-/* Virtual for frontend-friendly camelCase (.yearLevel) */
 userSchema
   .virtual("yearLevel")
   .get(function () {
@@ -38,14 +42,12 @@ userSchema
     this.year_level = val;
   });
 
-/* Remove virtuals when converting to JSON/Objects */
 userSchema.set("toJSON", { virtuals: true });
 userSchema.set("toObject", { virtuals: true });
 
-/* Password hashing + auto-verify Faculty/Staff */
 userSchema.pre("save", async function (next) {
-  // Only hash if new or password is modified
-  if (this.isNew || this.isModified("password")) {
+  // Hash password only if new, modified, and skip flag is not true
+  if ((this.isNew || this.isModified("password")) && !this.skipPasswordHash) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
   }

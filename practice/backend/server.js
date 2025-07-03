@@ -15,6 +15,9 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/auth");
+const forgotPasswordRoutes = require("./routes/forgotPasswordRoutes");
+const roomRoutes = require("./routes/roomRoutes"); // or correct path
+
 
 
 // App setup
@@ -33,6 +36,8 @@ app.use("/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api", forgotPasswordRoutes);
+app.use("/rooms", roomRoutes); // ✅ mounts /rooms
 
 // Socket.io setup
 const io = new Server(server, {

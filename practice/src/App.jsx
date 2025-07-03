@@ -8,9 +8,12 @@ import Body from "./Homepage/Body.jsx";
 import Body2 from "./Homepage/Body2.jsx";
 import Body3 from "./Homepage/Body3.jsx";
 import Body4 from "./Homepage/Body4.jsx";
+import Footer from "./Homepage/Footer.jsx";
+
 import Login_User from "./Login/Login_User.jsx";
 import Login_Admin from "./Login/Login_Admin.jsx";
 import SignUp_User from "./Login/SignUp_User.jsx";
+import ResetPassword from "./Login/ResetPassword.jsx";
 
 /* ---- user ---- */
 import Navigation from "./User/Navigation_User.jsx";
@@ -21,6 +24,10 @@ import Profile from "./User/Profile.jsx";
 import ReserveRoom from "./User/ReserveRoom.jsx";
 import ReservationDetails from "./User/ReservationDetails.jsx";
 import Messages from "./User/Message.jsx";
+import Guidelines from "./User/Guidelines.jsx";
+import HelpCenter from "./User/HelpCenter.jsx";
+
+
 
 /* ---- admin ---- */
 import AdminNavigation from "./Admin/AdminNavigation.jsx";
@@ -67,6 +74,8 @@ function App() {
     messages: "/messages",
     profile: "/profile",
     reserve: "/reserve",
+    guidelines: "/guidelines",
+    resetPassword: "/reset-password",          // added
     reservationDetails: "/reservation-details",
     adminDashboard: "/admin/dashboard",
     adminReservation: "/admin/reservations",
@@ -191,6 +200,7 @@ function App() {
           <Body2 />
           <Body3 />
           <Body4 />
+          <Footer />
         </>
       )}
 
@@ -201,6 +211,14 @@ function App() {
           setView={setView}
         />
       )}
+
+{view === "resetPassword" && (
+  <ResetPassword
+    setView={setView}
+    onBackToLogin={() => setView("login")}
+  />
+)}
+
 
       {view === "signup" && (
         <SignUp_User onSwitchToLogin={() => setView("login")} />
@@ -236,6 +254,12 @@ function App() {
         renderUserNavigation(<Messages user={user} setView={setView} />)}
       {view === "profile" &&
         renderUserNavigation(<Profile user={user} setView={setView} />)}
+        {view === "guidelines" &&
+  renderUserNavigation(<Guidelines user={user} setView={setView} />)}
+{view === "help" &&
+  renderUserNavigation(<HelpCenter user={user} setView={setView} />)}
+
+
       {view === "reserve" &&
         renderUserNavigation(<ReserveRoom user={user} setView={setView} />)}
       {view === "reservationDetails" &&
