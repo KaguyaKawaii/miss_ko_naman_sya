@@ -96,8 +96,8 @@ function Message({ user }) {
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center shadow-sm">
-        <h1 className="text-2xl font-semibold">Messages</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Message</h1>
       </header>
 
       <div className="flex flex-1 h-[calc(100vh-50px)]">

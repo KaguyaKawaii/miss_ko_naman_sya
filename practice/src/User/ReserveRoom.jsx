@@ -348,8 +348,8 @@ function ReserveRoom({ user, setView }) {
         </div>
       )}
 
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-        <h1 className="text-2xl font-semibold">Room Reservation Request</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Room Reservation Request</h1>
       </header>
 
       <div className="m-5 flex flex-col items-center">

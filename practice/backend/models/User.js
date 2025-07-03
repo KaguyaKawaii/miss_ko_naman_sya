@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
   department:  { type: String, default: "N/A" },
   course:      { type: String, default: "N/A" },
   year_level:  { type: String, default: "N/A" },
+  profilePicture: { type: String, default: "" }, // 👈 add this
 
   role: {
     type: String,

@@ -81,8 +81,8 @@ function History({ user }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center justify-start">
-        <h1 className="text-2xl font-semibold">Reservation History</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Reservation History</h1>
       </header>
 
       <div className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto space-y-6">

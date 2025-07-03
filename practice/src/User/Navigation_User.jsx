@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import socket from "../utils/socket";
+import api from "../utils/api";
 import Logo from "../assets/logo.png";
 import {
   LayoutDashboard,
@@ -9,7 +11,35 @@ import {
   LogOut,
 } from "lucide-react";
 
-function Navigation_User({ user, setView, currentView, onLogout }) {
+function Navigation_User({ user: initialUser, setView, currentView, onLogout }) {
+  const [user, setUser] = useState(initialUser);
+  const [imgTimestamp, setImgTimestamp] = useState(Date.now()); // Force image reload when updated
+
+  // Sync local user state with prop
+  useEffect(() => {
+    setUser(initialUser);
+  }, [initialUser]);
+
+  // Fetch latest user data
+  const fetchUser = async () => {
+    try {
+      const { data } = await api.get(`/users/${initialUser._id}`);
+      setUser(data.user ?? data);
+      setImgTimestamp(Date.now()); // Refresh image by forcing a new src
+    } catch (err) {
+      console.error("Failed to refresh user:", err);
+    }
+  };
+
+  // Listen to socket updates (e.g., after editing profile)
+  useEffect(() => {
+    const handler = (updatedId) => {
+      if (updatedId === initialUser?._id) fetchUser();
+    };
+    socket.on("user-updated", handler);
+    return () => socket.off("user-updated", handler);
+  }, [initialUser?._id]);
+
   const navButtons = [
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "history", label: "History", icon: <History size={18} /> },
@@ -19,65 +49,77 @@ function Navigation_User({ user, setView, currentView, onLogout }) {
   ];
 
   return (
-    <>
-      {/* Sidebar */}
-      <aside>
-        <div className="fixed top-0 left-0 h-screen w-[250px] bg-[#FAF9F6] p-6 shadow-md flex flex-col">
-          {/* Logo */}
-          <div className="flex items-center justify-between">
-            <img src={Logo} alt="Logo" className="h-[70px] w-[70px]" />
-            <h1 className="text-[19px] font-serif leading-5">
-              University of <br /> San Agustin
-            </h1>
-          </div>
+    <aside>
+      <div className="fixed top-0 left-0 h-screen w-[250px] bg-[#FAF9F6] p-6 shadow-md flex flex-col">
+        {/* Logo */}
+        <div className="flex items-center justify-between">
+          <img src={Logo} alt="Logo" className="h-[70px] w-[70px]" />
+          <h1 className="text-[19px] font-serif leading-5">
+            University of <br /> San Agustin
+          </h1>
+        </div>
 
-          <div className="border-b border-gray-400 opacity-50 w-[calc(100%+3rem)] -mx-6 my-2 mt-5"></div>
+        <div className="border-b border-gray-400 opacity-50 w-[calc(100%+3rem)] -mx-6 my-2 mt-5"></div>
 
-          {/* User Info */}
-          <div className="flex flex-col items-center mt-5">
-            <div className="border w-[120px] h-[120px] rounded-full bg-white flex items-center justify-center text-5xl text-gray-400">
-              {user?.name?.charAt(0) || "?"}
-            </div>
-            <h1 className="text-[20px] font-bold text-gray-800 mt-3 text-center">
-              {user?.name}
-            </h1>
-            <p className="text-gray-700 mt-1 text-center">{user?.email}</p>
-            {user?.id_number && (
-              <p className="text-gray-700 mt-1 text-center">ID: {user.id_number}</p>
+        {/* User Info */}
+        <div className="flex flex-col items-center mt-5">
+          <div className="border w-[120px] h-[120px] rounded-full bg-white overflow-hidden flex items-center justify-center text-5xl text-gray-400">
+            {user?.profilePicture ? (
+              <img
+                src={`http://localhost:5000${user.profilePicture}?t=${imgTimestamp}`}
+                alt="Profile"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/default-avatar.png";
+                }}
+              />
+            ) : (
+              user?.name?.charAt(0)?.toUpperCase() || "?"
             )}
           </div>
-
-          {/* Navigation Buttons */}
-          <div className="mt-10 flex flex-col h-full">
-            <div className="flex flex-col gap-4 flex-grow">
-              {navButtons.map((btn) => (
-                <button
-                  key={btn.id}
-                  onClick={() => setView(btn.id)}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-[10px] font-semibold duration-150 justify-start cursor-pointer ${
-                    currentView === btn.id
-                      ? "bg-[#CC0000] text-white shadow-md"
-                      : "bg-[#F2F2F2] text-gray-700 hover:bg-[#CC0000] hover:text-white"
-                  }`}
-                >
-                  {btn.icon}
-                  <span>{btn.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Logout Button */}
-            <button
-              onClick={onLogout}
-              className="mt-auto flex items-center gap-3 justify-center px-4 py-2 rounded-[10px] bg-[#CC0000] font-semibold text-white hover:bg-[#990000] duration-150 cursor-pointer"
-            >
-              <LogOut size={18} />
-              Logout
-            </button>
-          </div>
+          <h1 className="text-[20px] font-bold text-gray-800 mt-3 text-center">
+            {user?.name}
+          </h1>
+          <p className="text-gray-700 mt-1 text-center">{user?.email}</p>
+          {user?.id_number && (
+            <p className="text-gray-700 mt-1 text-center">ID: {user.id_number}</p>
+          )}
         </div>
-      </aside>
-    </>
+
+        {/* Navigation Buttons */}
+        <div className="mt-10 flex flex-col h-full">
+          <div className="flex flex-col gap-4 flex-grow">
+            {navButtons.map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => {
+                  setView(btn.id);
+                  fetchUser(); // 🔁 Refetch user info every time button is clicked
+                }}
+                className={`flex items-center gap-3 px-4 py-2 rounded-[10px] font-semibold duration-150 justify-start cursor-pointer ${
+                  currentView === btn.id
+                    ? "bg-[#CC0000] text-white shadow-md"
+                    : "bg-[#F2F2F2] text-gray-700 hover:bg-[#CC0000] hover:text-white"
+                }`}
+              >
+                {btn.icon}
+                <span>{btn.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={onLogout}
+            className="mt-auto flex items-center gap-3 justify-center px-4 py-2 rounded-[10px] bg-[#CC0000] font-semibold text-white hover:bg-[#990000] duration-150 cursor-pointer"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }
 

@@ -82,9 +82,9 @@ function Notification({ user, setView, setSelectedReservation }) {
   if (loading) {
     return (
       <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-        <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-          <h1 className="text-2xl font-semibold">Notification</h1>
-        </header>
+        <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Notification</h1>
+      </header>
 
         <div
           className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto space-y-4"
@@ -118,8 +118,8 @@ function Notification({ user, setView, setSelectedReservation }) {
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-        <h1 className="text-2xl font-semibold">Notification</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Notification</h1>
       </header>
 
       <div

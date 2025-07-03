@@ -6,6 +6,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const axios = require("axios");
 const cron = require("node-cron");
+const path = require("path");
 
 // Routes
 const newsRoutes = require("./routes/newsRoutes");
@@ -38,6 +39,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", forgotPasswordRoutes);
 app.use("/rooms", roomRoutes); // ✅ mounts /rooms
+app.use("/uploads/profile-pictures", express.static(path.join(__dirname, "uploads", "profile-pictures")));
+
 
 // Socket.io setup
 const io = new Server(server, {

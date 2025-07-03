@@ -5,8 +5,8 @@ export default function HelpCenter({ setView }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       {/* HEADER */}
-      <header className="bg-[#CC0000] text-white px-4 h-[50px] flex items-center">
-        <h1 className="text-xl md:text-2xl font-semibold">Help Center</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Help Center</h1>
       </header>
 
       {/* CONTENT */}

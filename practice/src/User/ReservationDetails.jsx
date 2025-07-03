@@ -85,8 +85,8 @@ const statusColorClass = {
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col min-h-screen bg-gray-50">
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center sticky top-0 z-10 shadow-sm">
-        <h1 className="text-2xl font-semibold">Reservation Details</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Reservation Details</h1>
       </header>
 
       <div className="p-6 space-y-6">

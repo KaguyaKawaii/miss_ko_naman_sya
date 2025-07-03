@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import socket from "../utils/socket";
 import api from "../utils/api";
 
-function Profile({ user }) {
+function Profile({ user, setView }) {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
 
@@ -48,11 +48,10 @@ function Profile({ user }) {
   }
 
   if (!profile) {
-    // ✨ Clean animated skeleton loader while fetching
     return (
       <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-        <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-sm">
-          <h1 className="text-2xl font-semibold tracking-tight">My Profile</h1>
+        <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+          <h1 className="text-2xl font-bold">My Profile</h1>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8">
@@ -67,7 +66,6 @@ function Profile({ user }) {
                 </div>
               </div>
             </div>
-
             <div className="bg-white rounded-xl shadow border border-gray-200 p-6 space-y-4">
               <div className="h-5 bg-gray-200 rounded w-1/4"></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -90,8 +88,8 @@ function Profile({ user }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">My Profile</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">My Profile</h1>
       </header>
 
       {/* Main Content */}
@@ -99,9 +97,22 @@ function Profile({ user }) {
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Profile Overview Card */}
           <div className="bg-white rounded-xl shadow border border-gray-200 p-6 flex items-center space-x-6">
-            <div className="w-20 h-20 rounded-full bg-red-100 text-red-600 text-3xl font-bold flex items-center justify-center border-2 border-white shadow-inner">
-              {profile.name?.charAt(0)?.toUpperCase() || "?"}
+            <div className="w-32 h-32 rounded-full border-4 border-white shadow-md overflow-hidden flex items-center justify-center bg-red-100 text-red-600 text-4xl font-bold">
+              {profile.profilePicture ? (
+                <img
+                  src={`http://localhost:5000${profile.profilePicture}`}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "/default-avatar.png";
+                  }}
+                />
+              ) : (
+                profile.name?.charAt(0)?.toUpperCase() || "?"
+              )}
             </div>
+
             <div>
               <h2 className="text-2xl font-bold text-gray-800">{profile.name}</h2>
               <div className="flex items-center mt-1 space-x-4">
@@ -117,9 +128,18 @@ function Profile({ user }) {
             </div>
           </div>
 
-          {/* Combined Info Card */}
+          {/* Info Card */}
           <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">Account Information</h3>
+            <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
+              <h3 className="text-lg font-semibold text-gray-800">Account Information</h3>
+              <button
+                onClick={() => setView("editProfile")}
+                className="text-sm text-red-600 hover:text-red-700 font-medium transition cursor-pointer"
+              >
+                Edit Profile
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Field label="Full Name" value={profile.name} />
               <Field label="Email" value={profile.email} />

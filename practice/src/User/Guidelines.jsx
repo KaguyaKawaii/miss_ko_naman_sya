@@ -5,8 +5,8 @@ function Guidelines({ user }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-white text-gray-800">
       {/* HEADER */}
-      <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-        <h1 className="text-2xl font-semibold">Guidelines</h1>
+      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
+        <h1 className="text-2xl font-bold">Guidelines</h1>
       </header>
 
       {/* CONTENT */}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
+import api from "./utils/api";
+import socket from "./utils/socket";
 
 /* --------------- shared --------------- */
 import Header from "./Homepage/Header.jsx";
@@ -9,7 +11,6 @@ import Body2 from "./Homepage/Body2.jsx";
 import Body3 from "./Homepage/Body3.jsx";
 import Body4 from "./Homepage/Body4.jsx";
 import Footer from "./Homepage/Footer.jsx";
-
 import Login_User from "./Login/Login_User.jsx";
 import Login_Admin from "./Login/Login_Admin.jsx";
 import SignUp_User from "./Login/SignUp_User.jsx";
@@ -26,8 +27,7 @@ import ReservationDetails from "./User/ReservationDetails.jsx";
 import Messages from "./User/Message.jsx";
 import Guidelines from "./User/Guidelines.jsx";
 import HelpCenter from "./User/HelpCenter.jsx";
-
-
+import EditProfile from "./User/EditProfile.jsx";
 
 /* ---- admin ---- */
 import AdminNavigation from "./Admin/AdminNavigation.jsx";
@@ -75,7 +75,7 @@ function App() {
     profile: "/profile",
     reserve: "/reserve",
     guidelines: "/guidelines",
-    resetPassword: "/reset-password",          // added
+    resetPassword: "/reset-password",
     reservationDetails: "/reservation-details",
     adminDashboard: "/admin/dashboard",
     adminReservation: "/admin/reservations",
@@ -88,12 +88,15 @@ function App() {
     staffUsers: "/staff/users",
     staffMessages: "/staff/messages",
     staffNotification: "/staff/notifications",
+    editProfile: "/edit-profile",
+    help: "/help",
   };
 
   const pathToView = Object.fromEntries(
     Object.entries(viewToPath).map(([v, p]) => [p, v])
   );
 
+  // Navigation syncing
   useEffect(() => {
     localStorage.setItem("view", view);
     const path = viewToPath[view];
@@ -105,7 +108,7 @@ function App() {
     if (newView !== view) setView(newView);
   }, [location.pathname]);
 
-  // 🛑 Prevent back button from leaving dashboard
+  // Prevent back button escape
   useEffect(() => {
     const handlePopState = () => {
       if (
@@ -133,11 +136,38 @@ function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [view]);
 
+  const fetchUser = async () => {
+    try {
+      if (!user?._id) return;
+      const { data } = await api.get(`/users/${user._id}`);
+      const updatedUser = data.user ?? data;
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    } catch (err) {
+      console.error("Failed to fetch user:", err);
+    }
+  };
+
+  // Refresh on every view switch
+  useEffect(() => {
+    if (user?._id) fetchUser();
+  }, [view]);
+
+  // Listen to socket updates
+  useEffect(() => {
+    const handler = (updatedId) => {
+      if (updatedId === user?._id) fetchUser();
+    };
+    socket.on("user-updated", handler);
+    return () => socket.off("user-updated", handler);
+  }, [user?._id]);
+
   const handleLoginSuccess = (userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
     const role = userData.role.toLowerCase();
     if (role === "staff") setView("staffDashboard");
+    else if (role === "admin") setView("adminDashboard");
     else setView("dashboard");
   };
 
@@ -148,8 +178,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("view");
+    localStorage.clear();
     setUser(null);
     setShowLogoutModal(false);
     setView("home");
@@ -212,13 +241,9 @@ function App() {
         />
       )}
 
-{view === "resetPassword" && (
-  <ResetPassword
-    setView={setView}
-    onBackToLogin={() => setView("login")}
-  />
-)}
-
+      {view === "resetPassword" && (
+        <ResetPassword setView={setView} onBackToLogin={() => setView("login")} />
+      )}
 
       {view === "signup" && (
         <SignUp_User onSwitchToLogin={() => setView("login")} />
@@ -234,77 +259,43 @@ function App() {
       {/* USER */}
       {view === "dashboard" &&
         renderUserNavigation(
-          <Dashboard
-            user={user}
-            setView={setView}
-            setSelectedReservation={setSelectedReservation}
-          />
+          <Dashboard user={user} setView={setView} setSelectedReservation={setSelectedReservation} />
         )}
       {view === "history" &&
         renderUserNavigation(<History user={user} setView={setView} />)}
       {view === "notification" &&
-        renderUserNavigation(
-          <Notification
-            user={user}
-            setView={setView}
-            setSelectedReservation={setSelectedReservation}
-          />
-        )}
+        renderUserNavigation(<Notification user={user} setView={setView} setSelectedReservation={setSelectedReservation} />)}
       {view === "messages" &&
         renderUserNavigation(<Messages user={user} setView={setView} />)}
       {view === "profile" &&
         renderUserNavigation(<Profile user={user} setView={setView} />)}
-        {view === "guidelines" &&
-  renderUserNavigation(<Guidelines user={user} setView={setView} />)}
-{view === "help" &&
-  renderUserNavigation(<HelpCenter user={user} setView={setView} />)}
-
-
+      {view === "editProfile" &&
+        renderUserNavigation(<EditProfile user={user} setView={setView} />)}
+      {view === "guidelines" &&
+        renderUserNavigation(<Guidelines user={user} setView={setView} />)}
+      {view === "help" &&
+        renderUserNavigation(<HelpCenter user={user} setView={setView} />)}
       {view === "reserve" &&
         renderUserNavigation(<ReserveRoom user={user} setView={setView} />)}
       {view === "reservationDetails" &&
-        renderUserNavigation(
-          <ReservationDetails
-            reservation={selectedReservation}
-            setView={setView}
-          />
-        )}
+        renderUserNavigation(<ReservationDetails reservation={selectedReservation} setView={setView} />)}
 
       {/* ADMIN */}
-      {view === "adminDashboard" &&
-        renderAdminNavigation(<AdminDashboard setView={setView} />)}
-      {view === "adminReservation" &&
-        renderAdminNavigation(<AdminReservations setView={setView} />)}
-      {view === "adminRoom" &&
-        renderAdminNavigation(<AdminRooms setView={setView} />)}
-      {view === "adminUsers" &&
-        renderAdminNavigation(<AdminUsers setView={setView} />)}
-      {view === "adminMessage" &&
-        renderAdminNavigation(<AdminMessages setView={setView} />)}
-      {view === "adminReports" &&
-        renderAdminNavigation(<AdminReports setView={setView} />)}
+      {view === "adminDashboard" && renderAdminNavigation(<AdminDashboard setView={setView} />)}
+      {view === "adminReservation" && renderAdminNavigation(<AdminReservations setView={setView} />)}
+      {view === "adminRoom" && renderAdminNavigation(<AdminRooms setView={setView} />)}
+      {view === "adminUsers" && renderAdminNavigation(<AdminUsers setView={setView} />)}
+      {view === "adminMessage" && renderAdminNavigation(<AdminMessages setView={setView} />)}
+      {view === "adminReports" && renderAdminNavigation(<AdminReports setView={setView} />)}
 
       {/* STAFF */}
-      {view === "staffDashboard" &&
-        renderStaffNavigation(
-          <StaffDashboard setView={setView} staff={user} />
-        )}
-      {view === "staffReservation" &&
-        renderStaffNavigation(
-          <StaffReservations setView={setView} staff={user} />
-        )}
-      {view === "staffUsers" &&
-        renderStaffNavigation(<StaffUsers setView={setView} staff={user} />)}
-      {view === "staffMessages" &&
-        renderStaffNavigation(
-          <StaffMessages setView={setView} staff={user} />
-        )}
-      {view === "staffNotification" &&
-        renderStaffNavigation(
-          <StaffNotification setView={setView} staff={user} />
-        )}
+      {view === "staffDashboard" && renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}
+      {view === "staffReservation" && renderStaffNavigation(<StaffReservations setView={setView} staff={user} />)}
+      {view === "staffUsers" && renderStaffNavigation(<StaffUsers setView={setView} staff={user} />)}
+      {view === "staffMessages" && renderStaffNavigation(<StaffMessages setView={setView} staff={user} />)}
+      {view === "staffNotification" && renderStaffNavigation(<StaffNotification setView={setView} staff={user} />)}
 
-      {/* Logout Modal */}
+      {/* LOGOUT MODAL */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-[360px] rounded-xl bg-white shadow-2xl px-6 py-8 relative">
@@ -312,27 +303,13 @@ function App() {
               <div className="mb-3 flex items-center justify-center w-14 h-14 rounded-full bg-red-100">
                 <LogOut size={28} className="text-[#CC0000]" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-800">
-                Log out of your account?
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                You’ll need to sign in again to access your dashboard.
-              </p>
+              <h2 className="text-xl font-semibold text-gray-800">Log out of your account?</h2>
+              <p className="text-sm text-gray-600 mt-1">You’ll need to sign in again to access your dashboard.</p>
             </div>
             <div className="border-t border-gray-200 mb-6" />
             <div className="flex justify-between">
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer" 
-              >
-                No, stay
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600 cursor-pointer"
-              >
-                Yes, log out
-              </button>
+              <button onClick={() => setShowLogoutModal(false)} className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">No, stay</button>
+              <button onClick={handleLogout} className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600">Yes, log out</button>
             </div>
           </div>
         </div>
