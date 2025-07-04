@@ -9,6 +9,49 @@ const multer = require("multer");
 
 const fs = require("fs");
 
+router.post("/", async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      id_number,
+      password,
+      department,
+      course,
+      yearLevel,
+      role,
+      floor,
+      verified
+    } = req.body;
+
+    if (!name || !email || !id_number || !password || !role) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(409).json({ message: "Email already used." });
+
+    const newUser = new User({
+      name,
+      email: email.toLowerCase(),
+      id_number,
+      password,
+      department: role === "Staff" ? "N/A" : department || "N/A",
+      course: role === "Student" ? course || "N/A" : "N/A",
+      year_level: role === "Student" ? yearLevel || "N/A" : "N/A",
+      floor: role === "Staff" ? floor || "N/A" : "N/A", // ✅ THIS IS WHAT WAS MISSING
+      role,
+      verified: !!verified,
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: "User added successfully." });
+  } catch (err) {
+    console.error("Add user error:", err);
+    res.status(500).json({ message: "Failed to add user." });
+  }
+});
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

@@ -295,19 +295,107 @@ function Dashboard({ user, setView, setSelectedReservation }) {
 
             {/* User Reservations */}
 <div className="bg-white border border-gray-200 hover:border-gray-300 transition-all duration-200 shadow-sm rounded-xl flex-1 p-5 flex flex-col h-full">
-  <h2 className="text-xl font-bold text-gray-800 mb-4">Your Upcoming Reservations</h2>
+  <h2 className="text-xl font-bold text-gray-800 mb-4">Your Current Reservation</h2>
   <div className="border-b border-gray-100 mb-5" />
   {isLoading ? (
     <div className="flex justify-center items-center h-full">
       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-600"></div>
     </div>
-  ) : reservations.length === 0 ? (
+  ) : activeRes ? (
+    <div className="overflow-y-auto flex-1">
+      <section
+        key={activeRes._id}
+        className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow transition flex flex-col h-full"
+      >
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3">
+          <h3 className="text-lg font-bold text-gray-800">{activeRes.roomName}</h3>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-semibold mt-2 md:mt-0 ${
+              activeRes.status === "Approved"
+                ? "bg-green-100 text-green-800"
+                : activeRes.status === "Pending"
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {activeRes.status}
+          </span>
+        </div>
+        
+        <div className="text-sm text-gray-700 space-y-2 flex-grow">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="font-medium">Location:</p>
+              <p className="text-gray-600">{activeRes.location}</p>
+            </div>
+            <div>
+              <p className="font-medium">Time:</p>
+              <p className="text-gray-600">
+                {formatPH(activeRes.datetime)} - {' '}
+                {new Date(activeRes.endDatetime).toLocaleTimeString("en-PH", {
+                  timeZone: "Asia/Manila",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
+              </p>
+            </div>
+          </div>
+          
+          <div>
+            <p className="font-medium">Purpose:</p>
+            <p className="text-gray-600">{activeRes.purpose}</p>
+          </div>
+          
+          {activeRes.participants && activeRes.participants.length > 0 && (
+            <div className="mt-4">
+              <p className="font-medium mb-2">Participants:</p>
+              <div className="grid grid-cols-2 gap-2">
+                {activeRes.participants.map((participant, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center bg-gray-50 px-3 py-1.5 rounded-lg text-sm"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2">
+                      {participant.name?.charAt(0) || participant.email?.charAt(0)}
+                    </span>
+                    <span className="truncate">
+                      {participant.name || participant.email}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-t border-gray-100 pt-4 mt-4 text-sm">
+          <span className="text-gray-500 text-xs sm:text-sm mb-2 sm:mb-0">
+            Submitted: {formatPH(activeRes.createdAt)}
+          </span>
+          <button
+            className="text-red-600 hover:text-red-800 font-medium flex items-center focus:outline-none cursor-pointer"
+            onClick={() => {
+              setSelectedReservation?.(activeRes);
+              setView?.("reservationDetails");
+            }}
+            aria-label={`View details for ${activeRes.roomName} reservation`}
+          >
+            View details
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </section>
+    </div>
+  ) : (
     <div className="text-center py-8 flex flex-col justify-center items-center h-full">
       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
       <p className="text-gray-600">
-        You don't have any reservations yet.<br />
+        No active reservations.<br />
         <button 
           onClick={handleReserveClick}
           className="text-red-600 font-medium hover:underline focus:outline-none"
@@ -315,97 +403,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
           Reserve a room
         </button> to get started.
       </p>
-    </div>
-  ) : (
-    <div className="space-y-4 overflow-y-auto flex-1">
-      {reservations.slice(0, 3).map((reservation) => (
-        <section
-          key={reservation._id}
-          className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow transition flex flex-col h-full"
-        >
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3">
-            <h3 className="text-lg font-bold text-gray-800">{reservation.roomName}</h3>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold mt-2 md:mt-0 ${
-                reservation.status === "Approved"
-                  ? "bg-green-100 text-green-800"
-                  : reservation.status === "Pending"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-red-100 text-red-800"
-              }`}
-            >
-              {reservation.status}
-            </span>
-          </div>
-          
-          <div className="text-sm text-gray-700 space-y-2 flex-grow">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="font-medium">Location:</p>
-                <p className="text-gray-600">{reservation.location}</p>
-              </div>
-              <div>
-                <p className="font-medium">Time:</p>
-                <p className="text-gray-600">
-                  {formatPH(reservation.datetime)} - {' '}
-                  {new Date(reservation.endDatetime).toLocaleTimeString("en-PH", {
-                    timeZone: "Asia/Manila",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
-                </p>
-              </div>
-            </div>
-            
-            <div>
-              <p className="font-medium">Purpose:</p>
-              <p className="text-gray-600">{reservation.purpose}</p>
-            </div>
-            
-            {/* Participants Section */}
-            {reservation.participants && reservation.participants.length > 0 && (
-              <div className="mt-4">
-                <p className="font-medium mb-2">Participants:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {reservation.participants.map((participant, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-center bg-gray-50 px-3 py-1.5 rounded-lg text-sm"
-                    >
-                      <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2">
-                        {participant.name?.charAt(0) || participant.email?.charAt(0)}
-                      </span>
-                      <span className="truncate">
-                        {participant.name || participant.email}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-t border-gray-100 pt-4 mt-4 text-sm">
-            <span className="text-gray-500 text-xs sm:text-sm mb-2 sm:mb-0">
-              Submitted: {formatPH(reservation.createdAt)}
-            </span>
-            <button
-              className="text-red-600 hover:text-red-800 font-medium flex items-center focus:outline-none cursor-pointer"
-              onClick={() => {
-                setSelectedReservation?.(reservation);
-                setView?.("reservationDetails");
-              }}
-              aria-label={`View details for ${reservation.roomName} reservation`}
-            >
-              View details
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </section>
-      ))}
     </div>
   )}
 </div>

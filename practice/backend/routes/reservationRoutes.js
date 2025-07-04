@@ -729,34 +729,146 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// GET — Auto-expire past pending reservations
+// Check for upcoming reservations (15 minutes before start)
+router.get("/check-upcoming", async (req, res) => {
+  try {
+    const now = new Date();
+    const notificationTime = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes from now
+
+    const upcomingReservations = await Reservation.find({
+      datetime: { 
+        $gte: now,
+        $lte: notificationTime
+      },
+      status: "Approved",
+      notificationSent: { $ne: true } // Only if notification hasn't been sent
+    }).populate("userId");
+
+    const updates = upcomingReservations.map(async (reservation) => {
+      // Mark as notification sent
+      reservation.notificationSent = true;
+      await reservation.save();
+
+      const formattedTime = new Date(reservation.datetime).toLocaleTimeString("en-PH", {
+        hour: '2-digit', 
+        minute: '2-digit'
+      });
+
+      // Send notification to reserver
+      await Notification.create({
+        userId: reservation.userId._id,
+        reservationId: reservation._id,
+        message: `Your reservation for ${reservation.roomName} starts at ${formattedTime} (in 15 minutes).`,
+        status: "Reminder",
+      });
+
+      // Email to reserver
+      if (reservation.userId.email) {
+        await sendEmail({
+          to: reservation.userId.email,
+          subject: `Upcoming Reservation - Starts at ${formattedTime}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2 style="color: #007bff;">Upcoming Reservation Reminder</h2>
+              <p>Hi ${reservation.userId.name},</p>
+              <p>Your reservation for <strong>${reservation.roomName}</strong> will start in <strong>15 minutes</strong> (at ${formattedTime}).</p>
+              <p>Please arrive on time to avoid cancellation.</p>
+              <p style="margin-top: 20px;"><strong>Details:</strong></p>
+              <ul>
+                <li>Room: ${reservation.roomName}</li>
+                <li>Time: ${formattedTime}</li>
+                <li>Location: ${reservation.location}</li>
+              </ul>
+              <p style="margin-top: 30px; color: #666;">This is an automated reminder.</p>
+            </div>
+          `
+        });
+      }
+
+      // Notify participants
+      for (const participant of reservation.participants) {
+        const user = await User.findOne({ id_number: participant.idNumber });
+        if (user) {
+          await Notification.create({
+            userId: user._id,
+            reservationId: reservation._id,
+            message: `The reservation you're participating in starts at ${formattedTime} (in 15 minutes).`,
+            status: "Reminder",
+          });
+        }
+      }
+    });
+
+    await Promise.all(updates);
+    res.json({ message: `${upcomingReservations.length} upcoming reservation(s) notified.` });
+  } catch (err) {
+    console.error("Upcoming reservation check error:", err);
+    res.status(500).json({ error: "Failed to check upcoming reservations." });
+  }
+});
+
+// GET — Auto-expire reservations that haven't been claimed by start time
 router.get("/check-expired", async (req, res) => {
   try {
     const now = new Date();
-    const expiredReservations = await Reservation.find({ endDatetime: { $lte: now }, status: "Pending" });
+    const expiredReservations = await Reservation.find({
+      datetime: { $lte: now }, // Past start time
+      status: { $in: ["Approved", "Pending"] } // Both approved and pending
+    });
 
     const updates = expiredReservations.map(async (reservation) => {
       reservation.status = "Expired";
       await reservation.save();
 
-      const formattedDate = new Date(reservation.date).toLocaleDateString("en-PH", {
-        year: "numeric", month: "long", day: "numeric"
+      const formattedTime = new Date(reservation.datetime).toLocaleTimeString("en-PH", {
+        hour: '2-digit', 
+        minute: '2-digit'
       });
 
+      // Notify reserver
       await Notification.create({
         userId: reservation.userId,
         reservationId: reservation._id,
-        message: `Your reservation for ${reservation.roomName} on ${formattedDate} has expired.`,
+        message: `Your reservation for ${reservation.roomName} at ${formattedTime} has expired because no one arrived on time.`,
         status: "Expired",
       });
+
+      // Email to reserver
+      if (reservation.userId.email) {
+        await sendEmail({
+          to: reservation.userId.email,
+          subject: `Reservation Expired - ${reservation.roomName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2 style="color: #cc0000;">Reservation Expired</h2>
+              <p>Hi ${reservation.userId.name},</p>
+              <p>Your reservation for <strong>${reservation.roomName}</strong> at <strong>${formattedTime}</strong> has been <strong style="color: #cc0000;">automatically expired</strong> because no one arrived at the scheduled time.</p>
+              <p>You may submit a new reservation request if needed.</p>
+              <p style="margin-top: 30px; color: #666;">This is an automated notification.</p>
+            </div>
+          `
+        });
+      }
+
+      // Notify participants
+      for (const participant of reservation.participants) {
+        const user = await User.findOne({ id_number: participant.idNumber });
+        if (user) {
+          await Notification.create({
+            userId: user._id,
+            reservationId: reservation._id,
+            message: `The reservation you were participating in at ${formattedTime} has expired due to no arrival.`,
+            status: "Expired",
+          });
+        }
+      }
     });
 
     await Promise.all(updates);
-
-    res.status(200).json({ message: `${expiredReservations.length} reservation(s) marked as expired.` });
+    res.json({ message: `${expiredReservations.length} reservation(s) expired.` });
   } catch (err) {
-    console.error("Check-expired error:", err);
-    res.status(500).json({ message: "Failed to check expired reservations." });
+    console.error("Expiry check error:", err);
+    res.status(500).json({ error: "Failed to check expired reservations." });
   }
 });
 

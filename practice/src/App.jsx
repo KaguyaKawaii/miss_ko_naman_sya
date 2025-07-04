@@ -262,7 +262,13 @@ function App() {
           <Dashboard user={user} setView={setView} setSelectedReservation={setSelectedReservation} />
         )}
       {view === "history" &&
-        renderUserNavigation(<History user={user} setView={setView} />)}
+  renderUserNavigation(
+    <History
+      user={user}
+      setView={setView}
+      setSelectedReservation={setSelectedReservation}
+    />
+  )}
       {view === "notification" &&
         renderUserNavigation(<Notification user={user} setView={setView} setSelectedReservation={setSelectedReservation} />)}
       {view === "messages" &&

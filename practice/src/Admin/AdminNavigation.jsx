@@ -1,19 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import Logo from "../assets/logo.png";
-import {
-  LayoutDashboard,
-  CalendarDays,
-  DoorOpen,
-  Users,
-  MessageSquare,
-  BarChart2,
-  LogOut,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 
 function AdminNavigation({ admin, setView, currentView, onLogout }) {
   const navRefs = useRef({});
-
-  // Keep a stable copy of admin, fallback to localStorage
   const [profile, setProfile] = useState(() =>
     admin || JSON.parse(localStorage.getItem("admin") || "{}")
   );
@@ -25,7 +15,6 @@ function AdminNavigation({ admin, setView, currentView, onLogout }) {
     }
   }, [admin]);
 
-  // Scroll selected button into view
   useEffect(() => {
     const btn = navRefs.current[currentView];
     btn?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -33,67 +22,57 @@ function AdminNavigation({ admin, setView, currentView, onLogout }) {
   }, [currentView]);
 
   const navButtons = [
-    { id: "adminDashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-    { id: "adminReservation", label: "Reservations", icon: <CalendarDays size={18} /> },
-    { id: "adminRoom", label: "Rooms", icon: <DoorOpen size={18} /> },
-    { id: "adminUsers", label: "Users", icon: <Users size={18} /> },
-    { id: "adminMessage", label: "Messages", icon: <MessageSquare size={18} /> },
-    { id: "adminReports", label: "Reports", icon: <BarChart2 size={18} /> },
+    { id: "adminDashboard", label: "Dashboard" },
+    { id: "adminReservation", label: "Reservations" },
+    { id: "adminRoom", label: "Manage Rooms" },
+    { id: "adminUsers", label: "Manage Users" },
+    { id: "adminMessage", label: "Messages" },
+    { id: "adminReports", label: "Reports" },
+    { id: "adminNotifications", label: "Notifications" },
+    { id: "adminArchived", label: "Archived" },
+    { id: "adminNews", label: "Manage News" },
+    { id: "adminLogs", label: "Activity Logs" },
   ];
 
   return (
     <aside>
-      <div className="fixed top-0 left-0 h-screen w-[250px] bg-[#FAF9F6] p-6 shadow-md flex flex-col">
+      <div className="fixed top-0 left-0 h-screen w-[250px] bg-gray-900 p-0 flex flex-col border-r border-gray-800">
         {/* Logo + Title */}
-        <div className="flex items-center justify-between">
-          <img src={Logo} alt="Logo" className="h-[70px] w-[70px]" />
-          <h1 className="text-[19px] font-serif leading-5">
-            University of <br /> San Agustin
+        <div className="flex items-center gap-3 p-4 border-b border-gray-800">
+          <img src={Logo} alt="Logo" className="h-[40px] w-[40px]" />
+          <h1 className="text-[15px] font-medium text-gray-200 leading-tight">
+            University of San Agustin
           </h1>
-        </div>
-
-        {/* Divider */}
-        <div className="border-b border-gray-400 opacity-50 w-[calc(100%+3rem)] -mx-6 my-2 mt-5"></div>
-
-        {/* Admin Profile */}
-        <div className="flex flex-col items-center mt-5">
-          <div className="border w-[120px] h-[120px] rounded-full bg-white flex items-center justify-center text-5xl text-gray-400">
-            {profile?.name?.charAt(0) || "A"}
-          </div>
-          <h1 className="text-[20px] font-bold text-gray-800 mt-3 text-center">
-            {profile?.name || "Admin"}
-          </h1>
-          <p className="text-gray-700 mt-1 text-center">{profile?.email}</p>
         </div>
 
         {/* Navigation Buttons */}
-        <div className="mt-10 flex flex-col h-full">
-          <div className="flex flex-col gap-4 flex-grow">
-            {navButtons.map(({ id, label, icon }) => (
+        <div className="flex flex-col h-full overflow-y-auto">
+          <div className="flex flex-col flex-grow">
+            {navButtons.map(({ id, label }) => (
               <button
                 key={id}
                 ref={(el) => (navRefs.current[id] = el)}
                 onClick={() => setView(id)}
-                className={`flex items-center gap-3 justify-start px-4 py-2 text-[16px] font-semibold rounded-[10px] transition-all duration-150 focus:outline-none ${
-                  currentView === id
-                    ? "bg-[#CC0000] text-white shadow-md"
-                    : "bg-[#F2F2F2] text-gray-700 hover:bg-[#CC0000] hover:text-white focus:bg-[#CC0000] focus:text-white"
-                }`}
+                className={`w-full px-4 py-3 text-left transition-all duration-150 focus:outline-none border-l-4 ${currentView === id
+                    ? "bg-gray-800 text-white font-medium border-blue-500"
+                    : "text-gray-400 border-transparent hover:bg-gray-800 hover:text-gray-200"
+                  }`}
               >
-                {icon}
-                <span>{label}</span>
+                <span className="text-sm">{label}</span>
               </button>
             ))}
           </div>
 
-          {/* Logout */}
-          <button
-            onClick={onLogout}
-            className="mt-auto flex items-center gap-3 justify-center px-4 py-2 rounded-[10px] bg-[#CC0000] font-semibold text-white hover:bg-[#990000] duration-150 cursor-pointer"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+          {/* Logout - Centered */}
+          <div className="mt-auto border-t border-gray-800">
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-200 transition-colors"
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>

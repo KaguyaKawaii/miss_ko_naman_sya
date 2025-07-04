@@ -420,8 +420,72 @@ function EditProfile({ user, setView }) {
                     </>
                   )}
 
-                  <Input label="Email" value={user.email} disabled note="Cannot edit email" />
-                  <Input label="ID Number" value={user.id_number} disabled note="Cannot edit ID" />
+                  <div className="relative">
+  <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+  <input
+    type="email"
+    value={user.email}
+    disabled
+    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+  />
+
+  {/* Question Mark Icon with Tooltip */}
+  <div className="absolute top-9 right-3 group">
+    <svg
+      className="w-4 h-4 text-gray-400 bg-gray-200 rounded-full cursor-pointer"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8.228 9a3.75 3.75 0 117.521.75c-.269.954-1.085 1.455-1.749 2.007-.73.607-.96.999-.96 1.743M12 17h.01"
+      />
+    </svg>
+    <div className="absolute z-10 left-1/2 transform -translate-x-1/2 mt-1 w-max px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      Contact admin to change your email
+    </div>
+  </div>
+
+  <p className="text-xs text-gray-500 mt-1 italic">Cannot edit email</p>
+</div>
+
+                  <div className="relative">
+  <label className="block text-sm font-medium text-gray-600 mb-1">ID Number</label>
+  <input
+    type="text"
+    value={user.id_number}
+    disabled
+    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+  />
+
+  {/* Question Mark Icon with Tooltip */}
+  <div className="absolute top-9 right-3 group">
+    <svg
+      className="w-4 h-4 text-gray-400 bg-gray-200 rounded-full cursor-pointer"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8.228 9a3.75 3.75 0 117.521.75c-.269.954-1.085 1.455-1.749 2.007-.73.607-.96.999-.96 1.743M12 17h.01"
+      />
+    </svg>
+    <div className="absolute z-10 left-1/2 transform -translate-x-1/2 mt-1 w-max px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      Contact admin to change your ID number
+    </div>
+  </div>
+
+  <p className="text-xs text-gray-500 mt-1 italic">Cannot edit ID Number</p>
+</div>
+
                 </div>
 
                 <div className="flex justify-end mt-8">

@@ -80,7 +80,7 @@ const statusColorClass = {
   const handleResultModalClose = () => {
     setShowResultModal(false);
     if (refreshReservations) refreshReservations();
-    setView("list");
+    setView("dashboard");
   };
 
   return (

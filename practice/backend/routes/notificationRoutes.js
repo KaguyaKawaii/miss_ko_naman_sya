@@ -113,4 +113,22 @@ router.put("/:id/expire", async (req, res) => {
   }
 });
 
+// ✅ PUT /notifications/mark-all-read/:userId — mark all notifications as read for a user
+router.put("/mark-all-read/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await Notification.updateMany(
+      { userId, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    res.status(200).json({ message: "All notifications marked as read", result });
+  } catch (err) {
+    console.error("Mark all as read error:", err);
+    res.status(500).json({ message: "Failed to mark all notifications as read." });
+  }
+});
+
+
 module.exports = router;

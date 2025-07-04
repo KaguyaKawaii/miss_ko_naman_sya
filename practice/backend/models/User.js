@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
   password:    { type: String, required: true },
 
   department:  { type: String, default: "N/A" },
+  floor: { type: String, default: "N/A" },
   course:      { type: String, default: "N/A" },
   year_level:  { type: String, default: "N/A" },
   profilePicture: { type: String, default: "" }, // 👈 add this
