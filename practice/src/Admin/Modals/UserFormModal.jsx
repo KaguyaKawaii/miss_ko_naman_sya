@@ -4,8 +4,56 @@ import axios from "axios";
 
 const courseOptions = {
   SHS: ["STEM", "ABM", "HUMSS"],
-  CLASE: ["BA Communication", "BA Philosophy", "BS Foreign Service"],
-  CITE: ["BSIT", "BSCS"],
+  CLASE: [
+      "Bachelor of Arts in Communication",
+      "Bachelor of Arts in Philosophy",
+      "Bachelor of Arts in Political Science",
+      "Bachelor of Science in Foreign Service",
+      "Bachelor of Science in Psychology",
+      "Bachelor of Science in Biology (Medical)",
+      "Bachelor of Science in Biology (Biological)",
+      "Bachelor of Science in Chemistry",
+      "Bachelor of Science in Computer Science",
+      "Bachelor of Science in Information Technology",
+      "Bachelor of Library and Information Science",
+      "Bachelor of Music in Music Education",
+      "Bachelor of Music in Music Performance (Piano)",
+      "Bachelor of Music in Music Performance (Voice)",
+      "Bachelor of Elementary Education",
+      "Bachelor of Science in Secondary Education (English)",
+      "Bachelor of Science in Secondary Education (Filipino)",
+      "Bachelor of Science in Secondary Education (Mathematics)",
+      "Bachelor of Science in Secondary Education (Social Studies)",
+      "Bachelor of Culture And Arts Education",
+      "Bachelor of Special Need Education (Early Childhood Education)",
+    ],
+  CNND: [
+      "Bachelor of Science in Nursing",
+      "Bachelor of Science in Nutrition and Dietetics",
+    ],
+    CPMT: [
+      "Bachelor of Science in Medical Laboratory Science",
+      "Bachelor of Science in Pharmacy",
+    ],
+    COT: [
+      "Bachelor of Science in Architecture",
+      "Bachelor of Science in Landscape Architecture",
+      "Bachelor of Science in Interior Design",
+      "Bachelor of Science in Chemical Engineering",
+      "Bachelor of Science in Civil Engineering",
+      "Bachelor of Science in Computer Engineering",
+      "Bachelor of Science in Electronics Engineering",
+      "Bachelor of Science in Mechanical Engineering",
+      "Bachelor of Fine Arts",
+    ],
+    COC: [
+      "Bachelor of Science in Accountancy",
+      "Bachelor of Science in Management Accounting",
+      "Bachelor of Science in Business Administration (Financial Management)",
+      "Bachelor of Science in Business Administration (Marketing Management)",
+      "Bachelor of Science in Hospitality Management",
+      "Bachelor of Science in Tourism Management (Certificate of Culinary Arts)",
+    ],
 };
 
 const floorOptions = ["Ground Floor", "Second Floor", "Third Floor"];
