@@ -37,6 +37,7 @@ import AdminRooms from "./Admin/AdminRooms.jsx";
 import AdminUsers from "./Admin/AdminUsers.jsx";
 import AdminMessages from "./Admin/AdminMessages.jsx";
 import AdminReports from "./Admin/AdminReports.jsx";
+import AdminNotification from "./Admin/AdminNotification.jsx";
 
 /* ---- staff ---- */
 import StaffNavigation from "./Staff/StaffNavigation.jsx";
@@ -83,6 +84,7 @@ function App() {
     adminUsers: "/admin/users",
     adminMessage: "/admin/messages",
     adminReports: "/admin/reports",
+    adminNotifications: "/admin/notifications",
     staffDashboard: "/staff/dashboard",
     staffReservation: "/staff/reservations",
     staffUsers: "/staff/users",
@@ -96,7 +98,6 @@ function App() {
     Object.entries(viewToPath).map(([v, p]) => [p, v])
   );
 
-  // Navigation syncing
   useEffect(() => {
     localStorage.setItem("view", view);
     const path = viewToPath[view];
@@ -108,7 +109,6 @@ function App() {
     if (newView !== view) setView(newView);
   }, [location.pathname]);
 
-  // Prevent back button escape
   useEffect(() => {
     const handlePopState = () => {
       if (
@@ -148,12 +148,10 @@ function App() {
     }
   };
 
-  // Refresh on every view switch
   useEffect(() => {
     if (user?._id) fetchUser();
   }, [view]);
 
-  // Listen to socket updates
   useEffect(() => {
     const handler = (updatedId) => {
       if (updatedId === user?._id) fetchUser();
@@ -262,27 +260,17 @@ function App() {
           <Dashboard user={user} setView={setView} setSelectedReservation={setSelectedReservation} />
         )}
       {view === "history" &&
-  renderUserNavigation(
-    <History
-      user={user}
-      setView={setView}
-      setSelectedReservation={setSelectedReservation}
-    />
-  )}
+        renderUserNavigation(
+          <History user={user} setView={setView} setSelectedReservation={setSelectedReservation} />
+        )}
       {view === "notification" &&
         renderUserNavigation(<Notification user={user} setView={setView} setSelectedReservation={setSelectedReservation} />)}
-      {view === "messages" &&
-        renderUserNavigation(<Messages user={user} setView={setView} />)}
-      {view === "profile" &&
-        renderUserNavigation(<Profile user={user} setView={setView} />)}
-      {view === "editProfile" &&
-        renderUserNavigation(<EditProfile user={user} setView={setView} />)}
-      {view === "guidelines" &&
-        renderUserNavigation(<Guidelines user={user} setView={setView} />)}
-      {view === "help" &&
-        renderUserNavigation(<HelpCenter user={user} setView={setView} />)}
-      {view === "reserve" &&
-        renderUserNavigation(<ReserveRoom user={user} setView={setView} />)}
+      {view === "messages" && renderUserNavigation(<Messages user={user} setView={setView} />)}
+      {view === "profile" && renderUserNavigation(<Profile user={user} setView={setView} />)}
+      {view === "editProfile" && renderUserNavigation(<EditProfile user={user} setView={setView} />)}
+      {view === "guidelines" && renderUserNavigation(<Guidelines user={user} setView={setView} />)}
+      {view === "help" && renderUserNavigation(<HelpCenter user={user} setView={setView} />)}
+      {view === "reserve" && renderUserNavigation(<ReserveRoom user={user} setView={setView} />)}
       {view === "reservationDetails" &&
         renderUserNavigation(<ReservationDetails reservation={selectedReservation} setView={setView} />)}
 
@@ -293,6 +281,7 @@ function App() {
       {view === "adminUsers" && renderAdminNavigation(<AdminUsers setView={setView} />)}
       {view === "adminMessage" && renderAdminNavigation(<AdminMessages setView={setView} />)}
       {view === "adminReports" && renderAdminNavigation(<AdminReports setView={setView} />)}
+      {view === "adminNotifications" && renderAdminNavigation(<AdminNotification setView={setView} />)}
 
       {/* STAFF */}
       {view === "staffDashboard" && renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}

@@ -2,23 +2,39 @@ const express = require("express");
 const router = express.Router();
 const Notification = require("../models/Notification");
 
+
+// ✅ GET /notifications — fetch all notifications (general)
+router.get("/", async (req, res) => {
+  try {
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .populate("reservationId userId");
+    res.status(200).json(notifications);
+  } catch (err) {
+    console.error("Fetch all notifications error:", err);
+    res.status(500).json({ message: "Failed to fetch notifications." });
+  }
+});
+
+
 // ✅ POST /notifications — create a notification
 router.post("/", async (req, res) => {
   try {
-    const { userId, message, status, reservationId } = req.body;
+    const { userId, message, status, reservationId, type } = req.body;
 
     const newNotification = new Notification({
       userId,
       message,
       status,
       reservationId,
+      type,
     });
 
     await newNotification.save();
 
     // ✅ emit real-time socket event if available
-    if (req.app.get("socketio")) {
-      const io = req.app.get("socketio");
+    if (req.app.get("io")) {
+      const io = req.app.get("io");
       io.emit("notification", newNotification);
     }
 
@@ -28,6 +44,51 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Failed to create notification." });
   }
 });
+
+// ✅ Get all report-type notifications for admin
+router.get("/reports", async (req, res) => {
+  try {
+    const notifications = await Notification.find({
+      type: { $regex: "^report$", $options: "i" } // Case-insensitive match
+    }).sort({ createdAt: -1 });
+
+    console.log("🔔 Fetched report notifications:", notifications.length);
+    res.status(200).json(notifications);
+  } catch (err) {
+    console.error("❌ Error fetching report notifications:", err);
+    res.status(500).json({ message: "Failed to fetch report notifications", error: err.message });
+  }
+});
+
+// Mark as read route
+router.patch('/notifications/:id/read', async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { status: 'read' },
+      { new: true }
+    );
+    res.json(notification);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Dismiss route (doesn't delete, just marks as dismissed)
+router.patch('/notifications/:id/dismiss', async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { dismissed: true },
+      { new: true }
+    );
+    res.json(notification);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
 
 // ✅ GET /notifications/user/:userId — get all notifications for a user
 router.get("/user/:userId", async (req, res) => {
@@ -129,6 +190,5 @@ router.put("/mark-all-read/:userId", async (req, res) => {
     res.status(500).json({ message: "Failed to mark all notifications as read." });
   }
 });
-
 
 module.exports = router;

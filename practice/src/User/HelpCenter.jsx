@@ -229,9 +229,10 @@ export default function HelpCenter({ setView }) {
     </p>
 
     <p>
-      <span className="font-semibold">Can’t log in or forgot password:</span><br />
-      Make sure you're entering the correct email and password. If you forgot your password, there’s no automated reset yet — contact the librarian or system admin through the <span className="font-medium text-blue-600">Messages</span> tab or visit in person to request a reset.
-    </p>
+  <span className="font-semibold">Can’t log in or forgot password:</span><br />
+  If you’re having trouble logging in, double-check your email and password. If you forgot your password, you can now reset it by clicking the <span className="font-medium text-blue-600">Forgot Password</span> link on the login page and following the instructions.
+</p>
+
   </div>
 </details>
 
@@ -282,7 +283,7 @@ export default function HelpCenter({ setView }) {
     </p>
 
     <p>
-      <span className="font-semibold">Submit a request via contact form (if available):</span><br />
+      <span className="font-semibold">Submit a request via contact form:</span><br />
       If the website includes a contact form (check the homepage or footer), you may also submit support requests there. Make sure to include your contact information and a detailed explanation of the problem.
     </p>
   </div>

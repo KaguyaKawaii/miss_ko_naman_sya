@@ -5,13 +5,18 @@ const notificationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true, // optimize queries by user
+      required: false,
+      index: true,
     },
     reservationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Reservation",
-      default: null, // allow null for general notifications
+      default: null,
+    },
+    reportId: { // ✅ ADD THIS BLOCK
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Report",
+      default: null,
     },
     message: {
       type: String,
@@ -30,21 +35,26 @@ const notificationSchema = new mongoose.Schema(
         "Ongoing",
         "Expired",
         "Info",
+        "New",
       ],
       default: "Info",
+    },
+    type: {
+      type: String,
+      enum: ["reservation", "report", "system"],
+      default: "reservation",
     },
     isRead: {
       type: Boolean,
       default: false,
-      index: true, // optimize unread queries
+      index: true,
     },
   },
   {
-    timestamps: true, // adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 
-// Optional compound index for faster bulk unread queries per user
 notificationSchema.index({ userId: 1, isRead: 1 });
 
 module.exports =

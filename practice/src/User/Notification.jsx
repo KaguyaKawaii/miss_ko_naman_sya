@@ -45,8 +45,7 @@ function Notification({ user, setView, setSelectedReservation }) {
 
   const fetchNotifications = () => {
     setLoading(true);
-    axios
-      .get(`http://localhost:5000/notifications/user/${user._id}`)
+    axios.get(`http://localhost:5000/api/notifications/user/${user._id}`)
       .then((res) => {
         const sorted = res.data.sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
@@ -62,15 +61,13 @@ function Notification({ user, setView, setSelectedReservation }) {
   };
 
   const markAsRead = (id) => {
-    axios
-      .put(`http://localhost:5000/notifications/${id}/read`)
+    axios.put(`http://localhost:5000/api/notifications/${id}/read`)
       .then(() => fetchNotifications())
       .catch((err) => console.error("Failed to mark as read:", err));
   };
 
   const markAllAsRead = () => {
-    axios
-      .put(`http://localhost:5000/notifications/mark-all-read/${user._id}`)
+    axios.put(`http://localhost:5000/api/notifications/mark-all-read/${user._id}`)
       .then(() => fetchNotifications())
       .catch((err) => console.error("Failed to mark all as read:", err));
   };

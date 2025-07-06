@@ -4,6 +4,10 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import RoomAvailabilityModal from "./RoomAvailabilityModal";
 import PropTypes from 'prop-types';
+import ReportProblemModal from "./Modals/ReportProblemModal"; // adjust if in different path
+
+
+
 
 // Helper functions
 const formatPH = (date) => {
@@ -59,6 +63,8 @@ function Dashboard({ user, setView, setSelectedReservation }) {
   const [participantConflict, setParticipantConflict] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newReservation, setNewReservation] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  
 
   // API endpoints
   const API_BASE_URL = "http://localhost:5000";
@@ -492,6 +498,38 @@ function Dashboard({ user, setView, setSelectedReservation }) {
           </button>
         </aside>
       </div>
+      
+     
+     <footer className="fixed bottom-0 left-0 md:left-[250px] right-0 bg-white border-t border-gray-200 shadow-sm">
+  <div className="container mx-auto  flex justify-between items-center">
+    <div className="text-sm text-gray-500">
+      © {new Date().getFullYear()} USA-FLD CircuLink
+    </div>
+
+    <button
+      onClick={() => setShowReportModal(true)}
+      className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors flex items-center cursor-pointer"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      Report Problem
+    </button>
+  </div>
+</footer>
+
+      
+
+      {/* Modal Component */}
+      {showReportModal && (
+        <ReportProblemModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          user={user}
+        />
+      )}
+    
+
 
       {/* MODALS */}
       {showAvailModal && (
