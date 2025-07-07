@@ -45,95 +45,90 @@ function AdminNews({ setView }) {
   };
 
   return (
-    <div>
+    <>
       <AdminNavigation setView={setView} currentView="adminNews" />
-      <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-        <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-          <h1 className="text-2xl font-semibold">News Management</h1>
+      <main className="ml-[250px] w-[calc(100%-250px)] min-h-screen bg-gray-50">
+        <header className="bg-white px-6 py-4 border-b border-gray-200">
+          <h1 className="text-2xl font-bold text-[#CC0000]">News Management</h1>
+          <p className="text-gray-600">Add and manage news announcements</p>
         </header>
-
-        <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+        
+        <div className="p-6">
           {/* Add News Form */}
-          <form
-            onSubmit={handleAddNews}
-            className="flex flex-col gap-3 border border-gray-300 p-5 rounded-xl bg-white"
-          >
-            <h2 className="text-xl font-semibold">Add News</h2>
-            <input
-              type="text"
-              placeholder="Title"
-              className="border p-2 rounded"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <textarea
-              placeholder="Content"
-              className="border p-2 rounded h-28 resize-none"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="bg-[#CC0000] text-white px-5 py-2 rounded hover:bg-red-700 duration-150"
-            >
-              Post News
-            </button>
-          </form>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Add News</h2>
+            <form onSubmit={handleAddNews} className="flex flex-col gap-4">
+              <input
+                type="text"
+                placeholder="Title"
+                className="border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <textarea
+                placeholder="Content"
+                className="border border-gray-300 p-2 rounded h-28 resize-none focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="bg-[#CC0000] text-white px-5 py-2 rounded hover:bg-red-700 duration-150 self-end"
+              >
+                Post News
+              </button>
+            </form>
+          </div>
 
           {/* News List */}
-          <div className="border border-gray-300 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-[#CC0000] text-white">
-                <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Title</th>
-                  <th className="p-3">Content</th>
-                  <th className="p-3">Posted</th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan="5" className="text-center p-4">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : newsList.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="text-center p-4">
-                      No news posted.
-                    </td>
-                  </tr>
-                ) : (
-                  newsList.map((item, index) => (
-                    <tr
-                      key={item._id}
-                      className="border-b hover:bg-gray-50 duration-150"
-                    >
-                      <td className="p-3">{index + 1}</td>
-                      <td className="p-3 font-medium">{item.title}</td>
-                      <td className="p-3">{item.content}</td>
-                      <td className="p-3">
-                        {new Date(item.created_at).toLocaleString()}
-                      </td>
-                      <td className="p-3">
-                        <button
-                          onClick={() => handleDeleteNews(item._id)}
-                          className="text-red-600 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </td>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h2 className="text-xl font-semibold mb-4">News List</h2>
+            {isLoading ? (
+              <div className="text-center p-4">Loading...</div>
+            ) : newsList.length === 0 ? (
+              <div className="text-center p-4 text-gray-500">No news posted.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="p-3 text-left">#</th>
+                      <th className="p-3 text-left">Title</th>
+                      <th className="p-3 text-left">Content</th>
+                      <th className="p-3 text-left">Posted</th>
+                      <th className="p-3 text-left">Actions</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {newsList.map((item, index) => (
+                      <tr
+                        key={item._id}
+                        className="border-b border-gray-200 hover:bg-gray-50 duration-150"
+                      >
+                        <td className="p-3">{index + 1}</td>
+                        <td className="p-3 font-medium">{item.title}</td>
+                        <td className="p-3">{item.content}</td>
+                        <td className="p-3">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </td>
+                        <td className="p-3">
+                          <button
+                            onClick={() => handleDeleteNews(item._id)}
+                            className="text-[#CC0000] hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </main>
-    </div>
+    </>
   );
 }
 

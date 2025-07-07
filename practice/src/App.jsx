@@ -38,6 +38,9 @@ import AdminUsers from "./Admin/AdminUsers.jsx";
 import AdminMessages from "./Admin/AdminMessages.jsx";
 import AdminReports from "./Admin/AdminReports.jsx";
 import AdminNotification from "./Admin/AdminNotification.jsx";
+import AdminArchived from "./Admin/AdminArchived.jsx";       // ✅ added
+import AdminNews from "./Admin/AdminNews.jsx";               // ✅ added
+import AdminLogs from "./Admin/AdminLogs.jsx";    
 
 /* ---- staff ---- */
 import StaffNavigation from "./Staff/StaffNavigation.jsx";
@@ -92,6 +95,9 @@ function App() {
     staffNotification: "/staff/notifications",
     editProfile: "/edit-profile",
     help: "/help",
+      adminArchived: "/admin/archived",               // ✅ added
+  adminNews: "/admin/news",                       // ✅ added
+  adminLogs: "/admin/logs",      
   };
 
   const pathToView = Object.fromEntries(
@@ -282,6 +288,9 @@ function App() {
       {view === "adminMessage" && renderAdminNavigation(<AdminMessages setView={setView} />)}
       {view === "adminReports" && renderAdminNavigation(<AdminReports setView={setView} />)}
       {view === "adminNotifications" && renderAdminNavigation(<AdminNotification setView={setView} />)}
+      {view === "adminArchived" && renderAdminNavigation(<AdminArchived setView={setView} />)}      {/* ✅ */}
+{view === "adminNews" && renderAdminNavigation(<AdminNews setView={setView} />)}              {/* ✅ */}
+{view === "adminLogs" && renderAdminNavigation(<AdminLogs setView={setView} />)}              {/* ✅ */}
 
       {/* STAFF */}
       {view === "staffDashboard" && renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}
@@ -303,8 +312,8 @@ function App() {
             </div>
             <div className="border-t border-gray-200 mb-6" />
             <div className="flex justify-between">
-              <button onClick={() => setShowLogoutModal(false)} className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">No, stay</button>
-              <button onClick={handleLogout} className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600">Yes, log out</button>
+              <button onClick={() => setShowLogoutModal(false)} className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer">No, stay</button>
+              <button onClick={handleLogout} className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600 cursor-pointer">Yes, log out</button>
             </div>
           </div>
         </div>

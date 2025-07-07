@@ -5,7 +5,6 @@ import socket from "../utils/socket";
 import moment from "moment-timezone";
 import GroundFloorImg from "../assets/GroundFloor.jpg";
 import FifthFloorImg from "../assets/picture2.jpg";
-
 import FacultyRoomImg from "../assets/FacultyRoom.jpg";
 import Collab from "../assets/CollabRoom.jpg";
 
@@ -245,6 +244,14 @@ function ReserveRoom({ user, setView }) {
       return false;
     }
 
+    // Check if selected date/time is in the past
+    const now = new Date();
+    const selectedDate = new Date(`${formData.date}T${formData.time}`);
+    if (selectedDate < now) {
+      alert("You cannot reserve a room in the past. Please select a future date and time.");
+      return false;
+    }
+
     for (let i = 0; i < formData.participants.length; i++) {
       const p = formData.participants[i];
       if (!p.name || !p.department || !p.idNumber) {
@@ -314,12 +321,34 @@ function ReserveRoom({ user, setView }) {
   };
 
   const roomLocations = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
-  const times = [
-    "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
-    "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", 
-    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
+  
+  // Updated times with AM/PM format
+  const timeSlots = [
+    { value: "07:00", display: "7:00 AM" },
+    { value: "07:30", display: "7:30 AM" },
+    { value: "08:00", display: "8:00 AM" },
+    { value: "08:30", display: "8:30 AM" },
+    { value: "09:00", display: "9:00 AM" },
+    { value: "09:30", display: "9:30 AM" },
+    { value: "10:00", display: "10:00 AM" },
+    { value: "10:30", display: "10:30 AM" },
+    { value: "11:00", display: "11:00 AM" },
+    { value: "11:30", display: "11:30 AM" },
+    { value: "13:00", display: "1:00 PM" },
+    { value: "13:30", display: "1:30 PM" },
+    { value: "14:00", display: "2:00 PM" },
+    { value: "14:30", display: "2:30 PM" },
+    { value: "15:00", display: "3:00 PM" },
+    { value: "15:30", display: "3:30 PM" },
+    { value: "16:00", display: "4:00 PM" },
+    { value: "16:30", display: "4:30 PM" },
+    { value: "17:00", display: "5:00 PM" }
   ];
 
+  const formatDisplayTime = (timeValue) => {
+    const slot = timeSlots.find(t => t.value === timeValue);
+    return slot ? slot.display : "Select Time";
+  };
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col">
@@ -353,13 +382,13 @@ function ReserveRoom({ user, setView }) {
       </header>
 
       <div className="m-5 flex flex-col items-center">
-        <div className="flex flex-wrap gap-6">
+        <div className="flex flex-wrap gap-6 w-full max-w-6xl">
           {/* Date Selector */}
-          <div>
-            <p>Select Date</p>
+          <div className="flex-1 min-w-[250px]">
+            <p className="font-medium mb-1">Select Date</p>
             <div
               onClick={() => setShowDateModal(true)}
-              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
+              className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
             >
               {formData.date ? (
                 new Date(formData.date).toLocaleDateString('en-US', {
@@ -374,22 +403,22 @@ function ReserveRoom({ user, setView }) {
           </div>
 
           {/* Time Selector */}
-          <div>
-            <p>Time</p>
+          <div className="flex-1 min-w-[250px]">
+            <p className="font-medium mb-1">Time</p>
             <div
               onClick={() => setShowTimeModal(true)}
-              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
+              className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
             >
-              {formData.time || <span className="text-gray-400">Select Time</span>}
+              {formData.time ? formatDisplayTime(formData.time) : <span className="text-gray-400">Select Time</span>}
             </div>
           </div>
 
           {/* Number of Users Selector */}
-          <div>
-            <p>Number of Users</p>
+          <div className="flex-1 min-w-[250px]">
+            <p className="font-medium mb-1">Number of Users</p>
             <div
               onClick={() => setShowUsersModal(true)}
-              className="w-[250px] h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
+              className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
             >
               {formData.numUsers ? `${formData.numUsers} Users` : <span className="text-gray-400">Select Users</span>}
             </div>
@@ -465,85 +494,84 @@ function ReserveRoom({ user, setView }) {
         )}
 
         {/* Time Selection Modal */}
-{showTimeModal && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white p-6 rounded-xl w-[350px] md:w-[600px] max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-4">Select Time</h2>
+        {showTimeModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl w-[350px] md:w-[600px] max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-semibold mb-4">Select Time</h2>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Morning */}
-        <div className="flex-1">
-          <h3 className="text-sm font-semibold text-gray-500 mb-2">
-            Morning (7:00 AM – 11:30 AM)
-          </h3>
-          <div className="grid grid-cols-1 gap-2">
-            {times
-              .filter((time) => {
-                const [hourStr] = time.split(":");
-                const hour = parseInt(hourStr, 10);
-                return hour >= 7 && hour < 12;
-              })
-              .map((time) => (
-                <button
-                  key={time}
-                  onClick={() => {
-                    setFormData({ ...formData, time });
-                    setShowTimeModal(false);
-                  }}
-                  className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
-                    formData.time === time
-                      ? "bg-[#CC0000] text-white border-[#CC0000]"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Morning */}
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                    Morning (7:00 AM – 11:30 AM)
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {timeSlots
+                      .filter((slot) => {
+                        const [hourStr] = slot.value.split(":");
+                        const hour = parseInt(hourStr, 10);
+                        return hour >= 7 && hour < 12;
+                      })
+                      .map((slot) => (
+                        <button
+                          key={slot.value}
+                          onClick={() => {
+                            setFormData({ ...formData, time: slot.value });
+                            setShowTimeModal(false);
+                          }}
+                          className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
+                            formData.time === slot.value
+                              ? "bg-[#CC0000] text-white border-[#CC0000]"
+                              : "hover:bg-gray-100"
+                          }`}
+                        >
+                          {slot.display}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Afternoon */}
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                    Afternoon (1:00 PM – 5:00 PM)
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {timeSlots
+                      .filter((slot) => {
+                        const [hourStr] = slot.value.split(":");
+                        const hour = parseInt(hourStr, 10);
+                        return hour >= 13 && hour <= 17;
+                      })
+                      .map((slot) => (
+                        <button
+                          key={slot.value}
+                          onClick={() => {
+                            setFormData({ ...formData, time: slot.value });
+                            setShowTimeModal(false);
+                          }}
+                          className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
+                            formData.time === slot.value
+                              ? "bg-[#CC0000] text-white"
+                              : "hover:bg-gray-100"
+                          }`}
+                        >
+                          {slot.display}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowTimeModal(false)}
+                className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        </div>
-
-        {/* Afternoon */}
-        <div className="flex-1">
-          <h3 className="text-sm font-semibold text-gray-500 mb-2">
-            Afternoon (1:00 PM – 5:00 PM)
-          </h3>
-          <div className="grid grid-cols-1 gap-2">
-            {times
-              .filter((time) => {
-                const [hourStr] = time.split(":");
-                const hour = parseInt(hourStr, 10);
-                return hour >= 13 && hour <= 17;
-              })
-              .map((time) => (
-                <button
-                  key={time}
-                  onClick={() => {
-                    setFormData({ ...formData, time });
-                    setShowTimeModal(false);
-                  }}
-                  className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
-                    formData.time === time
-                      ? "bg-[#CC0000] text-white"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
-          </div>
-        </div>
-      </div>
-
-      <button
-        onClick={() => setShowTimeModal(false)}
-        className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
-
+        )}
 
         {/* Number of Users Modal */}
         {showUsersModal && (
@@ -579,8 +607,8 @@ function ReserveRoom({ user, setView }) {
         )}
 
         {/* Purpose */}
-        <div className="my-4 w-[800px]">
-          <p>Purpose</p>
+        <div className="my-4 w-full max-w-6xl">
+          <p className="font-medium mb-1">Purpose</p>
           <input
             className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
             type="text"
@@ -588,126 +616,120 @@ function ReserveRoom({ user, setView }) {
             onChange={(e) =>
               setFormData({ ...formData, purpose: e.target.value })
             }
+            placeholder="Enter purpose of reservation"
           />
         </div>
 
-<div className="flex flex-col items-center gap-5">
-  <p className="font-semibold font-sans text-lg">Room Location</p>
-  <div className="flex flex-wrap gap-5 justify-center">
-    {roomLocations.map((loc) => {
-      let imageSrc = null;
-      if (loc === "Ground Floor") imageSrc = GroundFloorImg;
-      if (loc === "5th Floor") imageSrc = FifthFloorImg;
+        {/* Room Location */}
+        <div className="flex flex-col items-center gap-5 w-full max-w-6xl">
+          <p className="font-semibold font-sans text-lg">Room Location</p>
+          <div className="flex flex-wrap gap-5 justify-center w-full">
+            {roomLocations.map((loc) => {
+              let imageSrc = null;
+              if (loc === "Ground Floor") imageSrc = GroundFloorImg;
+              if (loc === "5th Floor") imageSrc = FifthFloorImg;
 
-      return (
-        <div
-          key={loc}
-          onClick={() =>
-            setFormData({
-              ...formData,
-              location: loc,
-              roomName: "",
-              room_Id: "",
-            })
-          }
-          className={`border border-gray-200 shadow-sm rounded-2xl w-[200px] h-[200px] flex justify-center items-center cursor-pointer transition duration-200 overflow-hidden relative ${
-            formData.location === loc ? "border-red-600 opacity-100" : "opacity-40"
-          }`}
-        >
-          {imageSrc && (
-            <img
-              src={imageSrc}
-              alt={loc}
-              className="absolute w-full h-full object-cover"
-              loading="lazy"
-            />
-          )}
-          <p className="absolute bottom-2 left-0 w-full text-center text-white text-lg font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-            {loc}
-          </p>
-        </div>
-      );
-    })}
-  </div>
-</div>
-
-{/* Room Selection */}
-<div className="flex flex-col items-center gap-5 mt-8 w-full">
-  <p className="font-semibold font-sans text-lg">Select Room</p>
-
-  {formData.location ? (
-    <div className="w-full px-5">
-      <div className="flex flex-wrap flex-row gap-5 justify-center">
-        {rooms
-          .filter((room) => {
-            const floor = formData.location;
-
-            if (floor === "5th Floor") {
-              // For 5th Floor: only show Faculty Room and Collaboration Room
               return (
-                room.floor === floor &&
-                (room.room === "Faculty Room" ||
-                  room.room === "Collaboration Room")
+                <div
+                  key={loc}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      location: loc,
+                      roomName: "",
+                      room_Id: "",
+                    })
+                  }
+                  className={`border border-gray-200 shadow-sm rounded-2xl w-[200px] h-[200px] flex justify-center items-center cursor-pointer transition duration-200 overflow-hidden relative ${
+                    formData.location === loc ? "border-red-600 opacity-100" : "opacity-40 hover:opacity-70"
+                  }`}
+                >
+                  {imageSrc && (
+                    <img
+                      src={imageSrc}
+                      alt={loc}
+                      className="absolute w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <p className="absolute bottom-2 left-0 w-full text-center text-white text-lg font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                    {loc}
+                  </p>
+                </div>
               );
-            } else {
-              // For other floors: show all rooms on that floor
-              return room.floor === floor;
-            }
-          })
-          .map((room) => {
-            let roomImage = null;
-            if (room.room === "Faculty Room") roomImage = FacultyRoomImg;
-            if (room.room === "Collaboration Room") roomImage = Collab;
+            })}
+          </div>
+        </div>
 
-            return (
-              <div
-                key={room._id}
-                onClick={() =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    roomName: room.room,
-                    room_Id: room._id,
-                  }))
-                }
-                className={`border border-gray-200 shadow-sm rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden ${
-                  formData.room_Id === room._id
-                    ? "bg-red-100 border-red-600 opacity-100"
-                    : "hover:opacity-100 opacity-80"
-                }`}
-              >
-                {roomImage && (
-                  <img
-                    src={roomImage}
-                    alt={room.room}
-                    className="absolute w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                )}
-                <div className="absolute inset-0 bg-black/30 z-0"></div>
-                <p className="text-white text-xl font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] z-10">
-                  {room.room}
-                </p>
+        {/* Room Selection */}
+        <div className="flex flex-col items-center gap-5 mt-8 w-full max-w-6xl">
+          <p className="font-semibold font-sans text-lg">Select Room</p>
+
+          {formData.location ? (
+            <div className="w-full px-5">
+              <div className="flex flex-wrap flex-row gap-5 justify-center">
+                {rooms
+                  .filter((room) => {
+                    const floor = formData.location;
+
+                    if (floor === "5th Floor") {
+                      return (
+                        room.floor === floor &&
+                        (room.room === "Faculty Room" ||
+                          room.room === "Collaboration Room")
+                      );
+                    } else {
+                      return room.floor === floor;
+                    }
+                  })
+                  .map((room) => {
+                    let roomImage = null;
+                    if (room.room === "Faculty Room") roomImage = FacultyRoomImg;
+                    if (room.room === "Collaboration Room") roomImage = Collab;
+
+                    return (
+                      <div
+                        key={room._id}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            roomName: room.room,
+                            room_Id: room._id,
+                          }))
+                        }
+                        className={`border border-gray-200 shadow-sm rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden ${
+                          formData.room_Id === room._id
+                            ? "bg-red-100 border-red-600 opacity-100"
+                            : "hover:opacity-100 opacity-80"
+                        }`}
+                      >
+                        {roomImage && (
+                          <img
+                            src={roomImage}
+                            alt={room.room}
+                            className="absolute w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/30 z-0"></div>
+                        <p className="text-white text-xl font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] z-10">
+                          {room.room}
+                        </p>
+                      </div>
+                    );
+                  })}
               </div>
-            );
-          })}
-      </div>
-    </div>
-  ) : (
-    <div className="text-gray-500 italic">Please select a floor location first</div>
-  )}
-</div>
+            </div>
+          ) : (
+            <div className="text-gray-500 italic">Please select a floor location first</div>
+          )}
+        </div>
 
-
-
-
-
-
-
-        <p className="font-semibold font-sans text-lg mt-6">Participants</p>
+        <p className="font-semibold font-sans text-lg mt-6 w-full max-w-6xl">Participants</p>
 
         {/* Participants Table */}
-        <div className="overflow-x-auto mt-6 flex justify-center">
-          <table className="bg-white shadow rounded-xl overflow-hidden w-[80rem]">
+        <div className="overflow-x-auto mt-6 w-full max-w-6xl">
+          <table className="bg-white shadow rounded-xl overflow-hidden w-full">
             <thead className="bg-[#FFCC00]">
               <tr>
                 <th className="py-3 px-4 text-left">ID Number</th>
@@ -814,12 +836,12 @@ function ReserveRoom({ user, setView }) {
             </tbody>
           </table>
         </div>
-        <p className="text-sm text-gray-600 italic mt-3">
+        <p className="text-sm text-gray-600 italic mt-3 w-full max-w-6xl">
           * Enter ID Number to auto-fill participant details. Verified fields
           will be locked.
         </p>
 
-        <div className="w-full flex flex-col self-start mt-6 px-45">
+        <div className="w-full max-w-6xl mt-6">
           <h4 className="font-semibold text-md font-sans text-gray-800"><span className="text-red-700">* </span>Note</h4>
           <ul className="list-disc pl-5">
             <li className="text-sm text-gray-600 mb-1">
@@ -832,7 +854,7 @@ function ReserveRoom({ user, setView }) {
         </div>
 
         {/* Submit Button */}
-        <div className="flex justify-center mt-5">
+        <div className="flex justify-center mt-5 w-full max-w-6xl">
           <button
             onClick={submitReservation}
             type="button"

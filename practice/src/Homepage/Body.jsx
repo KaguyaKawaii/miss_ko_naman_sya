@@ -1,4 +1,6 @@
 import Picture from '../assets/picture2.jpg';
+import Logo from '../assets/logo2.png';
+import Logo2 from '../assets/logo.png';
 import { ChevronDown } from 'lucide-react';
 
 function Body() {
@@ -12,32 +14,45 @@ function Body() {
           transform: 'scale(1.05)' // Slight zoom for depth
         }}
       >
+        
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/50 to-black/30 z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30 z-0"></div>
       </div>
 
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-        <div>
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-white font-bold leading-tight">
-            <span className="text-[#FFCC00] bg-clip-text bg-gradient-to-r from-[#FFCC00] to-amber-300">USA-FLD</span>{' '}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">CircuLink</span>
-          </h1>
-
+        {/* Logo and Title Container */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="flex flex-wrap justify-center items-center space-x-4 mb-6">
+            <img 
+            src={Logo2} 
+            alt="USA-FLD CircuLink Logo" 
+            className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mb-6 drop-shadow-lg"
+          />
+          <img 
+            src={Logo} 
+            alt="USA-FLD CircuLink Logo" 
+            className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mb-6 drop-shadow-lg"
+          />
           
-
-          <p className="text-xl sm:text-2xl md:text-3xl text-white/90 font-light max-w-2xl mx-auto leading-snug">
-            Modern Web-Based Library Room Reservation System
-          </p>
-
-          {/* CTA Button */}
-          <button 
-            className="mt-8 px-8 py-3 bg-gradient-to-r from-[#FFCC00] to-amber-500 text-gray-900 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-50"
-            onClick={() => window.scrollBy({ top: window.innerHeight, behavior: 'smooth' })}
-          >
-            Explore System
-          </button>
+          </div>
+          
+          <div className="text-center">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white font-bold leading-tight mb-2">
+              <span className="text-[#FFCC00]">USA-FLD</span>{' '}
+              <span className="text-white">CircuLink</span>
+            </h1>
+            
+            <div className="w-full rounded-full h-1 bg-[#FFCC00] mx-auto mb-4"></div>
+            
+            <p className="text-lg sm:text-xl md:text-2xl text-white/90 font-light max-w-2xl mx-auto leading-snug">
+              Modern Web-Based Library Room Reservation System
+            </p>
+          </div>
         </div>
+
+        {/* CTA Button */}
+        
       </div>
 
       {/* Down Arrow */}
@@ -53,8 +68,6 @@ function Body() {
           />
         </button>
       </div>
-
-      
     </main>
   );
 }
