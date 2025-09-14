@@ -94,128 +94,187 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   };
 
   return (
-    <main>
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-yellow-50">
       {loading && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Loader2 size={64} className="text-white animate-spin" />
-          <p className="mt-4 text-white text-lg font-semibold">Logging in…</p>
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center">
+            <Loader2 size={64} className="text-red-600 animate-spin mb-4" />
+            <p className="text-gray-700 text-lg font-semibold">Logging in…</p>
+          </div>
         </div>
       )}
 
-      <div className="flex m-6 justify-center absolute top-0 left-0 right-0">
+      <div className="flex justify-center absolute top-6 left-0 right-0 z-40">
         {error && (
-          <p
+          <div
             key={error}
-            className="bg-red-500 text-white font-semibold p-4 rounded-2xl border border-red-400 shadow-lg text-center absolute animate-shake"
+            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-lg animate-fade-in-down max-w-md"
+            role="alert"
           >
-            {error}
-          </p>
+            <p className="font-bold">Error</p>
+            <p>{error}</p>
+          </div>
         )}
       </div>
 
-      <div className="flex flex-col h-screen items-center justify-center gap-2">
-        <img className="h-[150px] w-[150px]" src={Logo} alt="Logo" />
-        <h1 className="text-3xl font-serif font-semibold text-black">
-          University of San Agustin
-        </h1>
-        <p>
-          General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo,
-          Philippines
-        </p>
-        <p className="text-lg sm:text-xl font-semibold text-gray-700 text-center">
-          Learning Resource Center
-        </p>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+          {/* Left side - University Info */}
+          <div className="md:w-2/5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 p-10 text-white flex flex-col justify-center items-center text-center">
 
-        <div className="flex flex-col items-center gap-2 mt-10">
-          <p className="text-lg sm:text-3xl font-semibold text-gray-700 text-center">
-            Login
-          </p>
+            <img 
+              className="h-32 w-32 mb-6 " 
+              src={Logo} 
+              alt="University of San Agustin Logo" 
+            />
+            <h1 className="text-2xl font-serif font-bold mb-4">
+              University of San Agustin
+            </h1>
+            <p className="mb-6 text-white">
+              General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo,
+              Philippines
+            </p>
+            <div className="w-full rounded-full h-1 bg-yellow-400 mb-6"></div>
+            <p className="text-2xl font-semibold text-yellow-300">
+              Learning Resource Center
+            </p>
+            
+          </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="ml-2">Email</label>
-              <input
-                className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
-                type="text"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+          {/* Right side - Login Form */}
+          <div className="md:w-3/5 p-10 flex flex-col justify-center">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800">Welcome Back</h2>
+              <p className="text-gray-600 mt-2">Sign in to access your account</p>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="ml-2">Password</label>
-              <div className="relative">
+            <form onSubmit={handleLogin} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-700">Email Address</label>
                 <input
-                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
-                  type={showPw ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  className="border border-gray-300 p-4 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  type="text"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPw((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer hover:text-[#CC0000]  transition-colors duration-200"
-                >
-                  {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
               </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-gray-700">Password</label>
+                  <button
+                    type="button"
+                    onClick={() => setView("resetPassword")}
+                    className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    className="border border-gray-300 p-4 rounded-xl w-full hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    type={showPw ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((s) => !s)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors duration-200"
+                  >
+                    {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                Login
+              </button>
+            </form>
+
+            <div className="mt-8 text-center">
+              <p className="text-gray-600">
+                Don't have an account?{" "}
+                <button
+                  onClick={onSwitchToSignUp}
+                  className="text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                >
+                  Create Account
+                </button>
+              </p>
             </div>
 
-            <button
-              type="submit"
-              className="p-3 w-full rounded-lg bg-[#FFCC00] hover:bg-[#e6b800] font-semibold text-white cursor-pointer transition-colors duration-200"
-            >
-              Login
-            </button>
-          </form>
-
-          <div className="mt-4">
-  <button
-    onClick={() => setView("resetPassword")}
-    className="text-[#FFCC00] font-semibold hover:underline cursor-pointer"
-  >
-    Forgot password?
-  </button>
-</div>
-
-          <div className="flex gap-2 mt-2">
-            <p>Don't have an account?</p>
-            <button
-              onClick={onSwitchToSignUp}
-              className="text-[#FFCC00] font-semibold hover:underline cursor-pointer"
-            >
-              Sign Up
-            </button>
+            <div className="mt-10 pt-6 border-t border-gray-200">
+              <p className="text-xs text-center text-gray-500">
+                © {new Date().getFullYear()} University of San Agustin. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {successModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/50 backdrop-blur-md"
           onClick={closeSuccess}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center animate-fade-in"
+            className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center animate-fade-in-scale"
             onClick={(e) => e.stopPropagation()}
           >
-            <CheckCircle size={96} className="text-green-600 mx-auto" />
-            <h3 className="text-3xl font-bold mt-6">Login Successful!</h3>
-            <p className="mt-4 text-gray-700 text-lg">
-              Welcome back! Click the button below to continue to your
-              dashboard.
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle size={48} className="text-green-600" />
+            </div>
+            <h3 className="text-3xl font-bold text-gray-800">Login Successful!</h3>
+            <p className="mt-4 text-gray-600 text-lg">
+              Welcome back! You're now being redirected to your dashboard.
             </p>
             <button
               onClick={closeSuccess}
-              className="mt-8 bg-[#CC0000] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#990000] cursor-pointer duration-200"
+              className="mt-8 bg-red-700 text-white w-full py-4 rounded-xl text-lg font-semibold hover:bg-red-800 cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg"
             >
-              Enter
+              Continue to Dashboard
             </button>
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes fade-in-down {
+          0% {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes fade-in-scale {
+          0% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-fade-in-down {
+          animation: fade-in-down 0.5s ease-out;
+        }
+        
+        .animate-fade-in-scale {
+          animation: fade-in-scale 0.3s ease-out;
+        }
+      `}</style>
     </main>
   );
 }

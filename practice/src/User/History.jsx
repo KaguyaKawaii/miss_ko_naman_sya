@@ -3,7 +3,7 @@ import axios from "axios";
 import { Calendar } from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 
-function History({ user, setView, setSelectedReservation }) {
+function History({ user, setView, setSelectedReservation, historyRefreshKey }) {
   const [reservations, setReservations] = useState([]);
   const [filteredReservations, setFilteredReservations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,9 +16,7 @@ function History({ user, setView, setSelectedReservation }) {
 
     const fetchReservations = async () => {
       try {
-        const res = await axios.get(
-          `http://localhost:5000/reservations/user/${user._id}`
-        );
+        const res = await axios.get(`http://localhost:5000/reservations/user/${user._id}`);
         const sortedReservations = res.data.sort(
           (a, b) => new Date(b.datetime) - new Date(a.datetime)
         );
@@ -31,8 +29,9 @@ function History({ user, setView, setSelectedReservation }) {
       }
     };
 
+    setLoading(true);
     fetchReservations();
-  }, [user]);
+  }, [user, historyRefreshKey]);
 
   useEffect(() => {
     let results = [...reservations];
@@ -114,10 +113,10 @@ function History({ user, setView, setSelectedReservation }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       {/* Header - unchanged */}
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-        <h1 className="text-2xl font-bold">Reservation History</h1>
+      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Reservation History</h1>
       </header>
-
+      
       <div className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto">
         {/* Stats and Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -128,15 +127,28 @@ function History({ user, setView, setSelectedReservation }) {
           </div>
           
           <div className="flex gap-2">
-            <button 
-              onClick={() => setShowFilterModal(true)}
-              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition text-sm"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              Filters
-            </button>
+            <button
+  onClick={() => setShowFilterModal(true)}
+  className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition text-sm cursor-pointer"
+>
+  {/* Filter SVG */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-4 h-4 text-gray-500"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 019 17v-3.586L3.293 6.707A1 1 0 013 6V4z"
+    />
+  </svg>
+  Filters
+</button>
+
             
             {(dateFilter || statusFilter !== "all") && (
               <button 
@@ -157,7 +169,7 @@ function History({ user, setView, setSelectedReservation }) {
                 <span className="text-gray-700">Date: {new Date(dateFilter).toLocaleDateString()}</span>
                 <button 
                   onClick={() => setDateFilter(null)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 ml-1"
                 >
                   ×
                 </button>
@@ -168,7 +180,7 @@ function History({ user, setView, setSelectedReservation }) {
                 <span className="text-gray-700">Status: {statusFilter}</span>
                 <button 
                   onClick={() => setStatusFilter("all")}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 ml-1"
                 >
                   ×
                 </button>
@@ -182,9 +194,7 @@ function History({ user, setView, setSelectedReservation }) {
           <SkeletonLoader />
         ) : filteredReservations.length === 0 ? (
           <div className="text-center py-12">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+            <div className="text-4xl text-gray-400 mb-3">📋</div>
             <p className="text-gray-600">
               {reservations.length === 0 
                 ? "No reservation records found." 
@@ -247,9 +257,7 @@ function History({ user, setView, setSelectedReservation }) {
                     className="text-[#CC0000] text-sm font-medium hover:underline mt-2 cursor-pointer flex items-center gap-1"
                   >
                     View Details
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <i className="fas fa-chevron-right text-xs"></i>
                   </button>
                 </div>
               </div>
@@ -269,9 +277,7 @@ function History({ user, setView, setSelectedReservation }) {
                   onClick={() => setShowFilterModal(false)}
                   className="text-gray-500 hover:text-gray-700"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <i className="fas fa-times text-xl"></i>
                 </button>
               </div>
 
@@ -287,28 +293,28 @@ function History({ user, setView, setSelectedReservation }) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setStatusFilter("all")}
-                      className={`px-3 py-1.5 rounded-lg text-sm ${statusFilter === "all" ? "bg-[#CC0000] text-white" : "bg-gray-100 text-gray-700"}`}
+                      className={`px-3 py-2 rounded-lg text-sm cursor-pointer ${statusFilter === "all" ? "bg-[#CC0000] text-white" : "bg-gray-100 text-gray-700"}`}
                     >
                       All
                     </button>
                     <button
                       onClick={() => setStatusFilter("Approved")}
-                      className={`px-3 py-1.5 rounded-lg text-sm ${statusFilter === "Approved" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}
+                      className={`px-3 py-2 rounded-lg text-sm cursor-pointer ${statusFilter === "Approved" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}
                     >
                       Approved
                     </button>
                     <button
                       onClick={() => setStatusFilter("Pending")}
-                      className={`px-3 py-1.5 rounded-lg text-sm ${statusFilter === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}
+                      className={`px-3 py-2 rounded-lg text-sm cursor-pointer ${statusFilter === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}
                     >
                       Pending
                     </button>
                     <button
                       onClick={() => setStatusFilter("Rejected")}
-                      className={`px-3 py-1.5 rounded-lg text-sm ${statusFilter === "Rejected" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}
+                      className={`px-3 py-2 rounded-lg text-sm cursor-pointer ${statusFilter === "Rejected" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}
                     >
                       Rejected
                     </button>
@@ -319,13 +325,13 @@ function History({ user, setView, setSelectedReservation }) {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition cursor-pointer"
                 >
                   Clear All
                 </button>
                 <button
                   onClick={() => setShowFilterModal(false)}
-                  className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition"
+                  className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition cursor-pointer"
                 >
                   Apply Filters
                 </button>

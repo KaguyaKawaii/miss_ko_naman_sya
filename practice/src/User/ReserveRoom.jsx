@@ -11,6 +11,8 @@ import Collab from "../assets/CollabRoom.jpg";
 function ReserveRoom({ user, setView }) {
   const navigate = useNavigate();
 
+
+
   const [formData, setFormData] = useState({
     date: "",
     time: "",
@@ -272,9 +274,38 @@ function ReserveRoom({ user, setView }) {
     return true;
   };
 
-  const submitReservation = async () => {
-    if (!validateForm()) return;
-    setLoading(true);
+const submitReservation = async () => {
+  if (!user.verified) {
+    setShowNotVerifiedWarning(true); // Show modal again
+    alert("You cannot reserve a room until your account is verified.");
+    return; // Stop further execution
+  }
+
+  if (!validateForm()) return;
+
+  // ⛔️ Add this to check weekly/day limits before setting loading
+  try {
+    const check = await axios.get(`http://localhost:5000/reservations/user-has-any/${user._id}`, {
+  params: {
+    date: formData.date,
+    time: formData.time,
+    asMain: true // ✅ this is the fix
+  }
+});
+
+
+    if (check.data.blocked) {
+      alert(check.data.reason || "You have reached your reservation limit for this week.");
+      return;
+    }
+  } catch (err) {
+  console.error("Limit check failed", err);
+  const message = err.response?.data?.message || "Failed to verify reservation limit.";
+  alert(message);
+  return;
+}
+
+  setLoading(true);
 
     try {
       // Create moment objects in Manila timezone
@@ -377,9 +408,9 @@ function ReserveRoom({ user, setView }) {
         </div>
       )}
 
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-        <h1 className="text-2xl font-bold">Room Reservation Request</h1>
-      </header>
+      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Room Reservation Request</h1>
+</header>
 
       <div className="m-5 flex flex-col items-center">
         <div className="flex flex-wrap gap-6 w-full max-w-6xl">
@@ -627,7 +658,7 @@ function ReserveRoom({ user, setView }) {
             {roomLocations.map((loc) => {
               let imageSrc = null;
               if (loc === "Ground Floor") imageSrc = GroundFloorImg;
-              if (loc === "5th Floor") imageSrc = FifthFloorImg;
+              // if (loc === "5th Floor") imageSrc = FifthFloorImg;
 
               return (
                 <div
@@ -684,8 +715,8 @@ function ReserveRoom({ user, setView }) {
                   })
                   .map((room) => {
                     let roomImage = null;
-                    if (room.room === "Faculty Room") roomImage = FacultyRoomImg;
-                    if (room.room === "Collaboration Room") roomImage = Collab;
+                    // if (room.room === "Faculty Room") roomImage = FacultyRoomImg;
+                    // if (room.room === "Collaboration Room") roomImage = Collab;
 
                     return (
                       <div

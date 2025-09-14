@@ -50,9 +50,9 @@ function Profile({ user, setView }) {
   if (!profile) {
     return (
       <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-        <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-          <h1 className="text-2xl font-bold">My Profile</h1>
-        </header>
+        <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Profile</h1>
+</header>
 
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
@@ -88,10 +88,9 @@ function Profile({ user, setView }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-        <h1 className="text-2xl font-bold">My Profile</h1>
-      </header>
-
+      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Profile</h1>
+</header>
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-4xl mx-auto space-y-6">

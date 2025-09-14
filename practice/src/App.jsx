@@ -4,7 +4,7 @@ import { LogOut } from "lucide-react";
 import api from "./utils/api";
 import socket from "./utils/socket";
 
-/* --------------- shared --------------- */
+/* --------------- shared components --------------- */
 import Header from "./Homepage/Header.jsx";
 import Body from "./Homepage/Body.jsx";
 import Body2 from "./Homepage/Body2.jsx";
@@ -28,6 +28,8 @@ import Messages from "./User/Message.jsx";
 import Guidelines from "./User/Guidelines.jsx";
 import HelpCenter from "./User/HelpCenter.jsx";
 import EditProfile from "./User/EditProfile.jsx";
+import Calendar from "./User/Calendar.jsx";
+import News from "./User/News.jsx";
 
 /* ---- admin ---- */
 import AdminNavigation from "./Admin/AdminNavigation.jsx";
@@ -38,9 +40,15 @@ import AdminUsers from "./Admin/AdminUsers.jsx";
 import AdminMessages from "./Admin/AdminMessages.jsx";
 import AdminReports from "./Admin/AdminReports.jsx";
 import AdminNotification from "./Admin/AdminNotification.jsx";
-import AdminArchived from "./Admin/AdminArchived.jsx";       // ✅ added
-import AdminNews from "./Admin/AdminNews.jsx";               // ✅ added
-import AdminLogs from "./Admin/AdminLogs.jsx";    
+import AdminNews from "./Admin/AdminNews.jsx";
+import AdminLogs from "./Admin/AdminLogs.jsx";
+
+/* ---- admin archive ---- */
+import ArchivedUsers from "./Admin/Archive/ArchivedUsers.jsx";
+import ArchivedReservations from "./Admin/Archive/ArchivedReservations.jsx";
+import ArchivedReports from "./Admin/Archive/ArchivedReports.jsx";
+import ArchivedNews from "./Admin/Archive/ArchivedNews.jsx";
+import ArchivedNotifications from "./Admin/Archive/ArchivedNotifications.jsx";
 
 /* ---- staff ---- */
 import StaffNavigation from "./Staff/StaffNavigation.jsx";
@@ -64,21 +72,27 @@ function App() {
     return saved || "home";
   });
 
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  /* ---------- ROUTE MAP ---------- */
   const viewToPath = {
     home: "/",
     login: "/login",
     signup: "/signup",
     adminLogin: "/admin-login",
     dashboard: "/dashboard",
+    news: "/news",
+    calendar: "/calendar",
     history: "/history",
     notification: "/notification",
     messages: "/messages",
     profile: "/profile",
+    editProfile: "/edit-profile",
     reserve: "/reserve",
     guidelines: "/guidelines",
+    help: "/help",
     resetPassword: "/reset-password",
     reservationDetails: "/reservation-details",
     adminDashboard: "/admin/dashboard",
@@ -88,22 +102,25 @@ function App() {
     adminMessage: "/admin/messages",
     adminReports: "/admin/reports",
     adminNotifications: "/admin/notifications",
+    adminNews: "/admin/news",
+    adminLogs: "/admin/logs",
+    archivedUsers: "/admin/archive/users",
+    archivedReservations: "/admin/archive/reservations",
+    archivedReports: "/admin/archive/reports",
+    archivedNews: "/admin/archive/news",
+    archivedNotifications: "/admin/archive/notifications",
     staffDashboard: "/staff/dashboard",
     staffReservation: "/staff/reservations",
     staffUsers: "/staff/users",
     staffMessages: "/staff/messages",
     staffNotification: "/staff/notifications",
-    editProfile: "/edit-profile",
-    help: "/help",
-      adminArchived: "/admin/archived",               // ✅ added
-  adminNews: "/admin/news",                       // ✅ added
-  adminLogs: "/admin/logs",      
   };
 
   const pathToView = Object.fromEntries(
     Object.entries(viewToPath).map(([v, p]) => [p, v])
   );
 
+  /* ---------- ROUTE SYNC ---------- */
   useEffect(() => {
     localStorage.setItem("view", view);
     const path = viewToPath[view];
@@ -115,6 +132,7 @@ function App() {
     if (newView !== view) setView(newView);
   }, [location.pathname]);
 
+  /* ---------- BACK BUTTON BEHAVIOR ---------- */
   useEffect(() => {
     const handlePopState = () => {
       if (
@@ -142,6 +160,7 @@ function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [view]);
 
+  /* ---------- FETCH USER DATA ---------- */
   const fetchUser = async () => {
     try {
       if (!user?._id) return;
@@ -166,6 +185,7 @@ function App() {
     return () => socket.off("user-updated", handler);
   }, [user?._id]);
 
+  /* ---------- LOGIN & LOGOUT ---------- */
   const handleLoginSuccess = (userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
@@ -173,6 +193,11 @@ function App() {
     if (role === "staff") setView("staffDashboard");
     else if (role === "admin") setView("adminDashboard");
     else setView("dashboard");
+  };
+
+  const handleSignupSuccess = (newUserData) => {
+    // ✅ Auto-login after successful signup
+    handleLoginSuccess(newUserData);
   };
 
   const handleAdminLoginSuccess = (adminData) => {
@@ -188,6 +213,7 @@ function App() {
     setView("home");
   };
 
+  /* ---------- NAVIGATION WRAPPERS ---------- */
   const renderUserNavigation = (Component) => (
     <>
       <Navigation
@@ -224,11 +250,16 @@ function App() {
     </>
   );
 
+  /* ---------- RENDER ---------- */
   return (
     <div>
+      {/* Public Pages */}
       {view === "home" && (
         <>
-          <Header onLoginClick={() => setView("login")} />
+          <Header 
+            onLoginClick={() => setView("login")} 
+            onSignUpClick={() => setView("signup")} // ✅ FIXED
+          />
           <Body onReserveClick={() => setView("login")} />
           <Body2 />
           <Body3 />
@@ -236,7 +267,6 @@ function App() {
           <Footer />
         </>
       )}
-
       {view === "login" && (
         <Login_User
           onSwitchToSignUp={() => setView("signup")}
@@ -244,15 +274,13 @@ function App() {
           setView={setView}
         />
       )}
-
-      {view === "resetPassword" && (
-        <ResetPassword setView={setView} onBackToLogin={() => setView("login")} />
-      )}
-
       {view === "signup" && (
-        <SignUp_User onSwitchToLogin={() => setView("login")} />
+        <SignUp_User
+          onSwitchToLogin={() => setView("login")}
+          onSignupSuccess={handleSignupSuccess} // ✅ Auto-login
+        />
       )}
-
+      {view === "resetPassword" && <ResetPassword setView={setView} onBackToLogin={() => setView("login")} />}
       {view === "adminLogin" && (
         <Login_Admin
           onAdminLoginSuccess={handleAdminLoginSuccess}
@@ -260,27 +288,58 @@ function App() {
         />
       )}
 
-      {/* USER */}
+      {/* User Pages */}
       {view === "dashboard" &&
         renderUserNavigation(
-          <Dashboard user={user} setView={setView} setSelectedReservation={setSelectedReservation} />
+          <Dashboard
+            user={user}
+            setView={setView}
+            setSelectedReservation={setSelectedReservation}
+          />
         )}
+      {view === "news" && renderUserNavigation(<News user={user} setView={setView} />)}
+      {view === "calendar" && renderUserNavigation(<Calendar user={user} setView={setView} />)}
       {view === "history" &&
         renderUserNavigation(
-          <History user={user} setView={setView} setSelectedReservation={setSelectedReservation} />
+          <History
+            user={user}
+            setView={setView}
+            setSelectedReservation={setSelectedReservation}
+            refreshKey={historyRefreshKey}
+          />
         )}
       {view === "notification" &&
-        renderUserNavigation(<Notification user={user} setView={setView} setSelectedReservation={setSelectedReservation} />)}
+        renderUserNavigation(
+          <Notification
+            user={user}
+            setView={setView}
+            setSelectedReservation={setSelectedReservation}
+          />
+        )}
       {view === "messages" && renderUserNavigation(<Messages user={user} setView={setView} />)}
       {view === "profile" && renderUserNavigation(<Profile user={user} setView={setView} />)}
       {view === "editProfile" && renderUserNavigation(<EditProfile user={user} setView={setView} />)}
       {view === "guidelines" && renderUserNavigation(<Guidelines user={user} setView={setView} />)}
       {view === "help" && renderUserNavigation(<HelpCenter user={user} setView={setView} />)}
-      {view === "reserve" && renderUserNavigation(<ReserveRoom user={user} setView={setView} />)}
-      {view === "reservationDetails" &&
-        renderUserNavigation(<ReservationDetails reservation={selectedReservation} setView={setView} />)}
+      {view === "reserve" &&
+        renderUserNavigation(
+          <ReserveRoom
+            user={user}
+            setView={setView}
+            onReservationSubmitted={() => setHistoryRefreshKey((prev) => prev + 1)}
+          />
+        )}
+      {view === "reservationDetails" && selectedReservation &&
+        renderUserNavigation(
+          <ReservationDetails
+            reservation={selectedReservation}
+            setView={setView}
+            refreshReservations={() => setHistoryRefreshKey((prev) => prev + 1)}
+            user={user}
+          />
+        )}
 
-      {/* ADMIN */}
+      {/* Admin Pages */}
       {view === "adminDashboard" && renderAdminNavigation(<AdminDashboard setView={setView} />)}
       {view === "adminReservation" && renderAdminNavigation(<AdminReservations setView={setView} />)}
       {view === "adminRoom" && renderAdminNavigation(<AdminRooms setView={setView} />)}
@@ -288,18 +347,22 @@ function App() {
       {view === "adminMessage" && renderAdminNavigation(<AdminMessages setView={setView} />)}
       {view === "adminReports" && renderAdminNavigation(<AdminReports setView={setView} />)}
       {view === "adminNotifications" && renderAdminNavigation(<AdminNotification setView={setView} />)}
-      {view === "adminArchived" && renderAdminNavigation(<AdminArchived setView={setView} />)}      {/* ✅ */}
-{view === "adminNews" && renderAdminNavigation(<AdminNews setView={setView} />)}              {/* ✅ */}
-{view === "adminLogs" && renderAdminNavigation(<AdminLogs setView={setView} />)}              {/* ✅ */}
+      {view === "archivedUsers" && renderAdminNavigation(<ArchivedUsers setView={setView} />)}
+      {view === "archivedReservations" && renderAdminNavigation(<ArchivedReservations setView={setView} />)}
+      {view === "archivedReports" && renderAdminNavigation(<ArchivedReports setView={setView} />)}
+      {view === "archivedNews" && renderAdminNavigation(<ArchivedNews setView={setView} />)}
+      {view === "archivedNotifications" && renderAdminNavigation(<ArchivedNotifications setView={setView} />)}
+      {view === "adminNews" && renderAdminNavigation(<AdminNews setView={setView} />)}
+      {view === "adminLogs" && renderAdminNavigation(<AdminLogs setView={setView} />)}
 
-      {/* STAFF */}
+      {/* Staff Pages */}
       {view === "staffDashboard" && renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}
       {view === "staffReservation" && renderStaffNavigation(<StaffReservations setView={setView} staff={user} />)}
       {view === "staffUsers" && renderStaffNavigation(<StaffUsers setView={setView} staff={user} />)}
       {view === "staffMessages" && renderStaffNavigation(<StaffMessages setView={setView} staff={user} />)}
       {view === "staffNotification" && renderStaffNavigation(<StaffNotification setView={setView} staff={user} />)}
 
-      {/* LOGOUT MODAL */}
+      {/* Logout Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-[360px] rounded-xl bg-white shadow-2xl px-6 py-8 relative">
@@ -307,13 +370,27 @@ function App() {
               <div className="mb-3 flex items-center justify-center w-14 h-14 rounded-full bg-red-100">
                 <LogOut size={28} className="text-[#CC0000]" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-800">Log out of your account?</h2>
-              <p className="text-sm text-gray-600 mt-1">You’ll need to sign in again to access your dashboard.</p>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Log out of your account?
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                You’ll need to sign in again to access your dashboard.
+              </p>
             </div>
             <div className="border-t border-gray-200 mb-6" />
             <div className="flex justify-between">
-              <button onClick={() => setShowLogoutModal(false)} className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer">No, stay</button>
-              <button onClick={handleLogout} className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600 cursor-pointer">Yes, log out</button>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 mr-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer"
+              >
+                No, stay
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-5 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-600 cursor-pointer"
+              >
+                Yes, log out
+              </button>
             </div>
           </div>
         </div>

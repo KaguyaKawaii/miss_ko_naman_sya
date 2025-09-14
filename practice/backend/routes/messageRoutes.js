@@ -151,4 +151,34 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.put("/archive/:id", async (req, res) => {
+  try {
+    const message = await Message.findByIdAndUpdate(req.params.id, { archived: true }, { new: true });
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    res.json({ message: "Message archived", message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/restore/:id", async (req, res) => {
+  try {
+    const message = await Message.findByIdAndUpdate(req.params.id, { archived: false }, { new: true });
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    res.json({ message: "Message restored", message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/archived", async (req, res) => {
+  try {
+    const archived = await Message.find({ archived: true }).populate("user_Id");
+    res.json(archived);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 module.exports = router;

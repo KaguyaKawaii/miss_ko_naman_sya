@@ -17,7 +17,6 @@ import {
   UserX
 } from "lucide-react";
 import AdminNavigation from "./AdminNavigation";
-import ConfirmDeleteModal from "./Modals/ConfirmDeleteModal";
 import UserFormModal from "./Modals/UserFormModal";
 import UserViewModal from "./Modals/UserViewModal";
 
@@ -44,16 +43,6 @@ function AdminUsers({ setView }) {
         })
       : "—";
 
-  const formatPHDate = (date) =>
-    date
-      ? new Date(date).toLocaleDateString("en-PH", {
-          timeZone: "Asia/Manila",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : "—";
-
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -68,7 +57,7 @@ function AdminUsers({ setView }) {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/users");
+      const res = await axios.get("http://localhost:5000/api/users?archived=false");
       setUsers(res.data);
     } catch (err) {
       console.error("Failed to fetch users:", err);
@@ -80,11 +69,9 @@ function AdminUsers({ setView }) {
 
   const toggleVerified = async (user) => {
     try {
-      const endpoint = `http://localhost:5000/api/users/${user._id}`;
-      await axios.patch(endpoint, {
+      await axios.patch(`http://localhost:5000/api/users/${user._id}`, {
         verified: !user.verified,
       });
-
       fetchUsers();
       setModal((m) =>
         m.user && m.user._id === user._id
@@ -97,7 +84,21 @@ function AdminUsers({ setView }) {
     }
   };
 
-  // Calculate statistics
+const archiveUser = async (user) => {
+  if (!window.confirm(`Are you sure you want to archive ${user.name}?`)) return;
+
+  try {
+    await axios.delete(`http://localhost:5000/api/users/archive/${user._id}`);
+    fetchUsers();
+    closeModal();
+  } catch (err) {
+    console.error("Failed to archive user:", err.response?.data || err.message);
+    alert("Failed to archive user.");
+  }
+};
+
+
+
   const userStats = {
     total: users.length,
     students: users.filter(u => u.role === "Student").length,
@@ -144,6 +145,7 @@ function AdminUsers({ setView }) {
         <div className="p-6">
           {/* User Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+            {/* Total Users */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -156,6 +158,7 @@ function AdminUsers({ setView }) {
               </div>
             </div>
 
+            {/* Students */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -168,6 +171,7 @@ function AdminUsers({ setView }) {
               </div>
             </div>
 
+            {/* Faculty */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -180,6 +184,7 @@ function AdminUsers({ setView }) {
               </div>
             </div>
 
+            {/* Staff */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -192,6 +197,7 @@ function AdminUsers({ setView }) {
               </div>
             </div>
 
+            {/* Verified */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -204,6 +210,7 @@ function AdminUsers({ setView }) {
               </div>
             </div>
 
+            {/* Unverified */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -359,9 +366,9 @@ function AdminUsers({ setView }) {
                               <Pencil size={18} />
                             </button>
                             <button
-                              onClick={() => setModal({ type: "confirmDelete", user: u })}
+                              onClick={() => archiveUser(u)}
                               className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                              title="Delete"
+                              title="Archive"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -378,17 +385,6 @@ function AdminUsers({ setView }) {
       </main>
 
       {/* Modals */}
-      {modal.type === "confirmDelete" && (
-        <ConfirmDeleteModal
-          user={modal.user}
-          onClose={closeModal}
-          onSuccess={() => {
-            fetchUsers();
-            closeModal();
-          }}
-        />
-      )}
-
       {modal.type === "view" && (
         <UserViewModal
           user={modal.user}

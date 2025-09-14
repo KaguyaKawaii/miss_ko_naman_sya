@@ -123,8 +123,8 @@ function Notification({ user, setView, setSelectedReservation }) {
   if (loading) {
     return (
       <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-        <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-          <h1 className="text-2xl font-bold">Notifications</h1>
+         <header className=" text-black px-6 h-[50px] min-h-[50px] max-h-[50px] flex items-center shadow-sm">
+            <h1 className="text-xl md:text-2xl font-bold tracking-wide">Notifications</h1>
         </header>
 
         <div className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto">
@@ -147,9 +147,11 @@ function Notification({ user, setView, setSelectedReservation }) {
 
   return (
 <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
- <header className="bg-[#CC0000] text-white px-6 h-[50px] min-h-[50px] max-h-[50px] flex items-center shadow-md">
-            <h1 className="text-2xl font-bold">Notifications</h1>
+ <header className=" text-black px-6 h-[50px] min-h-[50px] max-h-[50px] flex items-center shadow-sm">
+            <h1 className="text-xl md:text-2xl font-bold tracking-wide">Notifications</h1>
         </header>
+
+        
 
       <div className="m-5 border border-gray-200 rounded-lg p-6 bg-white shadow-md overflow-y-auto">
         {/* Header with stats and filters */}
@@ -259,7 +261,7 @@ function Notification({ user, setView, setSelectedReservation }) {
                 key={notif._id}
                 className={`border rounded-xl p-4 transition-all ${notif.isRead 
                   ? "bg-white border-gray-200 hover:border-gray-300" 
-                  : "bg-blue-50 border-blue-200 hover:border-blue-300"}`}
+                  : "bg-pink-50 border-pink-200 hover:border-pink-300"}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">

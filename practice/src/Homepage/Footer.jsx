@@ -1,6 +1,6 @@
 import React from "react";
 import { Facebook, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react";
-import Logo from '../assets/logo2.png';
+
 
 function Footer() {
   return (
@@ -10,11 +10,7 @@ function Footer() {
         <div className="space-y-6">
           <div>
             <div className="flex  justify-center items-center space-x-4 mb-6">
-            <img 
-                        src={Logo} 
-                        alt="USA-FLD CircuLink Logo" 
-                        className="w-[100px] h-[100px]  drop-shadow-lg"
-                      />
+            
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-yellow-300">
               USA-FLD CircuLink
             </h1>

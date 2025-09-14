@@ -1,12 +1,25 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AdminNavigation from "./AdminNavigation";
+import { Editor, EditorProvider } from "react-simple-wysiwyg";
 
-function AdminNews({ setView }) {
+function AdminNews({ setView, admin }) {
   const [newsList, setNewsList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [image, setImage] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [preview, setPreview] = useState(null);
+  const [editNews, setEditNews] = useState(null);
+  const [viewNews, setViewNews] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [postConfirm, setPostConfirm] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchNews();
@@ -21,28 +34,84 @@ function AdminNews({ setView }) {
       .finally(() => setIsLoading(false));
   };
 
-  const handleAddNews = (e) => {
+  const handleAddOrUpdate = (e) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return alert("Please complete the form");
+    if (!title.trim() || !content.trim())
+      return alert("Please complete the form");
 
-    axios
-      .post("http://localhost:5000/news", { title, content })
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("content", content);
+    if (image) formData.append("image", image);
+
+    const request = editNews
+      ? axios.put(`http://localhost:5000/news/${editNews._id}`, formData)
+      : axios.post("http://localhost:5000/news", formData);
+
+    request
       .then(() => {
         fetchNews();
-        setTitle("");
-        setContent("");
+        resetForm();
+        setPostConfirm(false);
       })
       .catch((err) => console.error(err));
   };
 
-  const handleDeleteNews = (id) => {
-    if (window.confirm("Are you sure you want to delete this news item?")) {
-      axios
-        .delete(`http://localhost:5000/news/${id}`)
-        .then(() => fetchNews())
-        .catch((err) => console.error(err));
+  const handleDeleteNews = () => {
+    if (!deleteConfirm) return;
+    
+    axios
+      .delete(`http://localhost:5000/news/${deleteConfirm._id}`)
+      .then(() => {
+        fetchNews();
+        setDeleteConfirm(null);
+      })
+      .catch((err) => console.error(err));
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setContent("");
+    setImage(null);
+    setImagePreviewUrl("");
+    setEditNews(null);
+    setPreview(null);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      // Create a preview URL for the image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
+
+  // Filter & sort
+  const filteredNews = newsList
+    .filter(
+      (n) =>
+        n.title.toLowerCase().includes(search.toLowerCase()) ||
+        n.content.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === "newest") return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === "az") return a.title.localeCompare(b.title);
+      if (sortBy === "za") return b.title.localeCompare(a.title);
+      return 0;
+    });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredNews.length / itemsPerPage);
+  const paginatedNews = filteredNews.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
 
   return (
     <>
@@ -50,79 +119,426 @@ function AdminNews({ setView }) {
       <main className="ml-[250px] w-[calc(100%-250px)] min-h-screen bg-gray-50">
         <header className="bg-white px-6 py-4 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-[#CC0000]">News Management</h1>
-          <p className="text-gray-600">Add and manage news announcements</p>
+          <p className="text-gray-600">Add, edit and manage news announcements</p>
         </header>
-        
+
         <div className="p-6">
-          {/* Add News Form */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Add News</h2>
-            <form onSubmit={handleAddNews} className="flex flex-col gap-4">
+          {/* Add/Edit News Form */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6 transition-all hover:shadow-md">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              {editNews ? "Edit News" : "Add News"}
+            </h2>
+            <form onSubmit={(e) => { e.preventDefault(); setPostConfirm(true); }} className="flex flex-col gap-4">
               <input
                 type="text"
-                placeholder="Title"
-                className="border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
+                placeholder="News Title"
+                className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-[#CC0000] focus:border-transparent transition-all"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
-              <textarea
-                placeholder="Content"
-                className="border border-gray-300 p-2 rounded h-28 resize-none focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="bg-[#CC0000] text-white px-5 py-2 rounded hover:bg-red-700 duration-150 self-end"
-              >
-                Post News
-              </button>
+
+              {/* WYSIWYG editor */}
+              <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#CC0000] focus-within:border-transparent transition-all">
+                <EditorProvider>
+                  <Editor
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="min-h-[200px]"
+                  />
+                </EditorProvider>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">
+                  News Image
+                </label>
+                <label className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  {imagePreviewUrl || (editNews && editNews.image) ? (
+                    <div className="mb-4">
+                      <img
+  src={imagePreviewUrl || editNews?.image}
+  alt="Preview"
+  className="h-32 object-contain rounded-lg"
+/>
+
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                      </svg>
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      
+                    </div>
+                  )}
+                  <input 
+                    id="dropzone-file" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageChange} 
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <button
+                  type="button"
+                  className="px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  onClick={() => setPreview({ 
+                    title, 
+                    content, 
+                    image: imagePreviewUrl || (editNews && editNews.image ? `http://localhost:5000/${editNews.image}` : null) 
+                  })}
+                >
+                  Preview
+                </button>
+                <div className="flex gap-2">
+                  {editNews && (
+                    <button
+                      type="button"
+                      className="px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                      onClick={resetForm}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm hover:shadow"
+                  >
+                    {editNews ? "Update News" : "Post News"}
+                  </button>
+                </div>
+              </div>
             </form>
+          </div>
+
+          {/* Preview Modal */}
+          {preview && (
+            <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
+              <div className="bg-white p-6 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">Preview</h2>
+                  <button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => setPreview(null)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <h3 className="text-2xl font-bold mb-3">{preview.title}</h3>
+                {preview.image && (
+                  <img
+                    src={preview.image}
+                    alt="News cover"
+                    className="w-full h-64 object-cover rounded-xl mb-6"
+                  />
+                )}
+                <div
+                  className="prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: preview.content }}
+                />
+                <button
+                  className="mt-6 bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors w-full"
+                  onClick={() => setPreview(null)}
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Post Confirmation Modal */}
+          {postConfirm && (
+            <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
+              <div className="bg-white p-6 rounded-xl w-full max-w-md">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">Confirm</h2>
+                  <button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => setPostConfirm(false)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to {editNews ? "update" : "post"} this news?
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                    onClick={() => setPostConfirm(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={handleAddOrUpdate}
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirmation Modal */}
+          {deleteConfirm && (
+            <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
+              <div className="bg-white p-6 rounded-xl w-full max-w-md">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">Confirm Deletion</h2>
+                  <button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => setDeleteConfirm(null)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete the news "<span className="font-semibold">{deleteConfirm.title}</span>"? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                    onClick={() => setDeleteConfirm(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={handleDeleteNews}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* View News Modal */}
+          {viewNews && (
+            <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
+              <div className="bg-white p-6 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">News Details</h2>
+                  <button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => setViewNews(null)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{viewNews.title}</h3>
+                  <p className="text-sm text-gray-500">
+                    Posted on: {new Date(viewNews.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                
+                {viewNews.image && (
+                  <img
+                    src={viewNews.image}
+                    alt="News cover"
+                    className="w-full h-64 object-cover rounded-xl mb-6"
+                  />
+                )}
+                
+                <div
+                  className="prose max-w-none mb-6"
+                  dangerouslySetInnerHTML={{ __html: viewNews.content }}
+                />
+                
+                <div className="flex justify-end">
+                  <button
+                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={() => setViewNews(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Search & Sort */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 flex justify-between items-center">
+            <div className="relative w-1/3">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search news..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border border-gray-300 p-2.5 pl-10 rounded-lg w-full focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="az">Title A–Z</option>
+                <option value="za">Title Z–A</option>
+              </select>
+            </div>
           </div>
 
           {/* News List */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-xl font-semibold mb-4">News List</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">News List</h2>
+              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {filteredNews.length} {filteredNews.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+
             {isLoading ? (
-              <div className="text-center p-4">Loading...</div>
-            ) : newsList.length === 0 ? (
-              <div className="text-center p-4 text-gray-500">No news posted.</div>
+              <div className="text-center p-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#CC0000]"></div>
+                <p className="mt-2 text-gray-500">Loading news...</p>
+              </div>
+            ) : paginatedNews.length === 0 ? (
+              <div className="text-center p-8 border border-dashed border-gray-300 rounded-lg">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No news found</h3>
+                <p className="mt-1 text-sm text-gray-500">Try adjusting your search or add a new news item.</p>
+              </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-100">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="p-3 text-left">#</th>
-                      <th className="p-3 text-left">Title</th>
-                      <th className="p-3 text-left">Content</th>
-                      <th className="p-3 text-left">Posted</th>
-                      <th className="p-3 text-left">Actions</th>
+                      <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                      <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                      <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                      <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content</th>
+                      <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted</th>
+                      <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {newsList.map((item, index) => (
-                      <tr
-                        key={item._id}
-                        className="border-b border-gray-200 hover:bg-gray-50 duration-150"
-                      >
-                        <td className="p-3">{index + 1}</td>
-                        <td className="p-3 font-medium">{item.title}</td>
-                        <td className="p-3">{item.content}</td>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedNews.map((item, index) => (
+                      <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-3 text-gray-700">{(page - 1) * itemsPerPage + index + 1}</td>
+                        <td className="p-3 font-medium text-gray-900">{item.title}</td>
                         <td className="p-3">
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt="cover"
+                              className="h-12 w-12 object-cover rounded-lg"
+                            />
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-600 max-w-xs">
+                          <div
+                            className="truncate"
+                            dangerouslySetInnerHTML={{ __html: item.content }}
+                          />
+                        </td>
+                        <td className="p-3 text-gray-500 text-sm">
                           {new Date(item.createdAt).toLocaleString()}
                         </td>
                         <td className="p-3">
-                          <button
-                            onClick={() => handleDeleteNews(item._id)}
-                            className="text-[#CC0000] hover:underline"
-                          >
-                            Delete
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              className="text-gray-600 hover:text-gray-800 font-medium text-sm px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-all"
+                              onClick={() => setViewNews(item)}
+                            >
+                              View
+                            </button>
+                            <button
+                              className="text-blue-600 hover:text-blue-800 font-medium text-sm px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100 transition-all"
+                              onClick={() => {
+                                setEditNews(item);
+                                setTitle(item.title);
+                                setContent(item.content);
+                                setImagePreviewUrl(item.image ? `http://localhost:5000/${item.image}` : "");
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="text-[#CC0000] hover:text-red-800 font-medium text-sm px-3 py-1 rounded-md bg-red-50 hover:bg-red-100 transition-all"
+                              onClick={() => setDeleteConfirm(item)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {filteredNews.length > 0 && (
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                <div className="text-sm text-gray-500">
+                  Showing {(page - 1) * itemsPerPage + 1} to {Math.min(page * itemsPerPage, filteredNews.length)} of {filteredNews.length} entries
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
+                    className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Previous
+                  </button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          page === pageNum
+                            ? "bg-[#CC0000] text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        } transition-colors`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => setPage(page + 1)}
+                    className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  >
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>

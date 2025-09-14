@@ -19,6 +19,7 @@ const authRoutes = require("./routes/auth");
 const forgotPasswordRoutes = require("./routes/forgotPasswordRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const logRoutes = require("./routes/logRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -27,6 +28,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/uploads/profile-pictures", express.static(path.join(__dirname, "uploads", "profile-pictures")));
+app.use("/uploads/news", express.static(path.join(__dirname, "uploads", "news")));
+
 
 const io = new Server(server, {
   cors: {
@@ -34,6 +37,10 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
+
+
+app.use("/api/logs", logRoutes);
+
 
 app.set("io", io);
 

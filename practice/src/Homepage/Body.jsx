@@ -1,5 +1,5 @@
 import Picture from '../assets/picture2.jpg';
-import Logo from '../assets/logo2.png';
+
 import Logo2 from '../assets/logo.png';
 import { ChevronDown } from 'lucide-react';
 
@@ -29,11 +29,7 @@ function Body() {
             alt="USA-FLD CircuLink Logo" 
             className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mb-6 drop-shadow-lg"
           />
-          <img 
-            src={Logo} 
-            alt="USA-FLD CircuLink Logo" 
-            className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mb-6 drop-shadow-lg"
-          />
+         
           
           </div>
           

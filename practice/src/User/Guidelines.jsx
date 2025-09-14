@@ -5,9 +5,9 @@ function Guidelines({ user }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-white text-gray-800">
       {/* HEADER */}
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-        <h1 className="text-2xl font-bold">Guidelines</h1>
-      </header>
+      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Guidelines</h1>
+</header>
 
       {/* CONTENT */}
       <div className="p-8 flex-1 overflow-y-auto space-y-6">

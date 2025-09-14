@@ -2,13 +2,34 @@ import React, { useState } from "react";
 import axios from "axios";
 import GroundFloorImg from "../assets/GroundFloor.jpg";
 
-function ReservationDetails({ reservation, setView, refreshReservations }) {
+function ReservationDetails({ reservation, setView, refreshReservations, user }) {
+
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [showResultModal, setShowResultModal] = useState(false);
 
-  
+  const [extendTime, setExtendTime] = useState("");
+const [showExtendModal, setShowExtendModal] = useState(false);
+
+const isMainReserver = user && reservation.userId === user._id;
+
+
+const handleShowExtendModal = () => {
+  setShowExtendModal(true);
+};
+
+const handleEndEarly = async () => {
+  try {
+    const res = await axios.post(`http://localhost:5000/reservations/end-early/${reservation._id}`);
+    setModalMessage(res.data.message || "Reservation ended early.");
+  } catch (err) {
+    setModalMessage("Failed to end reservation early.");
+  } finally {
+    setShowResultModal(true);
+  }
+};
+
 
   if (!reservation) {
     return (
@@ -51,6 +72,28 @@ const statusBadge = (status) => {
   return status;
 };
 
+const handleExtendSubmit = async () => {
+  if (!extendTime) return;
+
+  const hoursToAdd = parseInt(extendTime);
+  const originalEnd = new Date(reservation.endDatetime);
+  const newEnd = new Date(originalEnd.getTime() + hoursToAdd * 60 * 60 * 1000);
+
+  try {
+    const res = await axios.post(`http://localhost:5000/reservations/extend-request/${reservation._id}`, {
+      requestedEndDatetime: newEnd,
+      requestedHours: hoursToAdd
+    });
+    setModalMessage(res.data.message || "Extension request submitted.");
+  } catch (err) {
+    setModalMessage("Failed to submit extension request.");
+  } finally {
+    setShowExtendModal(false);
+    setShowResultModal(true);
+  }
+};
+
+
 const statusColorClass = {
   Pending: "bg-yellow-100 text-yellow-700",
   Approved: "bg-green-100 text-green-700",
@@ -85,9 +128,9 @@ const statusColorClass = {
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col min-h-screen bg-gray-50">
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-        <h1 className="text-2xl font-bold">Reservation Details</h1>
-      </header>
+      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Reservation Details</h1>
+</header>
 
       <div className="p-6 space-y-6">
         {/* Reservation Information */}
@@ -171,22 +214,72 @@ const statusColorClass = {
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-center">
-         
-          {["Pending", "Approved"].includes(reservation.status) && (
-            <button
-              onClick={() => setShowCancelConfirm(true)}
-              disabled={cancelling}
-              className={`px-5 py-2 rounded-lg transition-colors cursor-pointer ${
-                cancelling
-                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                  : "bg-gray-600 text-white hover:bg-gray-800"
-              }`}
-            >
-              {cancelling ? "Cancelling..." : "Cancel Reservation"}
-            </button>
-          )}
-        </div>
+<div className="flex flex-wrap justify-center gap-4">
+{["Pending", "Approved"].includes(reservation.status) && isMainReserver && (
+  <>
+    <button
+      onClick={() => setShowCancelConfirm(true)}
+      disabled={cancelling}
+      className={`px-5 py-2 rounded-lg transition-colors cursor-pointer ${
+        cancelling
+          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+          : "bg-gray-600 text-white hover:bg-gray-800"
+      }`}
+    >
+      {cancelling ? "Cancelling..." : "Cancel Reservation"}
+    </button>
+
+    <button
+      onClick={handleEndEarly}
+      className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+    >
+      End Early
+    </button>
+
+    <button
+      onClick={handleShowExtendModal}
+      className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      Extend Time
+    </button>
+  </>
+)}
+</div>
+
+{/* Extend Time Modal */}
+{showExtendModal && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl p-6 w-96 max-w-[95vw]">
+      <h2 className="text-xl font-bold text-gray-800 mb-4">Request Extension</h2>
+      <label className="block mb-2 text-sm font-medium text-gray-700">Select Additional Time</label>
+      <select
+        value={extendTime}
+        onChange={(e) => setExtendTime(e.target.value)}
+        className="w-full p-2 border border-gray-300 rounded-lg mb-4"
+      >
+        <option value="">-- Select Duration --</option>
+        <option value="1">1 Hour</option>
+        <option value="2">2 Hours</option>
+      </select>
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => setShowExtendModal(false)}
+          className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleExtendSubmit}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Submit Request
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
       </div>
 
       {/* Cancel Confirmation Modal */}

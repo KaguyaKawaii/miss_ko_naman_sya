@@ -101,39 +101,38 @@ function Message({ user }) {
   };
 
   return (
-    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-[#f8f9fa]">
-      <header className="bg-gradient-to-r from-[#CC0000] to-[#990000] text-white px-6 h-[50px] flex items-center shadow-sm">
-        <h1 className="text-2xl font-bold">Messages</h1>
+    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
+      <header className="text-black bg-white px-6 h-[60px] flex items-center justify-between shadow-sm z-10">
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Messages</h1>
       </header>
 
-      <div className="flex flex-1 h-[calc(100vh-50px)] overflow-hidden">
+      <div className="flex flex-1 h-[calc(100vh-60px)] overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-gray-100 shadow-sm flex flex-col">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-700">Conversations</h2>
+        <aside className="w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
           </div>
           
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto py-2">
             {recipients.map(({ id, label }) => (
               <div
                 key={id}
                 onClick={() => setSelectedRecipient(id)}
-                className={`flex items-center p-3 mx-2 my-1 rounded-lg cursor-pointer transition-all ${
+                className={`flex items-center p-3 mx-2 my-1 rounded-xl cursor-pointer transition-all ${
                   selectedRecipient === id
-                    ? "bg-[#FFEEEE] border border-[#FFCCCC]"
+                    ? "bg-red-50 border border-red-200 shadow-xs"
                     : "hover:bg-gray-50 border border-transparent"
                 }`}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 text-white font-medium ${
-                  selectedRecipient === id ? "bg-[#DC2626]" : "bg-gray-400"
+                  selectedRecipient === id ? "bg-red-500 shadow-xs" : "bg-gray-400"
                 }`}>
                   {getAvatar(label)}
                 </div>
                 <div>
                   <p className={`font-medium ${
-                    selectedRecipient === id ? "text-[#DC2626]" : "text-gray-700"
+                    selectedRecipient === id ? "text-red-600" : "text-gray-700"
                   }`}>{label}</p>
-                  
                 </div>
               </div>
             ))}
@@ -141,11 +140,11 @@ function Message({ user }) {
         </aside>
 
         {/* Main chat area */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div className="flex-1 flex flex-col bg-white border-l border-gray-200">
           {/* Chat header */}
-          <div className="bg-white p-4 border-b border-gray-100 flex items-center shadow-sm">
+          <div className="bg-white p-4 border-b border-gray-200 flex items-center shadow-sm">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium text-lg mr-3 ${
-              selectedRecipient === "admin" ? "bg-[#DC2626]" : "bg-gray-500"
+              selectedRecipient === "admin" ? "bg-red-500" : "bg-gray-500"
             }`}>
               {getAvatar(recipients.find(r => r.id === selectedRecipient)?.label)}
             </div>
@@ -162,7 +161,7 @@ function Message({ user }) {
           {/* Messages container */}
           <div
             ref={listRef}
-            className="flex-1 overflow-y-auto p-6 bg-[#fafafa]"
+            className="flex-1 overflow-y-auto p-6 bg-gray-50"
           >
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
@@ -170,7 +169,7 @@ function Message({ user }) {
                 <p className="text-gray-600">Loading messages...</p>
               </div>
             ) : messages.length ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {messages.map((msg) => {
                   const isMe = msg.sender === user._id || msg.sender?._id === user._id;
                   return (
@@ -179,23 +178,23 @@ function Message({ user }) {
                       className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                     >
                       {!isMe && (
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium mr-2 mt-1 ${
-                          selectedRecipient === "admin" ? "bg-[#DC2626]" : "bg-gray-500"
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium mr-2 mt-1 ${
+                          selectedRecipient === "admin" ? "bg-red-500" : "bg-gray-500"
                         }`}>
                           {msg.senderName?.charAt(0) || msg.sender?.name?.charAt(0) || "U"}
                         </div>
                       )}
                       <div className={`max-w-[75%] ${isMe ? "flex flex-col items-end" : ""}`}>
                         {!isMe && (
-                          <p className="text-xs font-medium text-gray-500 mb-1">
+                          <p className="text-xs font-medium text-gray-500 mb-1 ml-1">
                             {msg.senderName || msg.sender?.name || msg.sender}
                           </p>
                         )}
                         <div
                           className={`p-4 rounded-2xl ${
                             isMe
-                              ? "bg-gradient-to-r from-[#DC2626] to-[#CC0000] text-white rounded-br-none"
-                              : "bg-white text-gray-800 rounded-bl-none border border-gray-200 shadow-xs"
+                              ? "bg-gradient-to-r from-red-500 to-red-600 text-white rounded-br-md"
+                              : "bg-white text-gray-800 rounded-bl-md border border-gray-200 shadow-xs"
                           }`}
                         >
                           <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -224,8 +223,8 @@ function Message({ user }) {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                <div className="bg-[#FFEEEE] w-24 h-24 rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-12 h-12 text-[#DC2626]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <div className="bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                   </svg>
                 </div>
@@ -239,10 +238,10 @@ function Message({ user }) {
           </div>
 
           {/* Message input */}
-          <div className="bg-white border-t border-gray-100 p-4 shadow-sm">
-            <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 focus-within:border-[#DC2626] focus-within:ring-2 focus-within:ring-red-100 transition-all">
+          <div className="bg-white border-t border-gray-200 p-4 shadow-sm">
+            <div className="flex items-center rounded-xl border border-gray-300 bg-white focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100 transition-all">
               <input
-                className="flex-1 px-4 py-3 bg-transparent focus:outline-none"
+                className="flex-1 px-4 py-3 bg-transparent focus:outline-none text-gray-800 placeholder-gray-500"
                 placeholder={`Message ${recipients.find(r => r.id === selectedRecipient)?.label}...`}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
@@ -253,13 +252,13 @@ function Message({ user }) {
                 disabled={!newMessage.trim()}
                 className={`m-2 p-2 rounded-full transition-all ${
                   newMessage.trim()
-                    ? "bg-[#DC2626] text-white hover:bg-red-700"
+                    ? "bg-red-500 text-white hover:bg-red-600 shadow-xs"
                     : "text-gray-400 cursor-not-allowed"
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-</svg>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
               </button>
             </div>
           </div>

@@ -4,10 +4,7 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import RoomAvailabilityModal from "./RoomAvailabilityModal";
 import PropTypes from 'prop-types';
-import ReportProblemModal from "./Modals/ReportProblemModal"; // adjust if in different path
-
-
-
+import ReportProblemModal from "./Modals/ReportProblemModal";
 
 // Helper functions
 const formatPH = (date) => {
@@ -64,8 +61,11 @@ function Dashboard({ user, setView, setSelectedReservation }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newReservation, setNewReservation] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [currentReservationPage, setCurrentReservationPage] = useState(1);
+  const [reservationsPerPage] = useState(1);
   
 
+  
   // API endpoints
   const API_BASE_URL = "http://localhost:5000";
   const RESERVATIONS_ENDPOINT = `${API_BASE_URL}/reservations`;
@@ -112,9 +112,18 @@ function Dashboard({ user, setView, setSelectedReservation }) {
     if (!user?._id) return;
     try {
       const { data } = await axios.get(`${RESERVATIONS_ENDPOINT}/user-has-any/${user._id}`);
+      
       if (data) {
-        setHasActiveRes(isSameManilaDate(data.datetime, new Date()));
-        setActiveRes(isSameManilaDate(data.datetime, new Date()) ? data : null);
+        const today = new Date();
+        const todayReservations = Array.isArray(data) 
+          ? data.filter(r => isSameManilaDate(r.datetime, today))
+          : [data].filter(r => isSameManilaDate(r.datetime, today));
+        
+        setHasActiveRes(todayReservations.length > 0);
+        setActiveRes({
+          ...(todayReservations[0] || {}),
+          dayReservationCount: todayReservations.length
+        });
       } else {
         setHasActiveRes(false);
         setActiveRes(null);
@@ -193,7 +202,7 @@ function Dashboard({ user, setView, setSelectedReservation }) {
 
   // Event handlers
   const handleReserveClick = () => {
-    if (hasActiveRes) {
+    if (activeRes?.dayReservationCount >= 2) {
       setShowBlock(true);
     } else {
       setView("reserve");
@@ -251,12 +260,22 @@ function Dashboard({ user, setView, setSelectedReservation }) {
     );
   };
 
+  // Get current reservations for pagination
+  const indexOfLastReservation = currentReservationPage * reservationsPerPage;
+  const indexOfFirstReservation = indexOfLastReservation - reservationsPerPage;
+  const currentReservations = reservations.slice(indexOfFirstReservation, indexOfLastReservation);
+  const totalPages = Math.ceil(reservations.length / reservationsPerPage);
+
+  // Change page
+  const paginate = (pageNumber) => setCurrentReservationPage(pageNumber);
+
   return (
-    <main className="w-full md:ml-[250px] md:w-[calc(100%-250px)] min-h-screen flex flex-col bg-gray-50">
+    <main className="w-full md:ml-[250px] md:w-[calc(100%-250px)] min-h-screen flex flex-col bg-[#FFFCFB]">
       {/* HEADER */}
-      <header className="bg-[#CC0000] text-white px-6 h-[50px] flex items-center shadow-md">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-      </header>
+      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Dashboard</h1>
+</header>
+
 
       {/* BODY */}
       <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
@@ -268,184 +287,233 @@ function Dashboard({ user, setView, setSelectedReservation }) {
             <p className="text-red-100 mt-2">Manage your room reservations and stay updated</p>
           </div>
 
+<div className="flex w-[200px] justify-between bg-white shadow-md p-1 rounded-3xl mb-1">
+  <button
+    onClick={() => setView("dashboard")}
+    className={`px-4 py-2 rounded-3xl font-semibold transition-all duration-300 shadow-lg ${
+      "dashboard" === "dashboard" 
+        ? "bg-red-600 text-white" 
+        : "text-gray-700 hover:bg-gray-200"
+    }`}
+  >
+    Dashboard
+  </button>
+
+  <button
+    onClick={() => setView("news")}
+    className={`px-4 py-2 rounded-3xl font-semibold transition-all duration-300 cursor-pointer ${
+      "dashboard" === "news" 
+        ? "bg-red-600 text-white" 
+        : "text-gray-700 hover:bg-gray-200"
+    }`}
+  >
+    News
+  </button>
+</div>
+
+
           {/* News and Reservations */}
           <div className="flex flex-col md:flex-row gap-6">
             {/* News */}
-            <div className="bg-white border border-gray-200 hover:border-gray-300 transition-all duration-200 shadow-sm rounded-xl flex-1 flex flex-col p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-xl font-bold text-gray-800">Latest Announcements</h1>
-                
-              </div>
-              <div className="border-b border-gray-100 mb-4" />
-              <div className="space-y-4 overflow-y-auto max-h-[300px] md:max-h-[400px] pr-2">
-                {newsList.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No announcements available at this time.</p>
-                  </div>
-                ) : (
-                  newsList.map((n) => (
-                    <article key={n._id} className="p-4 border border-gray-100 rounded-lg hover:shadow transition-shadow">
-                      <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-3">
-                        <h2 className="font-bold text-gray-800">{n.title}</h2>
-                        <time className="text-xs text-gray-500 mt-1 md:mt-0">
-                          {formatPH(n.createdAt)}
-                        </time>
-                      </div>
-                      <div className="border-b border-gray-100 mb-3" />
-                      <p className="text-sm text-gray-600">{n.content}</p>
-                    </article>
-                  ))
-                )}
-              </div>
-            </div>
+            
 
             {/* User Reservations */}
-<div className="bg-white border border-gray-200 hover:border-gray-300 transition-all duration-200 shadow-sm rounded-xl flex-1 p-5 flex flex-col h-full">
-  <h2 className="text-xl font-bold text-gray-800 mb-4">Your Current Reservation</h2>
-  <div className="border-b border-gray-100 mb-5" />
-  {isLoading ? (
-    <div className="flex justify-center items-center h-full">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-600"></div>
-    </div>
-  ) : activeRes ? (
-    <div className="overflow-y-auto flex-1">
-      <section
-        key={activeRes._id}
-        className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow transition flex flex-col h-full"
-      >
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3">
-          <h3 className="text-lg font-bold text-gray-800">{activeRes.roomName}</h3>
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-semibold mt-2 md:mt-0 ${
-              activeRes.status === "Approved"
-                ? "bg-green-100 text-green-800"
-                : activeRes.status === "Pending"
-                ? "bg-yellow-100 text-yellow-800"
-                : "bg-red-100 text-red-800"
-            }`}
-          >
-            {activeRes.status}
-          </span>
-        </div>
-        
-        <div className="text-sm text-gray-700 space-y-2 flex-grow">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="font-medium">Location:</p>
-              <p className="text-gray-600">{activeRes.location}</p>
-            </div>
-            <div>
-              <p className="font-medium">Time:</p>
-              <p className="text-gray-600">
-                {formatPH(activeRes.datetime)} - {' '}
-                {new Date(activeRes.endDatetime).toLocaleTimeString("en-PH", {
-                  timeZone: "Asia/Manila",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </p>
-            </div>
-          </div>
-          
-          <div>
-            <p className="font-medium">Purpose:</p>
-            <p className="text-gray-600">{activeRes.purpose}</p>
-          </div>
-          
-          {activeRes.participants && activeRes.participants.length > 0 && (
-            <div className="mt-4">
-              <p className="font-medium mb-2">Participants:</p>
-              <div className="grid grid-cols-2 gap-2">
-                {activeRes.participants.map((participant, index) => (
-                  <div 
-                    key={index} 
-                    className="flex items-center bg-gray-50 px-3 py-1.5 rounded-lg text-sm"
-                  >
-                    <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2">
-                      {participant.name?.charAt(0) || participant.email?.charAt(0)}
-                    </span>
-                    <span className="truncate">
-                      {participant.name || participant.email}
-                    </span>
-                  </div>
-                ))}
+           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200/75 hover:border-gray-300/75 transition-all duration-300 shadow-lg hover:shadow-xl rounded-2xl flex-1 p-6 flex flex-col h-full">
+
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Your Reservations</h2>
+                
+
+                {/* Pagination controls */}
+                  {reservations.length > reservationsPerPage && (
+                    <div className="flex justify-center items-center">
+                      <button
+  onClick={() => paginate(currentReservationPage - 1)}
+  disabled={currentReservationPage === 1}
+  className={`font-bold px-2 py-2 mx-1 rounded-full ${
+    currentReservationPage === 1
+      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+      : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
+  }`}
+  aria-label="Previous page"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-4 h-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+  </svg>
+</button>
+
+                      
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                        <button
+                          key={number}
+                          onClick={() => paginate(number)}
+                          className={`font-semibold px-3 py-1 mx-1 rounded-full ${
+                            currentReservationPage === number
+                              ? "bg-[#E62727] text-white cursor-pointer"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
+                          }`}
+                          aria-label={`Go to page ${number}`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                      
+                      <button
+  onClick={() => paginate(currentReservationPage + 1)}
+  disabled={currentReservationPage === totalPages}
+  className={`font-bold px-2 py-2 mx-1 rounded-full ${
+    currentReservationPage === totalPages
+      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+      : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
+  }`}
+  aria-label="Next page"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-4 h-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+</button>
+
+                    </div>
+                  )}
               </div>
+              <div className="border-b border-gray-200 mb-5" />
+              {isLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-600"></div>
+                </div>
+              ) : reservations.length > 0 ? (
+                <div className=" flex-1">
+                  {currentReservations.map((reservation) => (
+                    <section
+                      key={reservation._id}
+                      className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow transition flex flex-col h-full mb-4"
+                    >
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3">
+                        <h3 className="text-lg font-bold text-gray-800">{reservation.roomName}</h3>
+                        <span
+                          className={`px-2 py-2 w-[150px] text-center rounded-full text-sm font-semibold mt-2 md:mt-0 ${
+                            reservation.status === "Approved"
+                              ? "bg-green-100 text-green-800"
+                              : reservation.status === "Pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {reservation.status}
+                        </span>
+                      </div>
+                      
+                      <div className="text-sm text-gray-700 space-y-2 flex-grow">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="font-medium">Location:</p>
+                            <p className="text-gray-600">{reservation.location}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Time:</p>
+                            <p className="text-gray-600">
+                              {formatPH(reservation.datetime)} to {' '}
+                              {new Date(reservation.endDatetime).toLocaleTimeString("en-PH", {
+                                timeZone: "Asia/Manila",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="font-medium">Purpose:</p>
+                          <p className="text-gray-600">{reservation.purpose}</p>
+                        </div>
+                        
+                        {reservation.participants && reservation.participants.length > 0 && (
+                          <div className="mt-4">
+                            <p className="font-medium mb-2">Participants:</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {reservation.participants.map((participant, index) => (
+                                <div 
+                                  key={index} 
+                                  className="flex items-center bg-gray-50 px-3 py-1.5 rounded-lg text-sm"
+                                >
+                                  <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2">
+                                    {participant.name?.charAt(0) || participant.email?.charAt(0)}
+                                  </span>
+                                  <span className="truncate">
+                                    {participant.name || participant.email}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-t border-gray-100 pt-4 mt-4 text-sm">
+                        <span className="text-gray-500 text-xs sm:text-sm mb-2 sm:mb-0">
+                          Submitted: {formatPH(reservation.createdAt)}
+                        </span>
+                        <button
+                          className="text-red-600 hover:text-red-800 font-medium flex items-center focus:outline-none cursor-pointer"
+                          onClick={() => {
+                            setSelectedReservation?.(reservation);
+                            setView?.("reservationDetails");
+                          }}
+                          aria-label={`View details for ${reservation.roomName} reservation`}
+                        >
+                          View details
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </section>
+                  ))}
+
+                  
+                </div>
+              ) : (
+                <div className="text-center py-8 flex flex-col justify-center items-center h-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-gray-600">
+                    No active reservations.<br />
+                    <button 
+                      onClick={handleReserveClick}
+                      className="text-red-600 font-medium hover:underline focus:outline-none"
+                    >
+                      Reserve a room
+                    </button> to get started.
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-t border-gray-100 pt-4 mt-4 text-sm">
-          <span className="text-gray-500 text-xs sm:text-sm mb-2 sm:mb-0">
-            Submitted: {formatPH(activeRes.createdAt)}
-          </span>
-          <button
-            className="text-red-600 hover:text-red-800 font-medium flex items-center focus:outline-none cursor-pointer"
-            onClick={() => {
-              setSelectedReservation?.(activeRes);
-              setView?.("reservationDetails");
-            }}
-            aria-label={`View details for ${activeRes.roomName} reservation`}
-          >
-            View details
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </section>
-    </div>
-  ) : (
-    <div className="text-center py-8 flex flex-col justify-center items-center h-full">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-      <p className="text-gray-600">
-        No active reservations.<br />
-        <button 
-          onClick={handleReserveClick}
-          className="text-red-600 font-medium hover:underline focus:outline-none"
-        >
-          Reserve a room
-        </button> to get started.
-      </p>
-    </div>
-  )}
-</div>
           </div>
 
-          {/* Quick Access Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button
-              onClick={() => setView("help")}
-              className="bg-white border border-gray-200 hover:border-gray-300 transition-all duration-200 shadow-sm rounded-xl h-32 flex flex-col items-center justify-center text-center p-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-              aria-label="Go to help center"
-            >
-              
-              <h2 className="text-lg font-semibold text-gray-800">Help Center</h2>
-              <p className="text-xs text-gray-600 mt-1">
-                Get answers to your questions about the reservation system
-              </p>
-            </button>
-
-            <button
-              onClick={() => setView("guidelines")}
-              className="bg-white border border-gray-200 hover:border-gray-300 transition-all duration-200 shadow-sm rounded-xl h-32 flex flex-col items-center justify-center text-center p-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-              aria-label="View guidelines"
-            >
-              
-              <h2 className="text-lg font-semibold text-gray-800">Room Guidelines</h2>
-              <p className="text-xs text-gray-600 mt-1">
-                Learn how to properly use the rooms and facilities
-              </p>
-            </button>
-          </div>
+          
         </div>
 
         {/* RIGHT SIDEBAR */}
         <aside className="w-full lg:w-80 flex flex-col gap-6">
           {/* Calendar */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+
             <Calendar
               onClickDay={handleDateClick}
               value={selectedDate}
@@ -475,50 +543,92 @@ function Dashboard({ user, setView, setSelectedReservation }) {
 
           {/* Reserve Room Button */}
           <button
-            className={`rounded-xl w-full h-32 flex items-center justify-center transition-all duration-300 shadow-md ${
-              hasActiveRes
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-            }`}
-            onClick={handleReserveClick}
-            disabled={hasActiveRes}
-            aria-label={hasActiveRes ? "You have an active reservation" : "Reserve a room"}
-          >
-            <div className="flex flex-col justify-center items-center text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <h2 className="text-xl font-bold">
-                {hasActiveRes ? "Reservation Active" : "Reserve Room"}
-              </h2>
-              {hasActiveRes && (
-                <p className="text-xs font-medium mt-1 text-white/80">Check your current reservation</p>
-              )}
-            </div>
-          </button>
+  className={`relative overflow-hidden rounded-2xl w-full h-36 flex items-center justify-center transition-all duration-300 shadow-lg ${
+    activeRes?.dayReservationCount >= 2
+      ? "bg-gray-300 cursor-not-allowed"
+      : "bg-gradient-to-r from-red-500 via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 cursor-pointer focus:outline-none focus:ring-4 focus:ring-red-300 focus:ring-opacity-50"
+  }`}
+  onClick={handleReserveClick}
+  disabled={activeRes?.dayReservationCount >= 2}
+  aria-label={
+    activeRes?.dayReservationCount >= 2
+      ? "Reservation limit reached"
+      : "Reserve a room"
+  }
+>
+  {/* Subtle animated glow */}
+  {!activeRes?.dayReservationCount >= 2 && (
+    <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-30 animate-pulse transition-all duration-300" />
+  )}
+
+  <div className="flex flex-col justify-center items-center text-white relative z-10 transition-all duration-300">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-10 w-10 mb-2 drop-shadow-md transition-all duration-300"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+      />
+    </svg>
+    <h2 className="text-2xl font-bold tracking-wide transition-all duration-300">
+      {hasActiveRes ? "Reservation Active" : "Reserve Room"}
+    </h2>
+    {activeRes?.dayReservationCount >= 2 ? (
+      <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
+        Limit reached (2/day)
+      </p>
+    ) : hasActiveRes ? (
+      <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
+        Check your current reservation
+      </p>
+    ) : (
+      <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
+        Tap to create a reservation
+      </p>
+    )}
+  </div>
+</button>
+
         </aside>
       </div>
       
-     
-     <footer className="fixed bottom-0 left-0 md:left-[250px] right-0 bg-white border-t border-gray-200 shadow-sm">
-  <div className="container mx-auto  flex justify-between items-center">
+      <footer className="fixed bottom-0 left-0 md:left-[250px] right-0 ">
+  <div className="  px-5 py-2 flex justify-between items-center">
+    {/* Copyright */}
     <div className="text-sm text-gray-500">
-      © {new Date().getFullYear()} USA-FLD CircuLink
+      © {new Date().getFullYear()} <span className="font-semibold">USA-FLD CircuLink</span>
     </div>
 
+    {/* Report Button */}
     <button
       onClick={() => setShowReportModal(true)}
-      className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors flex items-center cursor-pointer"
+      className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-red-800 transition-all duration-300 cursor-pointer"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-4 w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        />
       </svg>
       Report Problem
     </button>
   </div>
 </footer>
 
-      
 
       {/* Modal Component */}
       {showReportModal && (
@@ -528,8 +638,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
           user={user}
         />
       )}
-    
-
 
       {/* MODALS */}
       {showAvailModal && (
@@ -542,140 +650,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
         />
       )}
 
-      {/* Active Reservation Block Modal */}
-      {showBlock && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
-          onClick={() => setShowBlock(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="block-modal-title"
-        >
-          <div
-            className="bg-white p-8 rounded-xl max-w-md w-full mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <h2 id="block-modal-title" className="text-xl font-bold text-gray-800 mt-3">
-                Active Reservation Found
-              </h2>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h3 className="font-semibold text-gray-800">{activeRes?.roomName}</h3>
-              <p className="text-sm text-gray-600 mt-1">{activeRes?.location}</p>
-              <p className="text-sm text-gray-600 mt-1">
-                {activeRes && formatPH(activeRes.datetime)}
-              </p>
-            </div>
-            <p className="text-gray-600 text-center mb-6">
-              You can only have one active reservation at a time. Please wait until your current reservation is completed before booking another room.
-            </p>
-            <button
-              onClick={() => setShowBlock(false)}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition w-full font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-              aria-label="Close modal"
-            >
-              Understood
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reservation Success Modal */}
-      {showSuccessModal && newReservation && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
-          onClick={() => setShowSuccessModal(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="success-modal-title"
-        >
-          <div
-            className="bg-white p-8 rounded-xl max-w-md w-full mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h2 id="success-modal-title" className="text-xl font-bold text-gray-800 mt-3">
-                Reservation Submitted Successfully!
-              </h2>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg mb-6 border border-green-100">
-              <h3 className="font-semibold text-gray-800">{newReservation.roomName}</h3>
-              <p className="text-sm text-gray-600 mt-1">{newReservation.location}</p>
-              <p className="text-sm text-gray-600 mt-1">
-                {formatPH(newReservation.datetime)}
-              </p>
-              <div className="mt-2">
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  newReservation.status === "Approved"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-yellow-100 text-yellow-800"
-                }`}>
-                  {newReservation.status}
-                </span>
-              </div>
-            </div>
-            <p className="text-gray-600 text-center mb-6">
-              {newReservation.status === "Pending" 
-                ? "Your reservation is pending approval. You'll receive a notification once it's processed."
-                : "Your reservation has been approved. Please arrive on time."}
-            </p>
-            <div className="flex flex-col space-y-3">
-              <button
-                onClick={() => {
-                  setSelectedReservation(newReservation);
-                  setView("reservationDetails");
-                  setShowSuccessModal(false);
-                }}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition w-full font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                aria-label="View reservation details"
-              >
-                View Details
-              </button>
-              <button
-                onClick={() => setShowSuccessModal(false)}
-                className="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 transition w-full font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
-                aria-label="Close modal"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Participant Conflict Modal */}
-      {participantConflict && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="conflict-modal-title"
-        >
-          <div className="bg-white p-6 rounded-xl w-full max-w-sm shadow-xl text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-yellow-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 id="conflict-modal-title" className="text-lg font-bold text-gray-800 mb-2">
-              Scheduling Conflict
-            </h2>
-            <p className="text-gray-600 mb-6">{participantConflict}</p>
-            <button
-              onClick={() => setParticipantConflict("")}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition w-full font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-              aria-label="Close conflict modal"
-            >
-              Got It
-            </button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
