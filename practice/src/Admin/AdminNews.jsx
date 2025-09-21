@@ -6,6 +6,7 @@ import { Editor, EditorProvider } from "react-simple-wysiwyg";
 function AdminNews({ setView, admin }) {
   const [newsList, setNewsList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState(null);
@@ -15,7 +16,7 @@ function AdminNews({ setView, admin }) {
   const [preview, setPreview] = useState(null);
   const [editNews, setEditNews] = useState(null);
   const [viewNews, setViewNews] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [archiveConfirm, setArchiveConfirm] = useState(null);
   const [postConfirm, setPostConfirm] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
 
@@ -25,48 +26,17 @@ function AdminNews({ setView, admin }) {
     fetchNews();
   }, []);
 
-  const fetchNews = () => {
+  const fetchNews = async () => {
     setIsLoading(true);
-    axios
-      .get("http://localhost:5000/news")
-      .then((res) => setNewsList(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setIsLoading(false));
-  };
-
-  const handleAddOrUpdate = (e) => {
-    e.preventDefault();
-    if (!title.trim() || !content.trim())
-      return alert("Please complete the form");
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("content", content);
-    if (image) formData.append("image", image);
-
-    const request = editNews
-      ? axios.put(`http://localhost:5000/news/${editNews._id}`, formData)
-      : axios.post("http://localhost:5000/news", formData);
-
-    request
-      .then(() => {
-        fetchNews();
-        resetForm();
-        setPostConfirm(false);
-      })
-      .catch((err) => console.error(err));
-  };
-
-  const handleDeleteNews = () => {
-    if (!deleteConfirm) return;
-    
-    axios
-      .delete(`http://localhost:5000/news/${deleteConfirm._id}`)
-      .then(() => {
-        fetchNews();
-        setDeleteConfirm(null);
-      })
-      .catch((err) => console.error(err));
+    try {
+      const res = await axios.get("http://localhost:5000/news/active");
+      setNewsList(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Error fetching news:", err);
+      setNewsList([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -82,19 +52,57 @@ function AdminNews({ setView, admin }) {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
-      // Create a preview URL for the image
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviewUrl(reader.result);
-      };
+      reader.onloadend = () => setImagePreviewUrl(reader.result);
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddOrUpdate = async () => {
+    if (!title.trim() || !content.trim()) return alert("Please complete the form");
+    setIsPosting(true);
+
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("content", content);
+    if (image) formData.append("image", image);
+
+    try {
+      if (editNews) {
+        await axios.put(`http://localhost:5000/news/${editNews._id}`, formData);
+      } else {
+        await axios.post("http://localhost:5000/news", formData);
+      }
+      fetchNews();
+      resetForm();
+      setPostConfirm(false);
+    } catch (err) {
+      console.error("Error posting/updating news:", err);
+      alert("Failed to save news. Check console.");
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  const handleArchiveNews = async () => {
+    if (!archiveConfirm) return;
+
+    try {
+      await axios.put(`http://localhost:5000/news/archive/${archiveConfirm._id}`);
+      setNewsList(prevList =>
+        prevList.filter(n => n._id.toString() !== archiveConfirm._id.toString())
+      );
+      setArchiveConfirm(null);
+    } catch (err) {
+      console.error("Error archiving news:", err);
+      alert("Failed to archive news. Check console.");
     }
   };
 
   // Filter & sort
   const filteredNews = newsList
     .filter(
-      (n) =>
+      n =>
         n.title.toLowerCase().includes(search.toLowerCase()) ||
         n.content.toLowerCase().includes(search.toLowerCase())
     )
@@ -106,7 +114,6 @@ function AdminNews({ setView, admin }) {
       return 0;
     });
 
-  // Pagination
   const totalPages = Math.ceil(filteredNews.length / itemsPerPage);
   const paginatedNews = filteredNews.slice(
     (page - 1) * itemsPerPage,
@@ -123,62 +130,52 @@ function AdminNews({ setView, admin }) {
         </header>
 
         <div className="p-6">
-          {/* Add/Edit News Form */}
+          {/* Add/Edit Form */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6 transition-all hover:shadow-md">
             <h2 className="text-xl font-semibold mb-4 text-gray-800">
               {editNews ? "Edit News" : "Add News"}
             </h2>
-            <form onSubmit={(e) => { e.preventDefault(); setPostConfirm(true); }} className="flex flex-col gap-4">
+            <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); setPostConfirm(true); }}>
               <input
                 type="text"
                 placeholder="News Title"
                 className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-[#CC0000] focus:border-transparent transition-all"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={e => setTitle(e.target.value)}
               />
-
-              {/* WYSIWYG editor */}
               <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#CC0000] focus-within:border-transparent transition-all">
                 <EditorProvider>
                   <Editor
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
+                    onChange={e => setContent(e.target.value)}
                     className="min-h-[200px]"
                   />
                 </EditorProvider>
               </div>
 
+              {/* Image upload */}
               <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 mb-1">
-                  News Image
-                </label>
-                <label className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                  {imagePreviewUrl || (editNews && editNews.image) ? (
-                    <div className="mb-4">
-                      <img
-  src={imagePreviewUrl || editNews?.image}
-  alt="Preview"
-  className="h-32 object-contain rounded-lg"
-/>
-
-                    </div>
+                <label className="text-sm font-medium text-gray-700 mb-1">News Image</label>
+                <label className="flex flex-col items-center justify-center w-full h-40 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  {imagePreviewUrl || editNews?.image ? (
+                    <img
+                      src={imagePreviewUrl || editNews.image}
+                      alt="Preview"
+                      className="w-full h-full object-contain rounded-lg"
+                    />
                   ) : (
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                      <svg className="w-8 h-8 mb-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
                       </svg>
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
-                      </p>
-                      
+                      <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
                     </div>
                   )}
-                  <input 
-                    id="dropzone-file" 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleImageChange} 
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
                   />
                 </label>
               </div>
@@ -187,11 +184,7 @@ function AdminNews({ setView, admin }) {
                 <button
                   type="button"
                   className="px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                  onClick={() => setPreview({ 
-                    title, 
-                    content, 
-                    image: imagePreviewUrl || (editNews && editNews.image ? `http://localhost:5000/${editNews.image}` : null) 
-                  })}
+                  onClick={() => setPreview({ title, content, image: imagePreviewUrl || editNews?.image })}
                 >
                   Preview
                 </button>
@@ -207,48 +200,53 @@ function AdminNews({ setView, admin }) {
                   )}
                   <button
                     type="submit"
-                    className="bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm hover:shadow"
+                    className="bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm hover:shadow flex items-center justify-center gap-2"
+                    disabled={isPosting}
                   >
-                    {editNews ? "Update News" : "Post News"}
+                    {isPosting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        {editNews ? "Updating..." : "Posting..."}
+                      </>
+                    ) : (
+                      editNews ? "Update News" : "Post News"
+                    )}
                   </button>
                 </div>
               </div>
             </form>
           </div>
 
-          {/* Preview Modal */}
-          {preview && (
+          {/* Archive Confirmation Modal */}
+          {archiveConfirm && (
             <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
-              <div className="bg-white p-6 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="bg-white p-6 rounded-xl w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">Preview</h2>
+                  <h2 className="text-xl font-bold text-gray-800">Confirm Archive</h2>
                   <button
                     className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setPreview(null)}
+                    onClick={() => setArchiveConfirm(null)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    ✕
                   </button>
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{preview.title}</h3>
-                {preview.image && (
-                  <img
-                    src={preview.image}
-                    alt="News cover"
-                    className="w-full h-64 object-cover rounded-xl mb-6"
-                  />
-                )}
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: preview.content }}
-                />
-                <button
-                  className="mt-6 bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors w-full"
-                  onClick={() => setPreview(null)}
-                >
-                  Close Preview
-                </button>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to archive "<span className="font-semibold">{archiveConfirm.title}</span>"?
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                    onClick={() => setArchiveConfirm(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={handleArchiveNews}
+                  >
+                    Archive
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -258,15 +256,8 @@ function AdminNews({ setView, admin }) {
             <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
               <div className="bg-white p-6 rounded-xl w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">Confirm</h2>
-                  <button
-                    className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setPostConfirm(false)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <h2 className="text-xl font-bold text-gray-800">Confirm {editNews ? "Update" : "Post"}</h2>
+                  <button className="text-gray-500 hover:text-gray-700" onClick={() => setPostConfirm(false)}>✕</button>
                 </div>
                 <p className="text-gray-600 mb-6">
                   Are you sure you want to {editNews ? "update" : "post"} this news?
@@ -282,93 +273,26 @@ function AdminNews({ setView, admin }) {
                     className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
                     onClick={handleAddOrUpdate}
                   >
-                    Confirm
+                    {editNews ? "Update" : "Post"}
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Delete Confirmation Modal */}
-          {deleteConfirm && (
+          {/* Preview Modal */}
+          {preview && (
             <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
-              <div className="bg-white p-6 rounded-xl w-full max-w-md">
+              <div className="bg-white p-6 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">Confirm Deletion</h2>
-                  <button
-                    className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setDeleteConfirm(null)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <h2 className="text-xl font-bold text-gray-800">Preview</h2>
+                  <button className="text-gray-500 hover:text-gray-700" onClick={() => setPreview(null)}>✕</button>
                 </div>
-                <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete the news "<span className="font-semibold">{deleteConfirm.title}</span>"? This action cannot be undone.
-                </p>
-                <div className="flex gap-3 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                    onClick={() => setDeleteConfirm(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
-                    onClick={handleDeleteNews}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* View News Modal */}
-          {viewNews && (
-            <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
-              <div className="bg-white p-6 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">News Details</h2>
-                  <button
-                    className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setViewNews(null)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                
-                <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{viewNews.title}</h3>
-                  <p className="text-sm text-gray-500">
-                    Posted on: {new Date(viewNews.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                
-                {viewNews.image && (
-                  <img
-                    src={viewNews.image}
-                    alt="News cover"
-                    className="w-full h-64 object-cover rounded-xl mb-6"
-                  />
+                <h3 className="text-2xl font-semibold mb-2">{preview.title}</h3>
+                {preview.image && (
+                  <img src={preview.image} alt="News" className="w-full h-64 object-contain rounded-lg mb-4" />
                 )}
-                
-                <div
-                  className="prose max-w-none mb-6"
-                  dangerouslySetInnerHTML={{ __html: viewNews.content }}
-                />
-                
-                <div className="flex justify-end">
-                  <button
-                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
-                    onClick={() => setViewNews(null)}
-                  >
-                    Close
-                  </button>
-                </div>
+                <div className="mb-4" dangerouslySetInnerHTML={{ __html: preview.content }}></div>
               </div>
             </div>
           )}
@@ -465,27 +389,39 @@ function AdminNews({ setView, admin }) {
                         <td className="p-3">
                           <div className="flex gap-2">
                             <button
-                              className="text-gray-600 hover:text-gray-800 font-medium text-sm px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-all"
+                              className="text-gray-600 hover:text-gray-800 p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-all"
                               onClick={() => setViewNews(item)}
+                              title="View"
                             >
-                              View
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
                             </button>
+
                             <button
-                              className="text-blue-600 hover:text-blue-800 font-medium text-sm px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100 transition-all"
+                              className="text-blue-600 hover:text-blue-800 p-2 rounded-md bg-blue-50 hover:bg-blue-100 transition-all"
                               onClick={() => {
                                 setEditNews(item);
                                 setTitle(item.title);
                                 setContent(item.content);
-                                setImagePreviewUrl(item.image ? `http://localhost:5000/${item.image}` : "");
+                                setImagePreviewUrl(item.image || "");
                               }}
+                              title="Edit"
                             >
-                              Edit
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
                             </button>
+                            
                             <button
-                              className="text-[#CC0000] hover:text-red-800 font-medium text-sm px-3 py-1 rounded-md bg-red-50 hover:bg-red-100 transition-all"
-                              onClick={() => setDeleteConfirm(item)}
+                              className="text-[#CC0000] hover:text-red-800 p-2 rounded-md bg-red-50 hover:bg-red-100 transition-all"
+                              onClick={() => setArchiveConfirm(item)}
+                              title="Archive"
                             >
-                              Delete
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
                             </button>
                           </div>
                         </td>
@@ -542,6 +478,54 @@ function AdminNews({ setView, admin }) {
               </div>
             )}
           </div>
+
+          {/* View News Modal */}
+          {viewNews && (
+            <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
+              <div className="bg-white p-6 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">News Details</h2>
+                  <button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => setViewNews(null)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{viewNews.title}</h3>
+                  <p className="text-sm text-gray-500">
+                    Posted on: {new Date(viewNews.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                
+                {viewNews.image && (
+                  <img
+                    src={viewNews.image}
+                    alt="News cover"
+                    className="w-full h-64 object-cover rounded-xl mb-6"
+                  />
+                )}
+                
+                <div
+                  className="prose max-w-none mb-6"
+                  dangerouslySetInnerHTML={{ __html: viewNews.content }}
+                />
+                
+                <div className="flex justify-end">
+                  <button
+                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={() => setViewNews(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </>

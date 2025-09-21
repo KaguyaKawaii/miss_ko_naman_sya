@@ -41,17 +41,19 @@ function AdminArchived({ setView }) {
   };
 
   // Permanently delete reservation
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to permanently delete this reservation?")) return;
-    try {
-      await axios.delete(`http://localhost:5000/reservations/archived/${id}`);
-      alert("Reservation permanently deleted.");
-      fetchArchivedReservations();
-    } catch (err) {
-      console.error("Failed to delete reservation:", err);
-      alert("Failed to delete reservation.");
-    }
-  };
+const handleDelete = async (id) => {
+  if (!window.confirm("Are you sure you want to permanently delete this reservation?")) return;
+  try {
+    await axios.delete(`http://localhost:5000/reservations/archived/${id}`);
+
+    alert("Reservation permanently deleted.");
+    fetchArchivedReservations();
+  } catch (err) {
+    console.error("Failed to delete reservation:", err);
+    alert("Failed to delete reservation.");
+  }
+};
+
 
   // Calculate duration between start and end time
   const calculateDuration = (start, end) => {

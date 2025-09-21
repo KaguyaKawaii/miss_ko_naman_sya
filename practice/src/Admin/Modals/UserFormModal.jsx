@@ -108,11 +108,31 @@ export default function UserFormModal({ mode, user, onClose, onSuccess, onToggle
         verified: form.verified,
       };
 
-      if (isEdit) {
-        await axios.put(`http://localhost:5000/api/users/${user._id}`, payload);
-      } else if (isAdd) {
-        await axios.post("http://localhost:5000/api/users", payload);
-      }
+if (isEdit) {
+  const formData = new FormData();
+  for (let key in payload) {
+    if (payload[key] !== undefined) formData.append(key, payload[key]);
+  }
+  if (form.profile) formData.append("profile", form.profile);
+  await axios.put(
+    `http://localhost:5000/api/users/edit/${user._id}`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+} else if (isAdd) {
+  const formData = new FormData();
+  for (let key in payload) {
+    if (payload[key] !== undefined) formData.append(key, payload[key]);
+  }
+  if (form.profile) formData.append("profile", form.profile);
+  await axios.post(
+    "http://localhost:5000/api/users",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+}
+
+
 
       onSuccess();
     } catch (err) {

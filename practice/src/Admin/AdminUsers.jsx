@@ -30,18 +30,24 @@ function AdminUsers({ setView }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState({ type: null, user: null });
 
-  const formatPHDateTime = (date) =>
-    date
-      ? new Date(date).toLocaleString("en-PH", {
-          timeZone: "Asia/Manila",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        })
-      : "—";
+  const formatPHDateTime = (date) => {
+    if (!date) return "—";
+    
+    try {
+      return new Date(date).toLocaleString("en-PH", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -57,47 +63,67 @@ function AdminUsers({ setView }) {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/users?archived=false");
-      setUsers(res.data);
+      const res = await axios.get("http://localhost:5000/api/users");
+      if (res.data.success) {
+        setUsers(res.data.users);
+      } else {
+        console.error("Failed to fetch users:", res.data.message);
+        alert(`Failed to fetch users: ${res.data.message}`);
+      }
     } catch (err) {
       console.error("Failed to fetch users:", err);
-      alert("Failed to fetch users.");
+      alert("Failed to fetch users. Please check your connection.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  
+
+
   const toggleVerified = async (user) => {
     try {
-      await axios.patch(`http://localhost:5000/api/users/${user._id}`, {
-        verified: !user.verified,
+      const res = await axios.patch(`http://localhost:5000/api/users/verify/${user._id}`, {
+        verified: !user.verified
       });
-      fetchUsers();
-      setModal((m) =>
-        m.user && m.user._id === user._id
-          ? { ...m, user: { ...m.user, verified: !m.user.verified } }
-          : m
-      );
+      
+      if (res.data.success) {
+        // Update the user in the local state
+        setUsers(prevUsers => 
+          prevUsers.map(u => 
+            u._id === user._id ? { ...u, verified: !u.verified } : u
+          )
+        );
+        
+        // Update the modal if it's open for this user
+        setModal((m) =>
+          m.user && m.user._id === user._id
+            ? { ...m, user: { ...m.user, verified: !m.user.verified } }
+            : m
+        );
+      } else {
+        console.error("Failed to toggle verification:", res.data.message);
+        alert(`Failed to change verification status: ${res.data.message}`);
+      }
     } catch (err) {
       console.error("Failed to toggle verification:", err);
-      alert("Failed to change verification status.");
+      alert("Failed to change verification status. Please try again.");
     }
   };
 
-const archiveUser = async (user) => {
-  if (!window.confirm(`Are you sure you want to archive ${user.name}?`)) return;
+  const archiveUser = async (user) => {
+    if (!window.confirm(`Are you sure you want to archive ${user.name}?`)) return;
 
-  try {
-    await axios.delete(`http://localhost:5000/api/users/archive/${user._id}`);
-    fetchUsers();
-    closeModal();
-  } catch (err) {
-    console.error("Failed to archive user:", err.response?.data || err.message);
-    alert("Failed to archive user.");
-  }
-};
+    try {
+      await axios.put(`http://localhost:5000/api/users/archive/${user._id}`);
 
-
+      fetchUsers();
+      closeModal();
+    } catch (err) {
+      console.error("Failed to archive user:", err.response?.data || err.message);
+      alert("Failed to archive user. Please try again.");
+    }
+  };
 
   const userStats = {
     total: users.length,
@@ -121,6 +147,10 @@ const archiveUser = async (user) => {
   });
 
   const closeModal = () => setModal({ type: null, user: null });
+
+  // For cleaner conditional rendering
+  const isViewModal = modal.type === "view";
+  const isEditOrAddModal = ["edit", "add"].includes(modal.type);
 
   return (
     <>
@@ -192,7 +222,7 @@ const archiveUser = async (user) => {
                   <p className="text-2xl font-bold">{userStats.staff}</p>
                 </div>
                 <div className="p-2 bg-yellow-100 rounded-full text-yellow-600">
-                  <UserCog size={20} />
+                  <UserCheck size={20} />
                 </div>
               </div>
             </div>
@@ -235,11 +265,13 @@ const archiveUser = async (user) => {
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name, email, ID number..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  aria-label="Search users"
                 />
                 {search && (
                   <button 
                     onClick={() => setSearch("")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label="Clear search"
                   >
                     <X size={16} />
                   </button>
@@ -252,6 +284,7 @@ const archiveUser = async (user) => {
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                     className="appearance-none pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    aria-label="Filter by status"
                   >
                     <option value="All">All Status</option>
                     <option value="Verified">Verified</option>
@@ -265,6 +298,7 @@ const archiveUser = async (user) => {
                     value={roleFilter}
                     onChange={(e) => setRoleFilter(e.target.value)}
                     className="appearance-none pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    aria-label="Filter by role"
                   >
                     <option value="All">All Roles</option>
                     <option value="Student">Student</option>
@@ -283,6 +317,7 @@ const archiveUser = async (user) => {
                   fetchUsers();
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                aria-label="Refresh users"
               >
                 <RefreshCw size={16} />
                 <span>Refresh</span>
@@ -291,6 +326,7 @@ const archiveUser = async (user) => {
               <button
                 onClick={() => setModal({ type: "add", user: null })}
                 className="flex items-center gap-2 px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-[#990000] transition-colors"
+                aria-label="Add new user"
               >
                 <UserPlus size={16} />
                 <span>Add User</span>
@@ -355,6 +391,7 @@ const archiveUser = async (user) => {
                               onClick={() => setModal({ type: "view", user: u })}
                               className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
                               title="View Details"
+                              aria-label={`View details for ${u.name}`}
                             >
                               <Eye size={18} />
                             </button>
@@ -362,6 +399,7 @@ const archiveUser = async (user) => {
                               onClick={() => setModal({ type: "edit", user: u })}
                               className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
                               title="Edit"
+                              aria-label={`Edit ${u.name}`}
                             >
                               <Pencil size={18} />
                             </button>
@@ -369,6 +407,7 @@ const archiveUser = async (user) => {
                               onClick={() => archiveUser(u)}
                               className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Archive"
+                              aria-label={`Archive ${u.name}`}
                             >
                               <Trash2 size={18} />
                             </button>
@@ -385,7 +424,7 @@ const archiveUser = async (user) => {
       </main>
 
       {/* Modals */}
-      {modal.type === "view" && (
+      {isViewModal && (
         <UserViewModal
           user={modal.user}
           onClose={closeModal}
@@ -393,7 +432,7 @@ const archiveUser = async (user) => {
         />
       )}
 
-      {["edit", "add"].includes(modal.type) && (
+      {isEditOrAddModal && (
         <UserFormModal
           mode={modal.type}
           user={modal.user}

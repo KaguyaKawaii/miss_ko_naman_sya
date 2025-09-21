@@ -9,9 +9,9 @@ const reportSchema = new mongoose.Schema({
     required: true,
   },
   details: { type: String, required: true },
-  floor: { type: String },
-  room: { type: String },
-  created_at: { type: Date, default: Date.now },
+  floor: { type: String, default: "N/A" },
+  room: { type: String, default: "N/A" },
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model("Report", reportSchema);

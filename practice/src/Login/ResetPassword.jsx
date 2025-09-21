@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle, ArrowLeft, Mail } from "lucide-react";
 import Logo from "../assets/logo.png";
 import "../index.css";
 
@@ -79,135 +79,243 @@ function ResetPassword({ onBackToLogin }) {
   };
 
   return (
-    <main>
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-yellow-50 flex items-center justify-center p-4">
       {loading && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Loader2 size={64} className="text-white animate-spin" />
-          <p className="mt-4 text-white text-lg font-semibold">Processing…</p>
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center">
+            <Loader2 size={64} className="text-red-600 animate-spin mb-4" />
+            <p className="text-gray-700 text-lg font-semibold">Processing…</p>
+          </div>
         </div>
       )}
 
-      <div className="flex m-6 justify-center absolute top-0 left-0 right-0">
+      <div className="flex justify-center absolute top-6 left-0 right-0 z-40">
         {error && (
-          <p className="bg-red-500 text-white font-semibold p-4 rounded-2xl border border-red-400 shadow-lg text-center absolute animate-shake">
-            {error}
-          </p>
+          <div
+            key={error}
+            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-lg animate-fade-in-down max-w-md"
+            role="alert"
+          >
+            <p className="font-bold">Error</p>
+            <p>{error}</p>
+          </div>
         )}
       </div>
 
-      <div className="flex flex-col h-screen items-center justify-center gap-2">
-        <img className="h-[150px] w-[150px]" src={Logo} alt="Logo" />
-        <h1 className="text-3xl font-serif font-semibold text-black">University of San Agustin</h1>
-        <p>General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo, Philippines</p>
-        <p className="text-lg sm:text-xl font-semibold text-gray-700 text-center">Learning Resource Center</p>
+      <div className="flex flex-col md:flex-row justify-center w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 animate-fade-in">
 
-        <div className="flex flex-col items-center gap-4 mt-10">
-          {step === "email" && (
-            <form onSubmit={handleRequestOtp} className="flex flex-col gap-4">
-              <p className="text-2xl font-semibold text-gray-800 text-center">Forgot Password</p>
-              <div className="flex flex-col gap-1">
-                <label className="ml-2">Email</label>
-                <input
-                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="p-3 w-full flex justify-center items-center gap-2 rounded-lg bg-[#FFCC00] hover:bg-[#e6b800] font-semibold text-white cursor-pointer duration-150"
-              >
-                {loading ? <Loader2 size={20} className="animate-spin" /> : "Send OTP"}
-              </button>
-              <button onClick={onBackToLogin} type="button" className="text-[#FFCC00] font-semibold hover:underline cursor-pointer">Back to Login</button>
-            </form>
-          )}
+        
+        
+        {/* Right side - Reset Form */}
+        <div className="w-full md:w-3/5 p-8 md:p-10 flex flex-col justify-center">
+         
+          
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">
+              {step === "email" && "Reset Password"}
+              {step === "otp" && "Enter Verification Code"}
+              {step === "reset" && "Create New Password"}
+            </h2>
+            <p className="text-gray-600 mt-2">
+              {step === "email" && "Enter your email to receive a verification code"}
+              {step === "otp" && "Check your email for the verification code"}
+              {step === "reset" && "Enter your new password below"}
+            </p>
+          </div>
 
-          {step === "otp" && (
-            <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-              <p className="text-2xl font-semibold text-gray-800 text-center">Enter OTP</p>
-              <div className="flex flex-col gap-1">
-                
-                <input
-                  className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
-                  type="text"
-                  placeholder="Enter the OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="p-3 w-full flex justify-center items-center gap-2 rounded-lg bg-[#FFCC00] hover:bg-[#e6b800] font-semibold text-white cursor-pointer duration-150"
-              >
-                {loading ? <Loader2 size={20} className="animate-spin" /> : "Verify OTP"}
-              </button>
-            </form>
-          )}
-
-          {step === "reset" && (
-            <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-              <p className="text-2xl font-semibold text-gray-800 text-center">Reset Password</p>
-              <div className="flex flex-col gap-1">
-                <label className="ml-2">New Password</label>
-                <div className="relative">
-                  <input
-                    className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
-                    type={showPw ? "text" : "password"}
-                    placeholder="New Password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer hover:text-[#CC0000] transition-colors duration-200">
-                    {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+          <div className="flex flex-col items-center gap-6">
+            {step === "email" && (
+              <form onSubmit={handleRequestOtp} className="w-full max-w-md">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Email Address</label>
+                    <input
+                      className="border border-gray-300 p-4 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : "Send Verification Code"}
                   </button>
                 </div>
-              </div>
+                <div className="flex justify-center mt-6">
+                 <button 
+                  onClick={onBackToLogin}
+                  className="flex items-center justify-center text-gray-600 hover:text-red-600 mb-6 self-start transition-colors duration-200 cursor-pointer"
+                >
+                  
+                  Back to Login
+                </button>
+                </div>
+              </form>
 
-              <div className="flex flex-col gap-1">
-                <label className="ml-2">Confirm Password</label>
-                <div className="relative">
-                  <input
-                    className="border p-3 w-[450px] rounded-lg hover:border-[#CC0000] outline-none focus:border-[#CC0000] focus:ring-[#CC0000] focus:ring-1 duration-100"
-                    type={showConfirmPw ? "text" : "password"}
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                  <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer hover:text-[#CC0000] transition-colors duration-200">
-                    {showConfirmPw ? <EyeOff size={20} /> : <Eye size={20} />}
+              
+            )}
+
+            {step === "otp" && (
+              <form onSubmit={handleVerifyOtp} className="w-full max-w-md">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Verification Code</label>
+                    <input
+                      className="border border-gray-300 p-4 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center tracking-widest text-lg"
+                      type="text"
+                      placeholder="Enter the 6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      maxLength={6}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      We sent a code to {email}
+                    </p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : "Verify Code"}
                   </button>
                 </div>
-              </div>
+              </form>
+            )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="p-3 w-full flex justify-center items-center gap-2 rounded-lg bg-[#FFCC00] hover:bg-[#e6b800] font-semibold text-white cursor-pointer"
-              >
-                {loading ? <Loader2 size={20} className="animate-spin" /> : "Reset Password"}
-              </button>
-            </form>
-          )}
+            {step === "reset" && (
+              <form onSubmit={handleResetPassword} className="w-full max-w-md">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">New Password</label>
+                    <div className="relative">
+                      <input
+                        className="border border-gray-300 p-4 rounded-xl w-full hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        type={showPw ? "text" : "password"}
+                        placeholder="Enter your new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw((s) => !s)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors duration-200"
+                      >
+                        {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Confirm Password</label>
+                    <div className="relative">
+                      <input
+                        className="border border-gray-300 p-4 rounded-xl w-full hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        type={showConfirmPw ? "text" : "password"}
+                        placeholder="Confirm your new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPw((s) => !s)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors duration-200"
+                      >
+                        {showConfirmPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : "Reset Password"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </div>
 
       {successModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center">
-            <CheckCircle size={96} className="text-green-600 mx-auto" />
-            <h3 className="text-3xl font-bold mt-6">Password Reset!</h3>
-            <p className="mt-4 text-gray-700 text-lg">Your password has been successfully updated.</p>
-            <button onClick={closeSuccess} className="mt-8 bg-[#CC0000] text-white w-full py-3 rounded-lg text-lg font-semibold hover:bg-[#990000] cursor-pointer">
-              Go to Login
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/50 backdrop-blur-md"
+          onClick={closeSuccess}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center animate-fade-in-scale"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle size={48} className="text-green-600" />
+            </div>
+            <h3 className="text-3xl font-bold text-gray-800">Password Reset Successful!</h3>
+            <p className="mt-4 text-gray-600 text-lg">
+              Your password has been successfully updated. You can now log in with your new password.
+            </p>
+            <button
+              onClick={closeSuccess}
+              className="mt-8 bg-red-700 text-white w-full py-4 rounded-xl text-lg font-semibold hover:bg-red-800 cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg"
+            >
+              Continue to Login
             </button>
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes fade-in-down {
+          0% {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes fade-in-scale {
+          0% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        @keyframes fade-in {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fade-in-down {
+          animation: fade-in-down 0.5s ease-out;
+        }
+        
+        .animate-fade-in-scale {
+          animation: fade-in-scale 0.3s ease-out;
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+      `}</style>
     </main>
   );
 }

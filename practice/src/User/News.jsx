@@ -4,8 +4,10 @@ import axios from "axios";
 
 function News({ user, setView }) {
   const [newsList, setNewsList] = useState([]);
-  const [selectedImage, setSelectedImage] = useState(null); // For fullscreen image
-  const NEWS_ENDPOINT = "http://localhost:5000/news"; // Adjust if needed
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false); // ✅ Add loading state
+
+  const NEWS_ENDPOINT = "http://localhost:5000/news/active"; // fetch only active news
 
   const formatPH = (date) => {
     if (!date) return "N/A";
@@ -26,18 +28,29 @@ function News({ user, setView }) {
   };
 
   const fetchNews = async () => {
+    setIsLoading(true);
     try {
       const { data } = await axios.get(NEWS_ENDPOINT);
-      setNewsList(data);
+      setNewsList(Array.isArray(data) ? data : data.news || []);
     } catch (error) {
       console.error("Failed to fetch news:", error);
       setNewsList([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchNews();
   }, []);
+
+  // ✅ Helper to build full image URL safely
+  const getImageUrl = (img) => {
+    if (!img) return null;
+    return img.startsWith("http")
+      ? img
+      : `http://localhost:5000/${img.replace(/^\/?/, "")}`;
+  };
 
   return (
     <main className="w-full md:ml-[250px] md:w-[calc(100%-250px)] min-h-screen flex flex-col bg-[#FFFCFB]">
@@ -65,11 +78,11 @@ function News({ user, setView }) {
       {/* News Content */}
       <div className="flex justify-center p-6">
         <div className="space-y-4 max-h-[calc(100vh-200px)] pr-2 w-full max-w-6xl">
-          {!newsList || newsList.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">Loading news...</div>
+          ) : !newsList || newsList.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">
-                No announcements available at this time.
-              </p>
+              <p className="text-gray-500">No announcements available at this time.</p>
             </div>
           ) : (
             newsList.map((n) => (
@@ -78,50 +91,50 @@ function News({ user, setView }) {
                 className="p-4 border border-gray-100 rounded-lg hover:shadow transition-shadow bg-white"
               >
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3">
-  <div className="flex items-center gap-3 mb-2 md:mb-0">
-    {/* Circle with Admin SVG */}
-    <div className="flex items-center justify-center border border-gray-500 rounded-full w-[50px] h-[50px] bg-yellow-300">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-6 h-6 text-gray-700"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M5.121 17.804A9.003 9.003 0 0112 15c2.21 0 4.21.804 5.879 2.137M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-        />
-      </svg>
-    </div>
-    <h1 className="font-bold">USA-FLD Admin</h1>
-  </div>
-  
-  <time className="text-xs text-gray-500 flex items-center gap-1">
-    {formatPH(n.createdAt)}
-  </time>
-</div>
+                  <div className="flex items-center gap-3 mb-2 md:mb-0">
+                    {/* Circle with Admin SVG */}
+                    <div className="flex items-center justify-center border border-gray-500 rounded-full w-[50px] h-[50px] bg-yellow-300">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-6 h-6 text-gray-700"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5.121 17.804A9.003 9.003 0 0112 15c2.21 0 4.21.804 5.879 2.137M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    </div>
+                    <h1 className="font-bold">USA-FLD Admin</h1>
+                  </div>
+                  <time className="text-xs text-gray-500 flex items-center gap-1">
+                    {formatPH(n.createdAt)}
+                  </time>
+                </div>
 
                 {/* Show Full Image */}
                 {n.image && (
                   <div className="mb-3">
                     <img
-                      src={n.image}
+                      src={getImageUrl(n.image)}
                       alt={n.title}
                       className="w-full rounded-lg object-contain cursor-pointer"
-                      style={{ maxHeight: "600px" }} // Adjust max height
-                      onClick={() => setSelectedImage(n.image)}
+                      style={{ maxHeight: "600px" }}
+                      onClick={() => setSelectedImage(getImageUrl(n.image))}
                     />
                   </div>
                 )}
 
                 <div className="border-b border-gray-100 mb-3" />
                 <h2 className="font-bold text-gray-800 text-lg">{n.title}</h2>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                  {n.content}
-                </p>
+                <div
+                  className="text-sm text-gray-600"
+                  dangerouslySetInnerHTML={{ __html: n.content }}
+                />
               </article>
             ))
           )}
@@ -131,10 +144,9 @@ function News({ user, setView }) {
       {/* Fullscreen Image Modal */}
       {selectedImage && (
         <div
-  className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-  onClick={() => setSelectedImage(null)}
->
-
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setSelectedImage(null)}
+        >
           <img
             src={selectedImage}
             alt="Full view"

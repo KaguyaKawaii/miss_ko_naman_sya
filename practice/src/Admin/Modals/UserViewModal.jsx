@@ -4,6 +4,32 @@ import { X, User, Mail, IdCard, Shield, Building, GraduationCap, Layers, Calenda
 export default function UserViewModal({ user, onClose, onToggleVerified }) {
   const [imgTimestamp, setImgTimestamp] = useState(Date.now());
 
+  const getProfilePictureUrl = () => {
+    if (!user.profilePicture) return null;
+    
+    if (user.profilePicture.startsWith("http")) {
+      return `${user.profilePicture}?t=${imgTimestamp}`;
+    } else {
+      return `http://localhost:5000${user.profilePicture}?t=${imgTimestamp}`;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "—";
+    const date = new Date(dateString);
+    return date.toLocaleString("en-PH", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+
+
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white w-full max-w-4xl rounded-xl shadow-lg overflow-hidden">
@@ -13,6 +39,7 @@ export default function UserViewModal({ user, onClose, onToggleVerified }) {
           <button 
             onClick={onClose}
             className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition"
+            aria-label="Close modal"
           >
             <X size={20} />
           </button>
@@ -26,8 +53,8 @@ export default function UserViewModal({ user, onClose, onToggleVerified }) {
               <div className="relative w-40 h-40 rounded-full bg-gray-100 border-2 border-gray-200 overflow-hidden mb-4">
                 {user.profilePicture ? (
                   <img
-                    src={`http://localhost:5000${user.profilePicture}?t=${imgTimestamp}`}
-                    alt="Profile"
+                    src={getProfilePictureUrl()}
+                    alt={`${user.name}'s profile`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.onerror = null;
@@ -75,10 +102,14 @@ export default function UserViewModal({ user, onClose, onToggleVerified }) {
                   <h3 className="text-base font-medium text-gray-700 flex items-center gap-2">
                     <User size={18} className="text-gray-500" /> Basic Info
                   </h3>
-                  <DetailItem icon={<User size={16} />} label="Full Name" value={user.name} />
-                  <DetailItem icon={<Mail size={16} />} label="Email" value={user.email} />
-                  <DetailItem icon={<IdCard size={16} />} label="ID Number" value={user.id_number} />
-                  <DetailItem icon={<Shield size={16} />} label="Role" value={user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "—"} />
+                  <DetailItem icon={<User size={16} />} label="Full Name" value={user.name || "—"} />
+                  <DetailItem icon={<Mail size={16} />} label="Email" value={user.email || "—"} />
+                  <DetailItem icon={<IdCard size={16} />} label="ID Number" value={user.id_number || "—"} />
+                  <DetailItem 
+                    icon={<Shield size={16} />} 
+                    label="Role" 
+                    value={user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "—"} 
+                  />
                 </div>
 
                 {/* Role-Specific Information */}
@@ -87,15 +118,31 @@ export default function UserViewModal({ user, onClose, onToggleVerified }) {
                     <Building size={18} className="text-gray-500" /> Institution
                   </h3>
                   {(user.role === "Student" || user.role === "Faculty") && (
-                    <DetailItem icon={<Building size={16} />} label="Department" value={user.department} />
+                    <DetailItem 
+                      icon={<Building size={16} />} 
+                      label="Department" 
+                      value={user.department || "—"} 
+                    />
                   )}
                   {user.role === "Staff" && (
-                    <DetailItem icon={<Layers size={16} />} label="Assigned Floor" value={user.floor} />
+                    <DetailItem 
+                      icon={<Layers size={16} />} 
+                      label="Assigned Floor" 
+                      value={user.floor || "—"} 
+                    />
                   )}
                   {user.role === "Student" && (
                     <>
-                      <DetailItem icon={<GraduationCap size={16} />} label="Course" value={user.course} />
-                      <DetailItem icon={<GraduationCap size={16} />} label="Year Level" value={user.yearLevel} />
+                      <DetailItem 
+                        icon={<GraduationCap size={16} />} 
+                        label="Course" 
+                        value={user.course || "—"} 
+                      />
+                      <DetailItem 
+                        icon={<GraduationCap size={16} />} 
+                        label="Year Level" 
+                        value={user.year_level || user.yearLevel || "—"} 
+                      />
                     </>
                   )}
                 </div>
@@ -106,8 +153,17 @@ export default function UserViewModal({ user, onClose, onToggleVerified }) {
                     <Clock size={18} className="text-gray-500" /> System Info
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <DetailItem icon={<Calendar size={16} />} label="Account Created" 
-                      value={user.created_at ? new Date(user.created_at).toLocaleString() : "—"} />
+                    <DetailItem 
+  icon={<Calendar size={16} />} 
+  label="Account Created" 
+  value={formatDate(user.createdAt || user.created_at)} 
+/>
+<DetailItem 
+  icon={<Clock size={16} />} 
+  label="Last Updated" 
+  value={formatDate(user.updatedAt || user.updated_at)}
+/>
+
                   </div>
                 </div>
               </div>

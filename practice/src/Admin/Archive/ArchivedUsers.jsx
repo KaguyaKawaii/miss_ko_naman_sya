@@ -7,18 +7,29 @@ function AdminArchivedUsers({ setView }) {
   const [loading, setLoading] = useState(true);
 
   // ✅ Fetch archived users
-  const fetchArchivedUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get("http://localhost:5000/api/users/archived");
-      setArchivedUsers(res.data || []);
-    } catch (err) {
-      console.error("Failed to fetch archived users:", err);
-      alert("Failed to load archived users.");
-    } finally {
-      setLoading(false);
+ // ✅ Fetch archived users
+const fetchArchivedUsers = async () => {
+  try {
+    setLoading(true);
+    const res = await axios.get("http://localhost:5000/api/users/archived"); // ✅ fixed
+
+    console.log("Archived Users Response:", res.data);
+
+    if (res.data && Array.isArray(res.data.users)) {
+      setArchivedUsers(res.data.users);
+    } else {
+      console.error("Response does not contain 'users' array");
+      setArchivedUsers([]);
     }
-  };
+  } catch (err) {
+    console.error("Failed to fetch archived users:", err);
+    alert("Failed to load archived users. Check console for details.");
+    setArchivedUsers([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchArchivedUsers();
@@ -28,12 +39,13 @@ function AdminArchivedUsers({ setView }) {
   const handleRestore = async (id) => {
     if (!window.confirm("Restore this user?")) return;
     try {
-      await axios.put(`http://localhost:5000/api/users/restore/${id}`);
+      await axios.put(`http://localhost:5000/api/users/archived/restore/${id}`)
+
       alert("User restored successfully.");
       fetchArchivedUsers();
     } catch (err) {
       console.error("Failed to restore user:", err);
-      alert("Failed to restore user.");
+      alert("Failed to restore user. Check console for details.");
     }
   };
 
@@ -46,7 +58,7 @@ function AdminArchivedUsers({ setView }) {
       fetchArchivedUsers();
     } catch (err) {
       console.error("Failed to delete user:", err);
-      alert("Failed to delete user.");
+      alert("Failed to delete user. Check console for details.");
     }
   };
 
@@ -78,10 +90,6 @@ function AdminArchivedUsers({ setView }) {
                       <th className="p-3 text-left">Year</th>
                       <th className="p-3 text-left">Archived On</th>
                       <th className="p-3 text-left">Actions</th>
-
-                      
-
-
                     </tr>
                   </thead>
                   <tbody>

@@ -14,10 +14,10 @@ const userSchema = new mongoose.Schema({
   password:    { type: String, required: true },
 
   department:  { type: String, default: "N/A" },
-  floor: { type: String, default: "N/A" },
+  floor:       { type: String, default: "N/A" },
   course:      { type: String, default: "N/A" },
   year_level:  { type: String, default: "N/A" },
-  profilePicture: { type: String, default: "" }, // 👈 add this
+  profilePicture: { type: String, default: "" },
 
   role: {
     type: String,
@@ -26,13 +26,17 @@ const userSchema = new mongoose.Schema({
   },
 
   verified:   { type: Boolean, default: false },
-  created_at: { type: Date, default: nowPH },
 
   otp:        { type: String },
   otpExpiry:  { type: Date },
 
-  // Skip hash flag for password reset
   skipPasswordHash: { type: Boolean, select: false },
+
+  archived:   { type: Boolean, default: false },
+  archivedAt: { type: Date, default: null },
+}, 
+{
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
 userSchema

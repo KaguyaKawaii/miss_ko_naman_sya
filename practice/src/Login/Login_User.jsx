@@ -118,30 +118,10 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
       </div>
 
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-          {/* Left side - University Info */}
-          <div className="md:w-2/5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 p-10 text-white flex flex-col justify-center items-center text-center">
+<div className="flex flex-col items-center w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+ 
 
-            <img 
-              className="h-32 w-32 mb-6 " 
-              src={Logo} 
-              alt="University of San Agustin Logo" 
-            />
-            <h1 className="text-2xl font-serif font-bold mb-4">
-              University of San Agustin
-            </h1>
-            <p className="mb-6 text-white">
-              General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo,
-              Philippines
-            </p>
-            <div className="w-full rounded-full h-1 bg-yellow-400 mb-6"></div>
-            <p className="text-2xl font-semibold text-yellow-300">
-              Learning Resource Center
-            </p>
-            
-          </div>
-
-          {/* Right side - Login Form */}
+      
           <div className="md:w-3/5 p-10 flex flex-col justify-center">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-800">Welcome Back</h2>

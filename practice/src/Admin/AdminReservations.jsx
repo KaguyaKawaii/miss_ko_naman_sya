@@ -70,17 +70,18 @@ function AdminReservations({ setView }) {
       .catch((err) => console.error("Status change error:", err));
   };
 
-  const handleArchive = (id) => {
-    if (window.confirm("Archive this reservation?")) {
-      axios
-        .delete(`http://localhost:5000/reservations/${id}`)
-        .then(() => {
-          alert("Reservation archived.");
-          fetchReservations();
-        })
-        .catch((err) => console.error("Archive error:", err));
-    }
-  };
+const handleArchive = (id) => {
+  if (window.confirm("Archive this reservation?")) {
+    axios
+      .put(`http://localhost:5000/reservations/archive/${id}`)
+      .then(() => {
+        alert("Reservation archived.");
+        fetchReservations();
+      })
+      .catch((err) => console.error("Archive error:", err));
+  }
+};
+
 
   const filteredReservations = reservations.filter((res) => {
     const reserver = res.userId?.name || "";

@@ -98,9 +98,11 @@ async function getCroppedBlob(image, crop, fileType = "image/jpeg", quality = 0.
 function EditProfile({ user, setView }) {
   const [form, setForm] = useState({
     name: "",
+    email: "",
     department: "",
     course: "",
     year_level: "",
+    floor: ""
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -129,17 +131,22 @@ function EditProfile({ user, setView }) {
   const fetchUserProfile = async () => {
     try {
       const { data } = await api.get(`/users/${user._id}`);
-      setForm({
-        name: data.name,
-        department: data.department,
-        course: data.course,
-        year_level: data.year_level,
-      });
-      if (data.profilePicture) {
-        setProfileUrl(data.profilePicture);
+      if (data.success) {
+        setForm({
+          name: data.user.name,
+          email: data.user.email,
+          department: data.user.department,
+          course: data.user.course,
+          year_level: data.user.year_level,
+          floor: data.user.floor || ""
+        });
+
+        if (data.user.profilePicture) {
+          setProfileUrl(data.user.profilePicture);
+        }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load profile:", err);
       setError("Failed to load profile.");
     }
   };
@@ -234,8 +241,8 @@ function EditProfile({ user, setView }) {
       await fetchUserProfile(); // Refresh profile data
       closePhotoModal();
     } catch (err) {
-      console.error(err);
-      setError("Failed to upload image. Max size is 5MB.");
+      console.error("Upload error:", err);
+      setError(err.response?.data?.message || "Failed to upload image. Max size is 5MB.");
     } finally {
       setUploading(false);
     }
@@ -251,8 +258,8 @@ function EditProfile({ user, setView }) {
       setSuccessMsg("Profile picture reset to default.");
       await fetchUserProfile(); // Refresh profile data
     } catch (err) {
-      console.error(err);
-      setError("Failed to reset profile picture.");
+      console.error("Reset error:", err);
+      setError(err.response?.data?.message || "Failed to reset profile picture.");
     } finally {
       setUploading(false);
     }
@@ -265,15 +272,13 @@ function EditProfile({ user, setView }) {
     setSuccessMsg("");
 
     try {
-      await api.put("/users/update-profile", {
-        userId: user._id,
-        ...form,
-      });
+      // Use the correct endpoint and send only the user ID in the URL
+      await api.put(`/users/${user._id}/update-profile`, form);
       setSuccessMsg("Profile updated successfully.");
       await fetchUserProfile(); // Refresh profile data
     } catch (err) {
-      console.error(err);
-      setError("Failed to update profile.");
+      console.error("Update error:", err);
+      setError(err.response?.data?.message || "Failed to update profile.");
     } finally {
       setLoading(false);
     }
@@ -307,7 +312,7 @@ function EditProfile({ user, setView }) {
       setSuccessMsg("Password changed successfully.");
       setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
-      console.error(err);
+      console.error("Password change error:", err);
       setError(err.response?.data?.message || "Failed to change password.");
     } finally {
       setLoading(false);
@@ -316,11 +321,26 @@ function EditProfile({ user, setView }) {
 
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] min-h-screen flex flex-col bg-gray-50">
-     
-
       <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
-  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Edit Profile</h1>
-</header>
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Edit Profile</h1>
+
+        <button
+                  type="button"
+                  onClick={() => setView("profile")}
+                  className="text-sm text-gray-500 hover:text-gray-700 transition flex items-center cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to Profile
+                </button>
+      </header>
 
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8">
@@ -332,9 +352,9 @@ function EditProfile({ user, setView }) {
               <div className="flex flex-col items-center">
                 <div className="relative group mb-4">
                   <div className="relative w-[20rem] h-[20rem] rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-                    {profileUrl ? (
+                    {user?.profilePicture ? (
                       <img
-                        src={`http://localhost:5000${profileUrl}`}
+                        src={user.profilePicture}
                         alt="Profile"
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -391,22 +411,7 @@ function EditProfile({ user, setView }) {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md">
               <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
                 <h3 className="text-lg font-semibold text-gray-800">Account Information</h3>
-                <button
-                  type="button"
-                  onClick={() => setView("profile")}
-                  className="text-sm text-gray-500 hover:text-gray-700 transition flex items-center"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  Back to Profile
-                </button>
+                
               </div>
 
               {toastVisible && (error || successMsg) && (
@@ -483,6 +488,19 @@ function EditProfile({ user, setView }) {
                     </>
                   )}
 
+                  {user.role === "Staff" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Floor Assignment</label>
+                      <input
+                        type="text"
+                        name="floor"
+                        value={form.floor}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition"
+                      />
+                    </div>
+                  )}
+
                   <div className="relative">
                     <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
                     <input
@@ -545,7 +563,7 @@ function EditProfile({ user, setView }) {
                 <div className="flex justify-end mt-8">
                   <button
                     type="submit"
-                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 px-8 rounded-lg font-medium transition-all disabled:opacity-50 flex items-center shadow-sm hover:shadow-md active:scale-[0.98]"
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 px-8 rounded-lg font-medium transition-all disabled:opacity-50 flex items-center shadow-sm hover:shadow-md active:scale-[0.98] cursor-pointer"
                     disabled={loading}
                   >
                     {loading ? (
@@ -608,7 +626,7 @@ function EditProfile({ user, setView }) {
                 <div className="flex justify-end mt-8">
                   <button
                     type="submit"
-                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 px-8 rounded-lg font-medium transition-all disabled:opacity-50 flex items-center shadow-sm hover:shadow-md active:scale-[0.98]"
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 px-8 rounded-lg font-medium transition-all disabled:opacity-50 flex items-center shadow-sm hover:shadow-md active:scale-[0.98] cursor-pointer"
                     disabled={loading}
                   >
                     {loading ? (
@@ -641,14 +659,14 @@ function EditProfile({ user, setView }) {
 
       {/* Photo Crop Modal */}
       {isPhotoModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 ">
           <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden transform transition-all duration-300">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-red-50 to-white">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h3 className="text-xl font-semibold text-gray-800">Edit Profile Picture</h3>
               <button
                 onClick={closePhotoModal}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 cursor-pointer" 
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
@@ -664,7 +682,7 @@ function EditProfile({ user, setView }) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg active:scale-[0.98] cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -681,7 +699,7 @@ function EditProfile({ user, setView }) {
                 <button
                   type="button"
                   onClick={resetProfilePicture}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-all shadow-sm hover:shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -734,14 +752,14 @@ function EditProfile({ user, setView }) {
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
               <button 
                 onClick={closePhotoModal}
-                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveCropped}
                 disabled={uploading || !modalImgSrc || !completedCrop?.width}
-                className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 cursor-pointer ${
                   uploading || !modalImgSrc || !completedCrop?.width
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-md hover:shadow-lg"
@@ -749,7 +767,7 @@ function EditProfile({ user, setView }) {
               >
                 {uploading ? (
                   <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin  h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>

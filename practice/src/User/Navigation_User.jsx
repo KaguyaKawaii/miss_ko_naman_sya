@@ -133,18 +133,23 @@ function Navigation_User({ user: initialUser, setView, currentView, onLogout }) 
         <div className="flex flex-col items-center mt-5">
           <div className="border-2 border-gray-600 w-[120px] h-[120px] rounded-full bg-gray-800 overflow-hidden flex items-center justify-center text-5xl text-gray-300">
             {user?.profilePicture ? (
-              <img
-                src={`http://localhost:5000${user.profilePicture}?t=${imgTimestamp}`}
-                alt="Profile"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/default-avatar.png";
-                }}
-              />
-            ) : (
-              user?.name?.charAt(0)?.toUpperCase() || "?"
-            )}
+  <img
+    src={
+      user.profilePicture.startsWith("http")
+        ? `${user.profilePicture}?t=${imgTimestamp}` // Cloudinary or external URL
+        : `http://localhost:5000${user.profilePicture}?t=${imgTimestamp}` // Local upload
+    }
+    alt="Profile"
+    className="w-full h-full object-cover"
+    onError={(e) => {
+      e.target.onerror = null;
+      e.target.src = "/default-avatar.png";
+    }}
+  />
+) : (
+  user?.name?.charAt(0)?.toUpperCase() || "?"
+)}
+
           </div>
           <h1 className="text-[20px] font-bold text-white mt-3 text-center">
             {user?.name}

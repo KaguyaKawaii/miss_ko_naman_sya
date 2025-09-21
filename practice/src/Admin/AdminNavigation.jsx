@@ -13,6 +13,7 @@ import {
   Newspaper,
   ListOrdered,
   ChevronDown,
+  HardDrive, // ✅ Backup icon
 } from "lucide-react";
 
 function AdminNavigation({ admin, setView, currentView, onLogout }) {
@@ -52,7 +53,6 @@ function AdminNavigation({ admin, setView, currentView, onLogout }) {
     { id: "archivedReservations", label: "Reservations" },
     { id: "archivedReports", label: "Reports" },
     { id: "archivedNews", label: "News" },
-    { id: "archivedNotifications", label: "Notifications" },
   ];
 
   return (

@@ -32,13 +32,18 @@ function Profile({ user, setView }) {
 
   if (error) {
     return (
-      <div className="ml-[250px] w-[calc(100%-250px)] h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-300 max-w-md w-full text-center">
-          <h3 className="text-xl font-semibold text-red-600 mb-2">Something went wrong</h3>
-          <p className="text-gray-700">{error}</p>
+      <div className="ml-[250px] w-[calc(100%-250px)] h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200 max-w-md w-full text-center">
+          <div className="flex justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Something went wrong</h3>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button 
             onClick={fetchUser}
-            className="mt-5 w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded transition"
+            className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
           >
             Retry
           </button>
@@ -49,14 +54,15 @@ function Profile({ user, setView }) {
 
   if (!profile) {
     return (
-      <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
+      <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
         <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
   <h1 className="text-xl md:text-2xl font-bold tracking-wide">Profile</h1>
 </header>
 
+
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
-            <div className="bg-white rounded-xl shadow border border-gray-200 p-6 flex items-center space-x-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center space-x-6">
               <div className="w-20 h-20 rounded-full bg-gray-200"></div>
               <div className="flex-1 space-y-3">
                 <div className="h-5 bg-gray-200 rounded w-1/3"></div>
@@ -66,7 +72,7 @@ function Profile({ user, setView }) {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
               <div className="h-5 bg-gray-200 rounded w-1/4"></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[...Array(6)].map((_, i) => (
@@ -86,70 +92,157 @@ function Profile({ user, setView }) {
   const isVerified = Boolean(profile.verified);
 
   return (
-    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
+    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
-  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Profile</h1>
-</header>
+      <header className="text-black px-8 h-[60px] flex items-center justify-between border-b border-gray-200 bg-white">
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Profile</h1>
+      </header>
+      
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Profile Overview Card */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-6 flex items-center space-x-6">
-            <div className="w-32 h-32 rounded-full border-4 border-white shadow-md overflow-hidden flex items-center justify-center bg-red-100 text-red-600 text-4xl font-bold">
-              {profile.profilePicture ? (
-                <img
-                  src={`http://localhost:5000${profile.profilePicture}`}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/default-avatar.png";
-                  }}
-                />
-              ) : (
-                profile.name?.charAt(0)?.toUpperCase() || "?"
-              )}
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">{profile.name}</h2>
-              <div className="flex items-center mt-1 space-x-4">
-                <span className="text-gray-500 capitalize">{profile.role}</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                  isVerified 
-                    ? "bg-green-100 text-green-700 border-green-300"
-                    : "bg-red-100 text-red-700 border-red-300"
-                }`}>
-                  {isVerified ? "Verified" : "Not Verified"}
-                </span>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex items-center space-x-8">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-100 text-indigo-600 text-4xl font-bold">
+                {profile.profilePicture ? (
+                  <img
+                    src={
+                      profile.profilePicture.startsWith("http")
+                        ? profile.profilePicture
+                        : `http://localhost:5000${profile.profilePicture}`
+                    }
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/default-avatar.png";
+                    }}
+                  />
+                ) : (
+                  profile.name?.charAt(0)?.toUpperCase() || "?"
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-md">
+                {isVerified ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                )}
               </div>
             </div>
+
+            <div className="flex-1">
+  {/* Name */}
+  <h2 className="text-3xl font-bold text-gray-800 mb-2">
+    {profile.name}
+  </h2>
+
+  {/* Email */}
+  <p className="text-gray-500 flex items-center mb-3">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-4 w-4 mr-2 text-gray-400"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+      />
+    </svg>
+    {profile.email}
+  </p>
+
+  {/* Role + Verified */}
+  <div className="flex items-center flex-wrap gap-2 mt-2">
+    <span className="text-gray-600 bg-gray-100 px-3 py-1 rounded-full text-sm capitalize">
+      {profile.role}
+    </span>
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+        isVerified
+          ? "bg-green-100 text-green-700"
+          : "bg-amber-100 text-amber-700"
+      }`}
+    >
+      {isVerified ? "Verified" : "Not Verified"}
+    </span>
+  </div>
+</div>
+
           </div>
 
           {/* Info Card */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
-            <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
-              <h3 className="text-lg font-semibold text-gray-800">Account Information</h3>
-              <button
-                onClick={() => setView("editProfile")}
-                className="text-sm text-red-600 hover:text-red-700 font-medium transition cursor-pointer"
-              >
-                Edit Profile
-              </button>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="border-b border-gray-200 bg-gray-50 px-8 py-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Account Information
+                </h3>
+                <button
+                  onClick={() => setView("editProfile")}
+                  className="text-sm text-gray-600 hover:text-red-500 font-medium transition-all duration-200 flex items-center cursor-pointer  px-3 py-1.5 "
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit Profile
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Full Name" value={profile.name} />
-              <Field label="Email" value={profile.email} />
-              <Field label="ID Number" value={profile.id_number} />
-              <Field label="Department" value={profile.department} />
-              {profile.role === "Student" && (
-                <>
-                  <Field label="Course" value={profile.course} />
-                  <Field label="Year Level" value={profile.year_level} />
-                </>
-              )}
+            <div className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Field label="Full Name" value={profile.name} icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                } />
+                <Field label="Email" value={profile.email} icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                } />
+                <Field label="ID Number" value={profile.id_number} icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                  </svg>
+                } />
+                <Field label="Department" value={profile.department} icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                } />
+                {profile.role === "Student" && (
+                  <>
+                    <Field label="Course" value={profile.course} icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                      </svg>
+                    } />
+                    <Field label="Year Level" value={profile.year_level} icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                      </svg>
+                    } />
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -158,12 +251,15 @@ function Profile({ user, setView }) {
   );
 }
 
-function Field({ label, value }) {
+function Field({ label, value, icon }) {
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-600 mb-1">{label}</label>
-      <div className="p-3 bg-gray-50 rounded border border-gray-300">
-        <p className={value ? "text-gray-800" : "text-gray-400 italic"}>
+    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:bg-gray-100 transition-colors duration-200">
+      <label className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide flex items-center">
+        {icon}
+        <span className="ml-1.5">{label}</span>
+      </label>
+      <div className="p-2">
+        <p className={value ? "text-gray-800 font-medium" : "text-gray-400 italic"}>
           {value || "Not provided"}
         </p>
       </div>

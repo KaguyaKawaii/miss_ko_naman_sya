@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Eye, EyeOff, CheckCircle, Loader2 } from "lucide-react";
 import Logo from "../assets/logo.png";
+import lrc from '../assets/logo2.png';
+
 
 function SignUp_User({ onSwitchToLogin }) {
   const [formData, setFormData] = useState({
@@ -229,21 +231,26 @@ const handleSubmit = async (e) => {
       <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
         <div className="flex flex-col md:flex-row">
           {/* Left side - University Info */}
-          <div className="md:w-2/5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 p-10 text-white flex flex-col justify-center items-center text-center">
+          <div className="md:w-2/5 bg-yellow-500 p-10 text-white flex flex-col justify-center items-center text-center">
+          <div className="flex justify-around w-full mb-4">
             <img 
-              className="h-28 w-28 mb-6" 
+              className="relative w-[130px] h-[130px] " 
               src={Logo} 
               alt="University of San Agustin Logo" 
             />
+            <img 
+                            src={lrc} 
+                            alt="Learning Resource Center Logo" 
+                            className="relative w-[130px] h-[130px] "
+                          />
+
+                          </div>
             <h1 className="text-2xl font-serif font-bold mb-4">
               University of San Agustin
             </h1>
-            <p className="mb-4 text-white text-sm">
-              General Luna St, Iloilo City Proper, Iloilo City, 5000 Iloilo,
-              Philippines
-            </p>
+       
             <div className="w-16 h-1 bg-yellow-400 mb-4"></div>
-            <p className="text-xl font-semibold text-yellow-300">
+            <p className="text-xl font-semibold text-white">
               Learning Resource Center
             </p>
           

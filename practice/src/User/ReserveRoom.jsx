@@ -11,8 +11,6 @@ import Collab from "../assets/CollabRoom.jpg";
 function ReserveRoom({ user, setView }) {
   const navigate = useNavigate();
 
-
-
   const [formData, setFormData] = useState({
     date: "",
     time: "",
@@ -24,7 +22,7 @@ function ReserveRoom({ user, setView }) {
     participants: Array.from({ length: 4 }, () => ({
       name: "",
       course: "",
-      yearLevel: "",
+      year_level: "",
       department: "",
       idNumber: "",
       role: "",
@@ -32,7 +30,7 @@ function ReserveRoom({ user, setView }) {
   });
 
   const [validation, setValidation] = useState(
-    Array.from({ length: 4 }, () => ({ status: null, message: "" }))
+    Array.from({ length: 4 }, () => ({ status: null, message: "", loading: false }))
   );
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -122,7 +120,7 @@ function ReserveRoom({ user, setView }) {
       updated[0] = {
         name: user.name || "",
         course: user.course || "",
-        yearLevel: user.year_level || "",
+        year_level: user.year_level || "",
         department: user.department || "",
         idNumber: user.id_number || "",
         role: user.role || "",
@@ -130,8 +128,8 @@ function ReserveRoom({ user, setView }) {
 
       const v = [...validation];
       v[0] = user.verified 
-        ? { status: "valid", message: "Verified ✓" } 
-        : { status: "invalid", message: "Not Verified" };
+        ? { status: "valid", message: "Verified ✓", loading: false } 
+        : { status: "invalid", message: "Not Verified", loading: false };
 
       setFormData(prev => ({ ...prev, participants: updated }));
       setValidation(v);
@@ -175,48 +173,54 @@ function ReserveRoom({ user, setView }) {
       );
 
       const v = [...validation];
-
+      
       if (isDuplicate) {
-        v[idx] = { status: "invalid", message: "Duplicate ID Number" };
+        v[idx] = { status: "invalid", message: "Duplicate ID Number", loading: false };
         setValidation(v);
         setFormData({ ...formData, participants: updated });
         return;
       }
 
+      // Set loading state
+      v[idx] = { ...v[idx], loading: true };
+      setValidation(v);
+      
       try {
         const res = await axios.get(
-          `http://localhost:5000/reservations/check-participant?idNumber=${val}`
+           `http://localhost:5000/api/users/check-participant?idNumber=${val}`
         );
 
         if (!res.data.exists) {
-          v[idx] = { status: "invalid", message: "Not registered." };
-          updated[idx] = { name: "", course: "", yearLevel: "", department: "", idNumber: val, role: "" };
+          v[idx] = { status: "invalid", message: "Not registered", loading: false };
+          updated[idx] = { name: "", course: "", year_level: "", department: "", idNumber: val, role: "" };
         } else if (!res.data.verified) {
-          v[idx] = { status: "invalid", message: "Not verified." };
-          updated[idx] = { name: "", course: "", yearLevel: "", department: "", idNumber: val, role: "" };
+          v[idx] = { status: "invalid", message: "Not verified", loading: false };
+          updated[idx] = { name: "", course: "", year_level: "", department: "", idNumber: val, role: "" };
         } else {
-          updated[idx] = res.data.role === "Faculty" ? {
+          updated[idx] = res.data.role === "Faculty" || res.data.role === "Staff" ? {
             name: res.data.name,
             department: res.data.department,
             idNumber: val,
             course: "",
-            yearLevel: "",
+            year_level: "",
             role: res.data.role,
           } : {
             name: res.data.name,
             course: res.data.course,
-            yearLevel: res.data.yearLevel,
+            year_level: res.data.year_level, // ✅ FIXED HERE
             department: res.data.department,
             idNumber: val,
             role: res.data.role,
           };
-          v[idx] = { status: "valid", message: "Verified ✓" };
+          v[idx] = { status: "valid", message: "Verified ✓", loading: false };
         }
 
         setFormData({ ...formData, participants: updated });
         setValidation(v);
       } catch (err) {
         console.error("Validation error", err);
+        v[idx] = { status: "invalid", message: "Error validating", loading: false };
+        setValidation(v);
       }
     } else {
       setFormData({ ...formData, participants: updated });
@@ -229,8 +233,8 @@ function ReserveRoom({ user, setView }) {
     const v = [...validation];
     
     while (updated.length < n) {
-      updated.push({ name: "", course: "", yearLevel: "", department: "", idNumber: "", role: "" });
-      v.push({ status: null, message: "" });
+      updated.push({ name: "", course: "", year_level: "", department: "", idNumber: "", role: "" });
+      v.push({ status: null, message: "", loading: false });
     }
 
     updated.length = n;
@@ -261,7 +265,7 @@ function ReserveRoom({ user, setView }) {
         return false;
       }
 
-      if (p.role !== "Faculty" && p.role !== "Staff" && (!p.course || !p.yearLevel)) {
+      if (p.role !== "Faculty" && p.role !== "Staff" && (!p.course || !p.year_level)) {
         alert(`Please complete all fields for participant ${i + 1}.`);
         return false;
       }
@@ -285,14 +289,13 @@ const submitReservation = async () => {
 
   // ⛔️ Add this to check weekly/day limits before setting loading
   try {
-    const check = await axios.get(`http://localhost:5000/reservations/user-has-any/${user._id}`, {
+    const check = await axios.get(`http://localhost:5000/reservations/check-limit/${user._id}`, {
   params: {
     date: formData.date,
     time: formData.time,
     asMain: true // ✅ this is the fix
   }
 });
-
 
     if (check.data.blocked) {
       alert(check.data.reason || "You have reached your reservation limit for this week.");
@@ -382,7 +385,7 @@ const submitReservation = async () => {
   };
 
   return (
-    <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col">
+    <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col  bg-gray-50">
       {loading && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50">
           <svg
@@ -408,62 +411,110 @@ const submitReservation = async () => {
         </div>
       )}
 
-      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
-  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Room Reservation Request</h1>
-</header>
+      <header className="text-black px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Room Reservation Request</h1>
+        <button 
+          onClick={() => setView("dashboard")}
+          className="text-sm text-gray-500 hover:text-gray-700 flex items-center cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+          </svg>
+          Back to Dashboard
+        </button>
+      </header>
 
-      <div className="m-5 flex flex-col items-center">
-        <div className="flex flex-wrap gap-6 w-full max-w-6xl">
-          {/* Date Selector */}
-          <div className="flex-1 min-w-[250px]">
-            <p className="font-medium mb-1">Select Date</p>
-            <div
-              onClick={() => setShowDateModal(true)}
-              className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
-            >
-              {formData.date ? (
-                new Date(formData.date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })
-              ) : (
-                <span className="text-gray-400">Select Date</span>
-              )}
+      <div className="p-6 space-y-6">
+        {/* Form Controls */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Reservation Details</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Date Selector */}
+            <div className="space-y-1">
+              <p className="font-medium text-gray-700 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Select Date
+              </p>
+              <div
+                onClick={() => setShowDateModal(true)}
+                className="w-full p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors"
+              >
+                {formData.date ? (
+                  new Date(formData.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })
+                ) : (
+                  <span className="text-gray-400">Select Date</span>
+                )}
+              </div>
+            </div>
+
+            {/* Time Selector */}
+            <div className="space-y-1">
+              <p className="font-medium text-gray-700 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Time
+              </p>
+              <div
+                onClick={() => setShowTimeModal(true)}
+                className="w-full p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors"
+              >
+                {formData.time ? formatDisplayTime(formData.time) : <span className="text-gray-400">Select Time</span>}
+              </div>
+            </div>
+
+            {/* Number of Users Selector */}
+            <div className="space-y-1">
+              <p className="font-medium text-gray-700 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Number of Users
+              </p>
+              <div
+                onClick={() => setShowUsersModal(true)}
+                className="w-full p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors"
+              >
+                {formData.numUsers ? `${formData.numUsers} Users` : <span className="text-gray-400">Select Users</span>}
+              </div>
             </div>
           </div>
 
-          {/* Time Selector */}
-          <div className="flex-1 min-w-[250px]">
-            <p className="font-medium mb-1">Time</p>
-            <div
-              onClick={() => setShowTimeModal(true)}
-              className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
-            >
-              {formData.time ? formatDisplayTime(formData.time) : <span className="text-gray-400">Select Time</span>}
-            </div>
-          </div>
-
-          {/* Number of Users Selector */}
-          <div className="flex-1 min-w-[250px]">
-            <p className="font-medium mb-1">Number of Users</p>
-            <div
-              onClick={() => setShowUsersModal(true)}
-              className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50"
-            >
-              {formData.numUsers ? `${formData.numUsers} Users` : <span className="text-gray-400">Select Users</span>}
-            </div>
+          {/* Purpose */}
+          <div className="mt-4">
+            <p className="font-medium text-gray-700 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Purpose
+            </p>
+            <input
+              className="w-full p-3 mt-1 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000]"
+              type="text"
+              value={formData.purpose}
+              onChange={(e) =>
+                setFormData({ ...formData, purpose: e.target.value })
+              }
+              placeholder="Enter purpose of reservation"
+            />
           </div>
         </div>
 
         {/* Date Selection Modal */}
         {showDateModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px]">
+          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl w-[350px] shadow-xl">
               <div className="flex justify-between items-center mb-4">
                 <button 
                   onClick={() => handleMonthChange(-1)}
-                  className="p-2 rounded-full hover:bg-gray-100 font-bold cursor-pointer"
+                  className="p-2 rounded-full hover:bg-gray-100 font-bold cursor-pointer transition-colors"
                 >
                   &lt;
                 </button>
@@ -472,7 +523,7 @@ const submitReservation = async () => {
                 </h2>
                 <button 
                   onClick={() => handleMonthChange(1)}
-                  className="p-2 rounded-full hover:bg-gray-100 font-bold cursor-pointer"
+                  className="p-2 rounded-full hover:bg-gray-100 font-bold cursor-pointer transition-colors"
                 >
                   &gt;
                 </button>
@@ -497,7 +548,7 @@ const submitReservation = async () => {
                             setShowDateModal(false);
                           }
                         }}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors
                           ${day.disabled ? 'text-gray-300 cursor-not-allowed' : 
                             formData.date === day.date ? 
                               'bg-[#CC0000] text-white' : 
@@ -526,9 +577,14 @@ const submitReservation = async () => {
 
         {/* Time Selection Modal */}
         {showTimeModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px] md:w-[600px] max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-semibold mb-4">Select Time</h2>
+          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl w-[350px] md:w-[600px] max-h-[90vh] overflow-y-auto shadow-xl">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Select Time
+              </h2>
 
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Morning */}
@@ -550,7 +606,7 @@ const submitReservation = async () => {
                             setFormData({ ...formData, time: slot.value });
                             setShowTimeModal(false);
                           }}
-                          className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
+                          className={`p-3 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors ${
                             formData.time === slot.value
                               ? "bg-[#CC0000] text-white border-[#CC0000]"
                               : "hover:bg-gray-100"
@@ -581,9 +637,9 @@ const submitReservation = async () => {
                             setFormData({ ...formData, time: slot.value });
                             setShowTimeModal(false);
                           }}
-                          className={`p-3 border border-gray-500 rounded-lg text-center cursor-pointer ${
+                          className={`p-3 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors ${
                             formData.time === slot.value
-                              ? "bg-[#CC0000] text-white"
+                              ? "bg-[#CC0000] text-white border-[#CC0000]"
                               : "hover:bg-gray-100"
                           }`}
                         >
@@ -606,9 +662,14 @@ const submitReservation = async () => {
 
         {/* Number of Users Modal */}
         {showUsersModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px]">
-              <h2 className="text-xl font-semibold mb-4">Number of Users</h2>
+          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl w-[350px] shadow-xl">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Number of Users
+              </h2>
               <div className="grid grid-cols-1 gap-3 mb-4">
                 {[4, 5, 6, 7, 8].map((num) => (
                   <button
@@ -617,9 +678,9 @@ const submitReservation = async () => {
                       handleNumUsersChange(num.toString());
                       setShowUsersModal(false);
                     }}
-                    className={`p-4 border rounded-lg text-center cursor-pointer border-gray-500 ${
+                    className={`p-4 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors ${
                       formData.numUsers === num.toString()
-                        ? "bg-[#CC0000] text-white"
+                        ? "bg-[#CC0000] text-white border-[#CC0000]"
                         : "hover:bg-gray-100"
                     }`}
                   >
@@ -629,7 +690,7 @@ const submitReservation = async () => {
               </div>
               <button
                 onClick={() => setShowUsersModal(false)}
-                className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
+                className="mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition w-full cursor-pointer"
               >
                 Cancel
               </button>
@@ -637,28 +698,13 @@ const submitReservation = async () => {
           </div>
         )}
 
-        {/* Purpose */}
-        <div className="my-4 w-full max-w-6xl">
-          <p className="font-medium mb-1">Purpose</p>
-          <input
-            className="w-full h-[40px] p-2 border rounded-[7px] border-gray-200 shadow-sm outline-none focus:border-[#CC0000]"
-            type="text"
-            value={formData.purpose}
-            onChange={(e) =>
-              setFormData({ ...formData, purpose: e.target.value })
-            }
-            placeholder="Enter purpose of reservation"
-          />
-        </div>
-
         {/* Room Location */}
-        <div className="flex flex-col items-center gap-5 w-full max-w-6xl">
-          <p className="font-semibold font-sans text-lg">Room Location</p>
-          <div className="flex flex-wrap gap-5 justify-center w-full">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Room Location</h2>
+          <div className="flex flex-wrap gap-5 justify-center">
             {roomLocations.map((loc) => {
               let imageSrc = null;
               if (loc === "Ground Floor") imageSrc = GroundFloorImg;
-              // if (loc === "5th Floor") imageSrc = FifthFloorImg;
 
               return (
                 <div
@@ -671,8 +717,10 @@ const submitReservation = async () => {
                       room_Id: "",
                     })
                   }
-                  className={`border border-gray-200 shadow-sm rounded-2xl w-[200px] h-[200px] flex justify-center items-center cursor-pointer transition duration-200 overflow-hidden relative ${
-                    formData.location === loc ? "border-red-600 opacity-100" : "opacity-40 hover:opacity-70"
+                  className={`border-2 rounded-2xl w-[200px] h-[200px] flex justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
+                    formData.location === loc 
+                      ? "border-[#CC0000] ring-2 ring-red-100 opacity-100 scale-105" 
+                      : "border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300"
                   }`}
                 >
                   {imageSrc && (
@@ -683,7 +731,8 @@ const submitReservation = async () => {
                       loading="lazy"
                     />
                   )}
-                  <p className="absolute bottom-2 left-0 w-full text-center text-white text-lg font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  <div className="absolute inset-0 bg-black/40"></div>
+                  <p className="relative z-10 text-white text-lg font-semibold text-center px-2 drop-shadow-md">
                     {loc}
                   </p>
                 </div>
@@ -693,210 +742,227 @@ const submitReservation = async () => {
         </div>
 
         {/* Room Selection */}
-        <div className="flex flex-col items-center gap-5 mt-8 w-full max-w-6xl">
-          <p className="font-semibold font-sans text-lg">Select Room</p>
+        {formData.location && (
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Select Room</h2>
 
-          {formData.location ? (
-            <div className="w-full px-5">
-              <div className="flex flex-wrap flex-row gap-5 justify-center">
-                {rooms
-                  .filter((room) => {
-                    const floor = formData.location;
+            <div className="flex flex-wrap gap-5 justify-center">
+              {rooms
+                .filter((room) => {
+                  const floor = formData.location;
 
-                    if (floor === "5th Floor") {
-                      return (
-                        room.floor === floor &&
-                        (room.room === "Faculty Room" ||
-                          room.room === "Collaboration Room")
-                      );
-                    } else {
-                      return room.floor === floor;
-                    }
-                  })
-                  .map((room) => {
-                    let roomImage = null;
-                    // if (room.room === "Faculty Room") roomImage = FacultyRoomImg;
-                    // if (room.room === "Collaboration Room") roomImage = Collab;
-
+                  if (floor === "5th Floor") {
                     return (
-                      <div
-                        key={room._id}
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            roomName: room.room,
-                            room_Id: room._id,
-                          }))
-                        }
-                        className={`border border-gray-200 shadow-sm rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden ${
-                          formData.room_Id === room._id
-                            ? "bg-red-100 border-red-600 opacity-100"
-                            : "hover:opacity-100 opacity-80"
-                        }`}
-                      >
-                        {roomImage && (
-                          <img
-                            src={roomImage}
-                            alt={room.room}
-                            className="absolute w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        )}
-                        <div className="absolute inset-0 bg-black/30 z-0"></div>
-                        <p className="text-white text-xl font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] z-10">
-                          {room.room}
-                        </p>
-                      </div>
+                      room.floor === floor &&
+                      (room.room === "Faculty Room" ||
+                        room.room === "Collaboration Room")
                     );
-                  })}
-              </div>
+                  } else {
+                    return room.floor === floor;
+                  }
+                })
+                .map((room) => {
+                  let roomImage = null;
+
+                  return (
+                    <div
+                      key={room._id}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          roomName: room.room,
+                          room_Id: room._id,
+                        }))
+                      }
+                      className={`border-2 rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden transition-all duration-200 ${
+                        formData.room_Id === room._id
+                          ? "border-[#CC0000] ring-2 ring-red-100 bg-red-50"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {roomImage && (
+                        <img
+                          src={roomImage}
+                          alt={room.room}
+                          className="absolute w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/30 z-0"></div>
+                      <p className="text-white text-xl font-semibold drop-shadow-md z-10">
+                        {room.room}
+                      </p>
+                    </div>
+                  );
+                })}
             </div>
-          ) : (
-            <div className="text-gray-500 italic">Please select a floor location first</div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <p className="font-semibold font-sans text-lg mt-6 w-full max-w-6xl">Participants</p>
-
-        {/* Participants Table */}
-        <div className="overflow-x-auto mt-6 w-full max-w-6xl">
-          <table className="bg-white shadow rounded-xl overflow-hidden w-full">
-            <thead className="bg-[#FFCC00]">
-              <tr>
-                <th className="py-3 px-4 text-left">ID Number</th>
-                <th className="py-3 px-4 text-left">Name</th>
-                <th className="py-3 px-4 text-left">Course</th>
-                <th className="py-3 px-4 text-left">Year Level</th>
-                <th className="py-3 px-4 text-left">Department</th>
-              </tr>
-            </thead>
-            <tbody>
-              {formData.participants.map((p, idx) => (
-                <tr key={idx} className="even:bg-gray-50">
-                  <td className="py-2 px-4">
-                    <div className="relative">
+        {/* Participants */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Participants</h2>
+          
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-[#FFCC00]">
+                <tr>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">ID Number</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Name</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Course</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Year Level</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Department</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {formData.participants.map((p, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50 hover:bg-gray-100"}>
+                    <td className="py-3 px-4">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="ID Number"
+                          className={`w-full p-2 pr-10 rounded-lg outline-none border shadow-sm transition-colors
+                            ${
+                              validation[idx]?.status === "valid"
+                                ? "border-green-500 bg-green-50"
+                                : validation[idx]?.status === "invalid"
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 focus:border-[#CC0000]"
+                            }`}
+                          value={p.idNumber}
+                          disabled={idx === 0}
+                          onChange={(e) =>
+                            handleParticipantChange(idx, "idNumber", e.target.value)
+                          }
+                        />
+                        {validation[idx]?.loading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <svg className="animate-spin h-4 w-4 text-gray-500" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"></path>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
                       <input
                         type="text"
-                        placeholder="ID Number"
-                        className={`w-full p-2 pr-10 rounded-lg outline-none border shadow-sm
-                          ${
-                            validation[idx]?.status === "valid"
-                              ? "border-green-600"
-                              : validation[idx]?.status === "invalid"
-                              ? "border-red-600 focus:border-red-600"
-                              : "border-gray-300 focus:border-red-600"
-                          }`}
-                        value={p.idNumber}
-                        disabled={idx === 0}
+                        placeholder="Full Name"
+                        className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
+                        value={p.name}
+                        disabled={idx === 0 || validation[idx].status === "valid"}
                         onChange={(e) =>
-                          handleParticipantChange(idx, "idNumber", e.target.value)
+                          handleParticipantChange(idx, "name", e.target.value)
                         }
                       />
+                    </td>
+                    {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
+                      <td className="py-3 px-4">
+                        <input
+                          type="text"
+                          placeholder="Course"
+                          className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
+                          value={p.course}
+                          disabled={idx === 0 || validation[idx].status === "valid"}
+                          onChange={(e) =>
+                            handleParticipantChange(idx, "course", e.target.value)
+                          }
+                        />
+                      </td>
+                    ) : (
+                      <td className="py-3 px-4 text-gray-400 italic">N/A</td>
+                    )}
+                    {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
+                      <td className="py-3 px-4">
+                        <input
+                          type="text"
+                          placeholder="Year Level"
+                          className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
+                          value={p.year_level}
+                          disabled={idx === 0 || validation[idx].status === "valid"}
+                          onChange={(e) =>
+                            handleParticipantChange(idx, "year_level", e.target.value)
+                          }
+                        />
+                      </td>
+                    ) : (
+                      <td className="py-3 px-4 text-gray-400 italic">N/A</td>
+                    )}
+                    <td className="py-3 px-4">
+                      <input
+                        type="text"
+                        placeholder="Department"
+                        className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
+                        value={p.department}
+                        disabled={idx === 0 || validation[idx].status === "valid"}
+                        onChange={(e) =>
+                          handleParticipantChange(idx, "department", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="py-3 px-4">
                       {validation[idx]?.status === "valid" && (
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 text-sm select-none pointer-events-none">
-                          Verified ✓
+                        <span className="text-green-600 text-sm font-medium flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          Verified
                         </span>
                       )}
                       {validation[idx]?.status === "invalid" && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-600 text-sm whitespace-nowrap select-none pointer-events-none">
-                          {validation[idx]?.message === "Duplicate ID Number"
-                            ? "Duplicate ID Number !"
-                            : "Not Verified !"}
-                        </div>
+                        <span className="text-red-600 text-sm font-medium flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                          {validation[idx]?.message}
+                        </span>
                       )}
-                    </div>
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
-                      value={p.name}
-                      disabled={idx === 0 || validation[idx].status === "valid"}
-                      onChange={(e) =>
-                        handleParticipantChange(idx, "name", e.target.value)
-                      }
-                    />
-                  </td>
-                  {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
-                    <td className="py-2 px-4">
-                      <input
-                        type="text"
-                        placeholder="Course"
-                        className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
-                        value={p.course}
-                        disabled={idx === 0 || validation[idx].status === "valid"}
-                        onChange={(e) =>
-                          handleParticipantChange(idx, "course", e.target.value)
-                        }
-                      />
+                      {!validation[idx]?.status && p.idNumber && (
+                        <span className="text-gray-500 text-sm">Enter ID to verify</span>
+                      )}
                     </td>
-                  ) : (
-                    <td className="py-2 px-4 text-gray-400 italic">N/A</td>
-                  )}
-                  {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
-                    <td className="py-2 px-4">
-                      <input
-                        type="text"
-                        placeholder="Year Level"
-                        className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
-                        value={p.yearLevel}
-                        disabled={idx === 0 || validation[idx].status === "valid"}
-                        onChange={(e) =>
-                          handleParticipantChange(idx, "yearLevel", e.target.value)
-                        }
-                      />
-                    </td>
-                  ) : (
-                    <td className="py-2 px-4 text-gray-400 italic">N/A</td>
-                  )}
-                  <td className="py-2 px-4">
-                    <input
-                      type="text"
-                      placeholder="Department"
-                      className="w-full p-2 border-gray-300 border focus:border-red-600 rounded-lg outline-none"
-                      value={p.department}
-                      disabled={idx === 0 || validation[idx].status === "valid"}
-                      onChange={(e) =>
-                        handleParticipantChange(idx, "department", e.target.value)
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          <p className="text-sm text-gray-600 italic mt-3">
+            * Enter ID Number to auto-fill participant details. Verified fields will be locked.
+          </p>
         </div>
-        <p className="text-sm text-gray-600 italic mt-3 w-full max-w-6xl">
-          * Enter ID Number to auto-fill participant details. Verified fields
-          will be locked.
-        </p>
 
-        <div className="w-full max-w-6xl mt-6">
-          <h4 className="font-semibold text-md font-sans text-gray-800"><span className="text-red-700">* </span>Note</h4>
-          <ul className="list-disc pl-5">
-            <li className="text-sm text-gray-600 mb-1">
+        {/* Notes Section */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Important Notes</h2>
+          <ul className="space-y-2">
+            <li className="text-sm text-gray-600 flex items-start">
+              <span className="text-red-600 font-bold mr-1">•</span>
               The group will be notified fifteen (15) minutes before the usage is terminated. If there are no standing reservations for the next hour, the group may request a one-hour extension.
             </li>
-            <li className="text-sm text-gray-600 mb-1">
+            <li className="text-sm text-gray-600 flex items-start">
+              <span className="text-red-600 font-bold mr-1">•</span>
               The Learning Resource Center reserves the right to cancel the reservation of any group that does not arrive within fifteen (15) minutes of the scheduled reservation time.
             </li>
           </ul>
         </div>
 
         {/* Submit Button */}
-        <div className="flex justify-center mt-5 w-full max-w-6xl">
+        <div className="flex justify-center">
           <button
             onClick={submitReservation}
             type="button"
             disabled={loading}
-            className={`bg-[#CC0000] text-white px-6 py-2 rounded-lg transition cursor-pointer ${
-              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700"
+            className={`bg-[#CC0000] text-white px-8 py-3 rounded-lg transition cursor-pointer flex items-center ${
+              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700 hover:shadow-md"
             }`}
           >
             {loading ? (
               <svg
-                className="animate-spin h-5 w-5 mr-2 inline-block text-white"
+                className="animate-spin h-5 w-5 mr-2"
                 viewBox="0 0 24 24"
               >
                 <circle
@@ -914,8 +980,12 @@ const submitReservation = async () => {
                   d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
                 ></path>
               </svg>
-            ) : null}
-            {loading ? "Submitting..." : "Submit Reservation"}
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+            Submit Reservation
           </button>
         </div>
       </div>
@@ -923,35 +993,60 @@ const submitReservation = async () => {
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-xl max-w-sm w-full text-center">
-            <h2 className="text-lg font-semibold mb-4">
-              Reservation Submitted!
-            </h2>
-            <p className="text-gray-600 text-sm">
-              Thank you for your request. A confirmation will be sent once it's reviewed.
+          <div className="bg-white p-6 rounded-xl w-[350px] text-center shadow-xl">
+            <svg
+              className="w-16 h-16 text-green-600 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M5 13l4 4L19 7"
+              ></path>
+            </svg>
+            <h2 className="text-xl font-semibold mb-2">Success!</h2>
+            <p className="text-gray-600 mb-4">
+              Your reservation request has been submitted successfully.
             </p>
             <button
               onClick={closeSuccess}
-              className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer mt-6"
+              className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
             >
-              Go to Dashboard
+              OK
             </button>
           </div>
         </div>
       )}
 
+      {/* Not Verified Warning Modal */}
       {showNotVerifiedWarning && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full text-center border-t-5 border-[#CC0000]">
-            <h2 className="text-xl font-semibold text-red-600 mb-3">
-              Not Verified Account
-            </h2>
-            <p className="text-gray-700 mb-4">
-              Your account is not verified. You may fill out the form, but you cannot submit a reservation until verification is completed.
+          <div className="bg-white p-6 rounded-xl w-[350px] text-center shadow-xl">
+            <svg
+              className="w-16 h-16 text-yellow-500 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              ></path>
+            </svg>
+            <h2 className="text-xl font-semibold mb-2">Account Not Verified</h2>
+            <p className="text-gray-600 mb-4">
+              Your account is not yet verified. You can still fill out the form,
+              but you won't be able to submit a reservation until your account
+              is verified.
             </p>
             <button
               onClick={() => setShowNotVerifiedWarning(false)}
-              className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition cursor-pointer"
+              className="bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
             >
               I Understand
             </button>

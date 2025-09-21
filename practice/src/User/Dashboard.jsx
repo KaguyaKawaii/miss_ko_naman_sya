@@ -90,7 +90,7 @@ function Dashboard({ user, setView, setSelectedReservation }) {
 
     setIsLoading(true);
     try {
-      const { data } = await axios.get(`${RESERVATIONS_ENDPOINT}/user-participating/${user._id}`);
+      const { data } = await axios.get(`${RESERVATIONS_ENDPOINT}/user/${user._id}`);
       const sorted = data.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
       setReservations(sorted);
       if (sorted.length > 0) setSelectedReservation(sorted[0]);
@@ -111,7 +111,7 @@ function Dashboard({ user, setView, setSelectedReservation }) {
   const checkActiveReservation = useCallback(async () => {
     if (!user?._id) return;
     try {
-      const { data } = await axios.get(`${RESERVATIONS_ENDPOINT}/user-has-any/${user._id}`);
+      const { data } = await axios.get(`${RESERVATIONS_ENDPOINT}/user/${user._id}`);
       
       if (data) {
         const today = new Date();
@@ -392,9 +392,24 @@ function Dashboard({ user, setView, setSelectedReservation }) {
               </div>
               <div className="border-b border-gray-200 mb-5" />
               {isLoading ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-600"></div>
-                </div>
+                <div className="flex flex-col justify-center items-center h-full space-y-4">
+  {/* Spinner */}
+  <div className="relative flex items-center justify-center">
+    {/* Outer subtle ring */}
+    <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
+
+    {/* Spinning red gradient ring */}
+    <div className="absolute w-12 h-12 border-4 border-transparent border-t-red-500 border-l-red-500 rounded-full animate-spin"></div>
+
+   
+  </div>
+
+  {/* Loading text */}
+  <span className="text-sm font-medium text-gray-600 animate-pulse">
+    Loading, please wait...
+  </span>
+</div>
+
               ) : reservations.length > 0 ? (
                 <div className=" flex-1">
                   {currentReservations.map((reservation) => (
@@ -482,8 +497,18 @@ function Dashboard({ user, setView, setSelectedReservation }) {
                           </svg>
                         </button>
                       </div>
+
+                      <div className="  text-gray-500 text-xs">
+                        <p>
+                          <strong>Note:</strong> Rejected and expired reservations will only remain
+                          visible here for 24 hours. After that, they’ll move to your history.
+                        </p>
+                      </div>
                     </section>
+                    
                   ))}
+
+                  
 
                   
                 </div>

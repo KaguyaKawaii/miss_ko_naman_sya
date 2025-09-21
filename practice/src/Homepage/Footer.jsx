@@ -1,5 +1,7 @@
 import React from "react";
 import { Facebook, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react";
+import Logo2 from '../assets/logo.png';
+import lrc from '../assets/logo2.png';
 
 
 function Footer() {
@@ -9,8 +11,20 @@ function Footer() {
         {/* Library Info */}
         <div className="space-y-6">
           <div>
-            <div className="flex  justify-center items-center space-x-4 mb-6">
-            
+            <div className="flex flex-col justify-center items-center space-x-4 mb-6">
+              <div className="flex justify-center items-center space-x-6 mb-4">
+                
+                              <img 
+                                src={Logo2} 
+                                alt="Learning Resource Center Logo" 
+                                className="relative w-[100px] h-[100px]  drop-shadow-lg transform group-hover:scale-105 transition-transform duration-500"
+                              />
+              <img 
+                src={lrc} 
+                alt="Learning Resource Center Logo" 
+                className="relative w-[100px] h-[100px]  drop-shadow-lg transform group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-yellow-300">
               USA-FLD CircuLink
             </h1>

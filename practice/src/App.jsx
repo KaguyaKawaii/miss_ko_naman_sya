@@ -43,12 +43,13 @@ import AdminNotification from "./Admin/AdminNotification.jsx";
 import AdminNews from "./Admin/AdminNews.jsx";
 import AdminLogs from "./Admin/AdminLogs.jsx";
 
+
 /* ---- admin archive ---- */
 import ArchivedUsers from "./Admin/Archive/ArchivedUsers.jsx";
 import ArchivedReservations from "./Admin/Archive/ArchivedReservations.jsx";
 import ArchivedReports from "./Admin/Archive/ArchivedReports.jsx";
 import ArchivedNews from "./Admin/Archive/ArchivedNews.jsx";
-import ArchivedNotifications from "./Admin/Archive/ArchivedNotifications.jsx";
+
 
 /* ---- staff ---- */
 import StaffNavigation from "./Staff/StaffNavigation.jsx";
@@ -351,9 +352,9 @@ function App() {
       {view === "archivedReservations" && renderAdminNavigation(<ArchivedReservations setView={setView} />)}
       {view === "archivedReports" && renderAdminNavigation(<ArchivedReports setView={setView} />)}
       {view === "archivedNews" && renderAdminNavigation(<ArchivedNews setView={setView} />)}
-      {view === "archivedNotifications" && renderAdminNavigation(<ArchivedNotifications setView={setView} />)}
       {view === "adminNews" && renderAdminNavigation(<AdminNews setView={setView} />)}
       {view === "adminLogs" && renderAdminNavigation(<AdminLogs setView={setView} />)}
+
 
       {/* Staff Pages */}
       {view === "staffDashboard" && renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}

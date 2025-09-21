@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema(
       ref: "Reservation",
       default: null,
     },
-    reportId: { // ✅ ADD THIS BLOCK
+    reportId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Report",
       default: null,
@@ -35,16 +35,21 @@ const notificationSchema = new mongoose.Schema(
         "Ongoing",
         "Expired",
         "Info",
-        "New",
+        "New", // ✅ "New" is enough to indicate a fresh notification
       ],
-      default: "Info",
+      default: "New",
     },
     type: {
       type: String,
-      enum: ["reservation", "report", "system"],
-      default: "reservation",
+      enum: ["reservation", "report", "system", "alert", "user"],
+      default: "system",
     },
     isRead: {
+      type: Boolean,
+      default: false, // ✅ this is what we use to track unread/read
+      index: true,
+    },
+    dismissed: {
       type: Boolean,
       default: false,
       index: true,
@@ -55,6 +60,7 @@ const notificationSchema = new mongoose.Schema(
   }
 );
 
+// Useful index for fetching unread notifications fast
 notificationSchema.index({ userId: 1, isRead: 1 });
 
 module.exports =
