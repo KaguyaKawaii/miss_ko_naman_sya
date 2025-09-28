@@ -43,10 +43,33 @@ const isSameManilaDate = (date1, date2) => {
   return getManilaDateString(date1) === getManilaDateString(date2);
 };
 
+// Filter reservations to hide expired and canceled after 24 hours
+const filterReservations = (reservations) => {
+  const now = new Date();
+  const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+  
+  return reservations.filter(reservation => {
+    // Keep approved and pending reservations regardless of time
+    if (reservation.status === "Approved" || reservation.status === "Pending") {
+      return true;
+    }
+    
+    // For rejected or expired reservations, only show if created within last 24 hours
+    if (reservation.status === "Rejected" || reservation.status === "Expired") {
+      const reservationDate = new Date(reservation.createdAt);
+      return reservationDate > twentyFourHoursAgo;
+    }
+    
+    // For any other status, show by default
+    return true;
+  });
+};
+
 function Dashboard({ user, setView, setSelectedReservation }) {
   // State management
   const [isLoading, setIsLoading] = useState(true);
-  const [reservations, setReservations] = useState([]);
+  const [allReservations, setAllReservations] = useState([]);
+  const [filteredReservations, setFilteredReservations] = useState([]);
   const [newsList, setNewsList] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [hasActiveRes, setHasActiveRes] = useState(false);
@@ -63,8 +86,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [currentReservationPage, setCurrentReservationPage] = useState(1);
   const [reservationsPerPage] = useState(1);
-  
-
   
   // API endpoints
   const API_BASE_URL = "http://localhost:5000";
@@ -92,8 +113,13 @@ function Dashboard({ user, setView, setSelectedReservation }) {
     try {
       const { data } = await axios.get(`${RESERVATIONS_ENDPOINT}/user/${user._id}`);
       const sorted = data.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-      setReservations(sorted);
-      if (sorted.length > 0) setSelectedReservation(sorted[0]);
+      setAllReservations(sorted);
+      
+      // Apply filtering
+      const filtered = filterReservations(sorted);
+      setFilteredReservations(filtered);
+      
+      if (filtered.length > 0) setSelectedReservation(filtered[0]);
 
       const active = sorted.find(
         (r) => ["Approved", "Pending"].includes(r.status) && new Date(r.endDatetime) >= new Date()
@@ -200,6 +226,17 @@ function Dashboard({ user, setView, setSelectedReservation }) {
     return () => clearInterval(interval);
   }, [showAvailModal, modalDate, RESERVATIONS_ENDPOINT]);
 
+  // Update filtered reservations when allReservations changes
+  useEffect(() => {
+    const filtered = filterReservations(allReservations);
+    setFilteredReservations(filtered);
+    
+    // Reset to first page if filtered results change significantly
+    if (filtered.length > 0 && currentReservationPage > Math.ceil(filtered.length / reservationsPerPage)) {
+      setCurrentReservationPage(1);
+    }
+  }, [allReservations, currentReservationPage, reservationsPerPage]);
+
   // Event handlers
   const handleReserveClick = () => {
     if (activeRes?.dayReservationCount >= 2) {
@@ -244,7 +281,7 @@ function Dashboard({ user, setView, setSelectedReservation }) {
     if (view !== "month") return null;
 
     const isToday = isSameManilaDate(date, new Date());
-    const hasRes = reservations.some(reservation => 
+    const hasRes = allReservations.some(reservation => 
       isSameManilaDate(new Date(reservation.datetime), date)
     );
 
@@ -263,8 +300,8 @@ function Dashboard({ user, setView, setSelectedReservation }) {
   // Get current reservations for pagination
   const indexOfLastReservation = currentReservationPage * reservationsPerPage;
   const indexOfFirstReservation = indexOfLastReservation - reservationsPerPage;
-  const currentReservations = reservations.slice(indexOfFirstReservation, indexOfLastReservation);
-  const totalPages = Math.ceil(reservations.length / reservationsPerPage);
+  const currentReservations = filteredReservations.slice(indexOfFirstReservation, indexOfLastReservation);
+  const totalPages = Math.ceil(filteredReservations.length / reservationsPerPage);
 
   // Change page
   const paginate = (pageNumber) => setCurrentReservationPage(pageNumber);
@@ -273,9 +310,8 @@ function Dashboard({ user, setView, setSelectedReservation }) {
     <main className="w-full md:ml-[250px] md:w-[calc(100%-250px)] min-h-screen flex flex-col bg-[#FFFCFB]">
       {/* HEADER */}
       <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
-  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Dashboard</h1>
-</header>
-
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Dashboard</h1>
+      </header>
 
       {/* BODY */}
       <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
@@ -287,130 +323,119 @@ function Dashboard({ user, setView, setSelectedReservation }) {
             <p className="text-red-100 mt-2">Manage your room reservations and stay updated</p>
           </div>
 
-<div className="flex w-[200px] justify-between bg-white shadow-md p-1 rounded-3xl mb-1">
-  <button
-    onClick={() => setView("dashboard")}
-    className={`px-4 py-2 rounded-3xl font-semibold transition-all duration-300 shadow-lg ${
-      "dashboard" === "dashboard" 
-        ? "bg-red-600 text-white" 
-        : "text-gray-700 hover:bg-gray-200"
-    }`}
-  >
-    Dashboard
-  </button>
+          <div className="flex w-[200px] justify-between bg-white shadow-md p-1 rounded-3xl mb-1">
+            <button
+              onClick={() => setView("dashboard")}
+              className={`px-4 py-2 rounded-3xl font-semibold transition-all duration-300 shadow-lg ${
+                "dashboard" === "dashboard" 
+                  ? "bg-red-600 text-white" 
+                  : "text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Dashboard
+            </button>
 
-  <button
-    onClick={() => setView("news")}
-    className={`px-4 py-2 rounded-3xl font-semibold transition-all duration-300 cursor-pointer ${
-      "dashboard" === "news" 
-        ? "bg-red-600 text-white" 
-        : "text-gray-700 hover:bg-gray-200"
-    }`}
-  >
-    News
-  </button>
-</div>
-
+            <button
+              onClick={() => setView("news")}
+              className={`px-4 py-2 rounded-3xl font-semibold transition-all duration-300 cursor-pointer ${
+                "dashboard" === "news" 
+                  ? "bg-red-600 text-white" 
+                  : "text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              News
+            </button>
+          </div>
 
           {/* News and Reservations */}
           <div className="flex flex-col md:flex-row gap-6">
-            {/* News */}
-            
-
             {/* User Reservations */}
-           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200/75 hover:border-gray-300/75 transition-all duration-300 shadow-lg hover:shadow-xl rounded-2xl flex-1 p-6 flex flex-col h-full">
-
+            <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200/75 hover:border-gray-300/75 transition-all duration-300 shadow-lg hover:shadow-xl rounded-2xl flex-1 p-6 flex flex-col h-full">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-800">Your Reservations</h2>
-                
 
                 {/* Pagination controls */}
-                  {reservations.length > reservationsPerPage && (
-                    <div className="flex justify-center items-center">
-                      <button
-  onClick={() => paginate(currentReservationPage - 1)}
-  disabled={currentReservationPage === 1}
-  className={`font-bold px-2 py-2 mx-1 rounded-full ${
-    currentReservationPage === 1
-      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-      : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
-  }`}
-  aria-label="Previous page"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-4 h-4"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-  </svg>
-</button>
+                {filteredReservations.length > reservationsPerPage && (
+                  <div className="flex justify-center items-center">
+                    <button
+                      onClick={() => paginate(currentReservationPage - 1)}
+                      disabled={currentReservationPage === 1}
+                      className={`font-bold px-2 py-2 mx-1 rounded-full ${
+                        currentReservationPage === 1
+                          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
+                      }`}
+                      aria-label="Previous page"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
 
-                      
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                        <button
-                          key={number}
-                          onClick={() => paginate(number)}
-                          className={`font-semibold px-3 py-1 mx-1 rounded-full ${
-                            currentReservationPage === number
-                              ? "bg-[#E62727] text-white cursor-pointer"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
-                          }`}
-                          aria-label={`Go to page ${number}`}
-                        >
-                          {number}
-                        </button>
-                      ))}
-                      
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
                       <button
-  onClick={() => paginate(currentReservationPage + 1)}
-  disabled={currentReservationPage === totalPages}
-  className={`font-bold px-2 py-2 mx-1 rounded-full ${
-    currentReservationPage === totalPages
-      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-      : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
-  }`}
-  aria-label="Next page"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-4 h-4"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-  </svg>
-</button>
+                        key={number}
+                        onClick={() => paginate(number)}
+                        className={`font-semibold px-3 py-1 mx-1 rounded-full ${
+                          currentReservationPage === number
+                            ? "bg-[#E62727] text-white cursor-pointer"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
+                        }`}
+                        aria-label={`Go to page ${number}`}
+                      >
+                        {number}
+                      </button>
+                    ))}
 
-                    </div>
-                  )}
+                    <button
+                      onClick={() => paginate(currentReservationPage + 1)}
+                      disabled={currentReservationPage === totalPages}
+                      className={`font-bold px-2 py-2 mx-1 rounded-full ${
+                        currentReservationPage === totalPages
+                          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer duration-300"
+                      }`}
+                      aria-label="Next page"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="border-b border-gray-200 mb-5" />
               {isLoading ? (
                 <div className="flex flex-col justify-center items-center h-full space-y-4">
-  {/* Spinner */}
-  <div className="relative flex items-center justify-center">
-    {/* Outer subtle ring */}
-    <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
+                  {/* Spinner */}
+                  <div className="relative flex items-center justify-center">
+                    {/* Outer subtle ring */}
+                    <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
 
-    {/* Spinning red gradient ring */}
-    <div className="absolute w-12 h-12 border-4 border-transparent border-t-red-500 border-l-red-500 rounded-full animate-spin"></div>
+                    {/* Spinning red gradient ring */}
+                    <div className="absolute w-12 h-12 border-4 border-transparent border-t-red-500 border-l-red-500 rounded-full animate-spin"></div>
+                  </div>
 
-   
-  </div>
-
-  {/* Loading text */}
-  <span className="text-sm font-medium text-gray-600 animate-pulse">
-    Loading, please wait...
-  </span>
-</div>
-
-              ) : reservations.length > 0 ? (
+                  {/* Loading text */}
+                  <span className="text-sm font-medium text-gray-600 animate-pulse">
+                    Loading, please wait...
+                  </span>
+                </div>
+              ) : filteredReservations.length > 0 ? (
                 <div className=" flex-1">
                   {currentReservations.map((reservation) => (
                     <section
@@ -498,19 +523,14 @@ function Dashboard({ user, setView, setSelectedReservation }) {
                         </button>
                       </div>
 
-                      <div className="  text-gray-500 text-xs">
+                      <div className="text-gray-500 text-xs mt-2">
                         <p>
                           <strong>Note:</strong> Rejected and expired reservations will only remain
-                          visible here for 24 hours. After that, they’ll move to your history.
+                          visible here for 24 hours. After that, they'll move to your history.
                         </p>
                       </div>
                     </section>
-                    
                   ))}
-
-                  
-
-                  
                 </div>
               ) : (
                 <div className="text-center py-8 flex flex-col justify-center items-center h-full">
@@ -530,15 +550,12 @@ function Dashboard({ user, setView, setSelectedReservation }) {
               )}
             </div>
           </div>
-
-          
         </div>
 
         {/* RIGHT SIDEBAR */}
         <aside className="w-full lg:w-80 flex flex-col gap-6">
           {/* Calendar */}
           <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-
             <Calendar
               onClickDay={handleDateClick}
               value={selectedDate}
@@ -568,92 +585,90 @@ function Dashboard({ user, setView, setSelectedReservation }) {
 
           {/* Reserve Room Button */}
           <button
-  className={`relative overflow-hidden rounded-2xl w-full h-36 flex items-center justify-center transition-all duration-300 shadow-lg ${
-    activeRes?.dayReservationCount >= 2
-      ? "bg-gray-300 cursor-not-allowed"
-      : "bg-gradient-to-r from-red-500 via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 cursor-pointer focus:outline-none focus:ring-4 focus:ring-red-300 focus:ring-opacity-50"
-  }`}
-  onClick={handleReserveClick}
-  disabled={activeRes?.dayReservationCount >= 2}
-  aria-label={
-    activeRes?.dayReservationCount >= 2
-      ? "Reservation limit reached"
-      : "Reserve a room"
-  }
->
-  {/* Subtle animated glow */}
-  {!activeRes?.dayReservationCount >= 2 && (
-    <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-30 animate-pulse transition-all duration-300" />
-  )}
+            className={`relative overflow-hidden rounded-2xl w-full h-36 flex items-center justify-center transition-all duration-300 shadow-lg ${
+              activeRes?.dayReservationCount >= 2
+                ? "bg-gray-300 cursor-not-allowed"
+                : "bg-gradient-to-r from-red-500 via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 cursor-pointer focus:outline-none focus:ring-4 focus:ring-red-300 focus:ring-opacity-50"
+            }`}
+            onClick={handleReserveClick}
+            disabled={activeRes?.dayReservationCount >= 2}
+            aria-label={
+              activeRes?.dayReservationCount >= 2
+                ? "Reservation limit reached"
+                : "Reserve a room"
+            }
+          >
+            {/* Subtle animated glow */}
+            {!activeRes?.dayReservationCount >= 2 && (
+              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-30 animate-pulse transition-all duration-300" />
+            )}
 
-  <div className="flex flex-col justify-center items-center text-white relative z-10 transition-all duration-300">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-10 w-10 mb-2 drop-shadow-md transition-all duration-300"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-      />
-    </svg>
-    <h2 className="text-2xl font-bold tracking-wide transition-all duration-300">
-      {hasActiveRes ? "Reservation Active" : "Reserve Room"}
-    </h2>
-    {activeRes?.dayReservationCount >= 2 ? (
-      <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
-        Limit reached (2/day)
-      </p>
-    ) : hasActiveRes ? (
-      <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
-        Check your current reservation
-      </p>
-    ) : (
-      <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
-        Tap to create a reservation
-      </p>
-    )}
-  </div>
-</button>
-
+            <div className="flex flex-col justify-center items-center text-white relative z-10 transition-all duration-300">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-10 w-10 mb-2 drop-shadow-md transition-all duration-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              <h2 className="text-2xl font-bold tracking-wide transition-all duration-300">
+                {hasActiveRes ? "Reservation Active" : "Reserve Room"}
+              </h2>
+              {activeRes?.dayReservationCount >= 2 ? (
+                <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
+                  Limit reached (2/day)
+                </p>
+              ) : hasActiveRes ? (
+                <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
+                  Check your current reservation
+                </p>
+              ) : (
+                <p className="text-sm font-medium mt-1 text-white/90 transition-all duration-300">
+                  Tap to create a reservation
+                </p>
+              )}
+            </div>
+          </button>
         </aside>
       </div>
       
       <footer className="fixed bottom-0 left-0 md:left-[250px] right-0 ">
-  <div className="  px-5 py-2 flex justify-between items-center">
-    {/* Copyright */}
-    <div className="text-sm text-gray-500">
-      © {new Date().getFullYear()} <span className="font-semibold">USA-FLD CircuLink</span>
-    </div>
+        <div className="px-5 py-2 flex justify-between items-center">
+          {/* Copyright */}
+          <div className="text-sm text-gray-500">
+            © {new Date().getFullYear()} <span className="font-semibold">USA-FLD CircuLink</span>
+          </div>
 
-    {/* Report Button */}
-    <button
-      onClick={() => setShowReportModal(true)}
-      className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-red-800 transition-all duration-300 cursor-pointer"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
-      Report Problem
-    </button>
-  </div>
-</footer>
-
+          {/* Report Button */}
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-red-800 transition-all duration-300 cursor-pointer"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            Report Problem
+          </button>
+        </div>
+      </footer>
 
       {/* Modal Component */}
       {showReportModal && (
@@ -674,7 +689,6 @@ function Dashboard({ user, setView, setSelectedReservation }) {
           onClose={() => setShowAvailModal(false)}
         />
       )}
-
     </main>
   );
 }

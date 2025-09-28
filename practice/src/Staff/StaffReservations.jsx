@@ -1,24 +1,17 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Eye, RefreshCcw, Search } from "lucide-react";
-import StaffNavigation from "./StaffNavigation";
+import { Eye, RefreshCw, Search, ChevronDown, X } from "lucide-react";
+import ReservationModal from "./Modals/ReservationModal";
 
-function StaffReservations({ setView, staff }) {
+function StaffReservations({ staff }) {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingAction, setProcessingAction] = useState(null);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
-  const [modalRes, setModalRes] = useState(null);
-
-  const formatPHDate = (date) =>
-    date
-      ? new Date(date).toLocaleDateString("en-PH", {
-          timeZone: "Asia/Manila",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : "—";
 
   const formatPHDateTime = (date) =>
     date
@@ -33,167 +26,349 @@ function StaffReservations({ setView, staff }) {
         })
       : "—";
 
-  useEffect(() => {
-    fetchReservations();
-  }, []);
+  const formatPHDate = (date) =>
+    date
+      ? new Date(date).toLocaleDateString("en-PH", {
+          timeZone: "Asia/Manila",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "—";
 
-  const fetchReservations = () => {
-    setIsLoading(true);
-    axios
-      .get("http://localhost:5000/reservations")
-      .then((res) => {
-        const sorted = res.data.sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        );
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Pending": return "bg-yellow-100 text-yellow-800";
+      case "Approved": return "bg-green-100 text-green-800";
+      case "Ongoing": return "bg-blue-100 text-blue-800";
+      case "Rejected": return "bg-red-100 text-red-800";
+      case "Cancelled": return "bg-gray-100 text-gray-800";
+      case "Expired": return "bg-orange-100 text-orange-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const normalizeFloorName = (floorName) => {
+    if (!floorName) return "";
+    const normalized = floorName.toLowerCase().trim();
+    
+    if (normalized.includes("2nd") || normalized.includes("second")) return "2nd Floor";
+    if (normalized.includes("3rd") || normalized.includes("third")) return "3rd Floor";
+    if (normalized.includes("4th") || normalized.includes("fourth")) return "4th Floor";
+    if (normalized.includes("5th") || normalized.includes("fifth")) return "5th Floor";
+    
+    return floorName;
+  };
+
+  const fetchReservations = async () => {
+    if (!staff?._id) {
+      setReservations([]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const url = "http://localhost:5000/reservations";
+      const response = await axios.get(url);
+
+      if (staff?.floor && staff.floor !== "N/A") {
+        const normalizedStaffFloor = normalizeFloorName(staff.floor);
+        const filteredReservations = response.data.filter(reservation => {
+          const normalizedReservationFloor = normalizeFloorName(reservation.location);
+          return normalizedReservationFloor === normalizedStaffFloor;
+        });
+        
+        const sorted = filteredReservations.sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt) : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt) : 0;
+          return bTime - aTime;
+        });
+        
         setReservations(sorted);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setIsLoading(false));
+      } else {
+        const sorted = response.data.sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt) : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt) : 0;
+          return bTime - aTime;
+        });
+        setReservations(sorted);
+      }
+    } catch (err) {
+      console.error("Error fetching reservations:", err);
+      setReservations([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleApprove = (id) => {
-    axios
-      .put(`http://localhost:5000/reservations/${id}`, { status: "Approved" })
-      .then(() => {
-        fetchReservations();
-        setModalRes(null);
-      })
-      .catch((err) => console.error(err));
+  const handleView = (reservation) => {
+    setSelectedReservation(reservation);
+    setShowModal(true);
   };
 
-  const filtered = reservations.filter((r) => {
-    const matchesStatus = filter === "All" || r.status === filter;
-    const txt = `${r.userId?.name || ""} ${r.roomName || ""} ${r.location || ""}`.toLowerCase();
-    const matchesSearch = txt.includes(search.toLowerCase());
+  const handleCloseModal = () => {
+    setSelectedReservation(null);
+    setShowModal(false);
+    setIsProcessing(false);
+    setProcessingAction(null);
+  };
+
+  const handleApprove = async () => {
+    if (!selectedReservation) return;
+    
+    try {
+      setIsProcessing(true);
+      setProcessingAction('approve');
+      
+      await axios.patch(`http://localhost:5000/reservations/${selectedReservation._id}/status`, {
+        status: "Approved"
+      });
+      
+      await fetchReservations();
+      handleCloseModal();
+      alert("Reservation approved successfully!");
+    } catch (err) {
+      console.error("Error approving reservation:", err);
+      alert("Failed to approve reservation. Please try again.");
+    } finally {
+      setIsProcessing(false);
+      setProcessingAction(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedReservation) return;
+    
+    try {
+      setIsProcessing(true);
+      setProcessingAction('reject');
+      
+      await axios.patch(`http://localhost:5000/reservations/${selectedReservation._id}/status`, {
+        status: "Rejected"
+      });
+      
+      await fetchReservations();
+      handleCloseModal();
+      alert("Reservation declined successfully!");
+    } catch (err) {
+      console.error("Error rejecting reservation:", err);
+      alert("Failed to decline reservation. Please try again.");
+    } finally {
+      setIsProcessing(false);
+      setProcessingAction(null);
+    }
+  };
+
+  const filteredReservations = reservations.filter((res) => {
+    const reserver = res.userId?.name || "";
+    const matchesStatus = filter === "All" || res.status === filter;
+    const matchesSearch =
+      reserver.toLowerCase().includes(search.toLowerCase()) ||
+      (res.roomName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (res.location || "").toLowerCase().includes(search.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
+  useEffect(() => {
+    if (staff?._id) {
+      fetchReservations();
+      const interval = setInterval(fetchReservations, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [staff?._id, staff?.floor]);
+
   return (
-    <>
-      <StaffNavigation
-        setView={setView}
-        staff={staff}
-        currentView="staffReservation"
-      />
+    <main className="ml-[250px] w-[calc(100%-250px)] min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white px-6 py-4 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-[#CC0000]">
+              Reservation Management
+            </h1>
+            <p className="text-gray-600">
+              {staff?.floor && staff.floor !== "N/A" 
+                ? `Managing reservations for ${staff.floor}`
+                : "No floor assigned"
+              }
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
+          </div>
+        </div>
+      </header>
 
-      <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
-        <header className="bg-[#CC0000] text-white pl-5 h-[50px] flex items-center">
-          <h1 className="text-2xl font-semibold">Reservations</h1>
-        </header>
-
-        <div className="p-6 flex items-center gap-3 flex-wrap">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              fetchReservations();
-            }}
-            className="flex items-center gap-2"
-          >
-            <div className="relative">
+      {/* Main Content */}
+      <div className="p-6">
+        {/* Filters */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+              />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, room, location…"
-                className="border border-gray-300 p-2 pr-10 rounded-lg w-64"
+                placeholder="Search by name, room, location..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <Search
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Status filter */}
+            <div className="relative">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="appearance-none pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Ongoing">Ongoing</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Expired">Expired</option>
+              </select>
+              <ChevronDown
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                 size={16}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
               />
             </div>
 
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="border border-gray-300 p-2 rounded-lg"
-            >
-              <option value="All">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-
+            {/* Refresh */}
             <button
-              type="button"
               onClick={fetchReservations}
-              className="bg-[#CC0000] text-white p-2 rounded-lg hover:bg-[#990000]"
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              <RefreshCcw size={16} />
+              <RefreshCw size={16} />
+              <span>Refresh</span>
             </button>
-          </form>
+          </div>
         </div>
 
-        <div className="p-6 flex flex-col gap-5 overflow-y-auto">
-          <div className="border border-gray-300 rounded-xl overflow-hidden">
-            <table className="w-full text-sm text-center">
-              <thead className="bg-[#CC0000] text-white">
+        {/* Reservations Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-700 border-b border-gray-200">
                 <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Date</th>
-                  <th className="p-3">Time</th>
-                  <th className="p-3">Room</th>
-                  <th className="p-3">Reserved By</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Created</th>
-                  <th className="p-3">View</th>
+                  <th className="px-6 py-3 text-left font-medium">#</th>
+                  <th className="px-6 py-3 text-left font-medium">Date</th>
+                  <th className="px-6 py-3 text-left font-medium">Time</th>
+                  <th className="px-6 py-3 text-left font-medium">Room</th>
+                  <th className="px-6 py-3 text-left font-medium">Reserved By</th>
+                  <th className="px-6 py-3 text-left font-medium">Status</th>
+                  <th className="px-6 py-3 text-left font-medium">Created At</th>
+                  <th className="px-6 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {isLoading ? (
+              <tbody className="divide-y divide-gray-200">
+                {!staff?._id ? (
                   <tr>
-                    <td colSpan={8} className="p-4">Loading…</td>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                      Staff information not available.
+                    </td>
                   </tr>
-                ) : filtered.length === 0 ? (
+                ) : !staff?.floor || staff.floor === "N/A" ? (
                   <tr>
-                    <td colSpan={8} className="p-4">No reservations found.</td>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                      No floor assigned. Please contact administrator.
+                    </td>
+                  </tr>
+                ) : isLoading ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                      Loading reservations...
+                    </td>
+                  </tr>
+                ) : filteredReservations.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                      No reservations found {search || filter !== "All" ? "matching your filters" : `for ${staff.floor}`}
+                    </td>
                   </tr>
                 ) : (
-                  filtered.map((r, i) => {
-                    const start = new Date(r.datetime);
-                    const end   = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+                  filteredReservations.map((r, i) => {
+                    const createdAt = r.createdAt
+                      ? new Date(r.createdAt)
+                      : null;
+                    const startDate = new Date(r.datetime);
+                    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
-                    const dateOnly = formatPHDate(r.datetime);
-                    const startStr = start.toLocaleTimeString("en-PH", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
+                    const dateOnly = startDate.toLocaleDateString("en-PH", {
                       timeZone: "Asia/Manila",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
                     });
-                    const endStr = end.toLocaleTimeString("en-PH", {
+
+                    const startTime = startDate.toLocaleTimeString("en-PH", {
+                      timeZone: "Asia/Manila",
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: true,
+                    });
+
+                    const endTime = endDate.toLocaleTimeString("en-PH", {
                       timeZone: "Asia/Manila",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
                     });
 
                     return (
-                      <tr key={r._id} className="border-b hover:bg-gray-50">
-                        <td className="p-3">{i + 1}</td>
-                        <td className="p-3">{dateOnly}</td>
-                        <td className="p-3">{startStr} — {endStr}</td>
-                        <td className="p-3">{r.roomName}<br />{r.location}</td>
-                        <td className="p-3">{r.userId?.name}</td>
-                        <td className="p-3">
+                      <tr key={r._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">{i + 1}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{dateOnly}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {startTime} — {endTime}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium">{r.roomName}</div>
+                          <div className="text-gray-500 text-xs">{r.location}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">{r.userId?.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`font-semibold ${
-                              r.status === "Approved"
-                                ? "text-green-600"
-                                : r.status === "Pending"
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                            }`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(r.status)}`}
                           >
                             {r.status}
                           </span>
                         </td>
-                        <td className="p-3">{formatPHDateTime(r.created_at)}</td>
-                        <td className="p-3">
-                          <Eye
-                            size={18}
-                            className="cursor-pointer text-blue-600 hover:text-blue-800"
-                            onClick={() => setModalRes(r)}
-                          />
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {createdAt ? formatPHDateTime(createdAt) : "—"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex justify-end space-x-2">
+                            {/* View */}
+                            <button
+                              onClick={() => handleView(r)}
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="View Details"
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -203,102 +378,20 @@ function StaffReservations({ setView, staff }) {
             </table>
           </div>
         </div>
-      </main>
+      </div>
 
-      {modalRes && (
+      {/* Modal */}
+      {showModal && (
         <ReservationModal
-          reservation={modalRes}
-          formatPHDate={formatPHDate}
-          formatPHDateTime={formatPHDateTime}
-          onClose={() => setModalRes(null)}
+          reservation={selectedReservation}
+          onClose={handleCloseModal}
           onApprove={handleApprove}
+          onReject={handleReject}
+          isProcessing={isProcessing}
+          processingAction={processingAction}
         />
       )}
-    </>
-  );
-}
-
-function ReservationModal({ reservation, formatPHDate, formatPHDateTime, onClose, onApprove }) {
-  const {
-    _id,
-    userId,
-    roomName,
-    location,
-    datetime,
-    numUsers,
-    purpose,
-    participants = [],
-    status,
-    created_at,
-  } = reservation;
-
-  const startDate = new Date(datetime);
-  const endDate   = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-
-  const startTime = startDate.toLocaleTimeString("en-PH", {
-    timeZone: "Asia/Manila",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-  const endTime = endDate.toLocaleTimeString("en-PH", {
-    timeZone: "Asia/Manila",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white w-[500px] max-h-[90vh] rounded-xl shadow-xl overflow-y-auto">
-        <header className="flex justify-between items-center bg-[#CC0000] text-white px-5 py-3 rounded-t-xl">
-          <h2 className="text-lg font-semibold">Reservation Details</h2>
-          <button onClick={onClose} className="text-white hover:text-gray-200">✕</button>
-        </header>
-
-        <div className="p-6 space-y-3 text-sm">
-          <p><strong>Reserved By:</strong> {userId?.name}</p>
-          <p><strong>Email:</strong> {userId?.email}</p>
-          <p><strong>Room:</strong> {roomName} @ {location}</p>
-          <p><strong>Reserved Date:</strong> {formatPHDate(datetime)}</p>
-          <p><strong>Time:</strong> {startTime} — {endTime}</p>
-          <p><strong>Number of Users:</strong> {numUsers}</p>
-          <p><strong>Purpose:</strong> {purpose}</p>
-          <p><strong>Status:</strong> {status}</p>
-          <p><strong>Created At:</strong> {formatPHDateTime(created_at)}</p>
-
-          {participants.length > 0 && (
-            <div>
-              <p className="font-semibold">Participants:</p>
-              <ul className="list-disc list-inside space-y-1">
-                {participants.map((p, idx) => (
-                  <li key={idx}>
-                    {p.name} — {p.courseYear}, {p.department} ({p.idNumber})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="p-5 flex justify-between gap-2">
-          {status === "Pending" && (
-            <button
-              onClick={() => onApprove(_id)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Approve
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="ml-auto px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+    </main>
   );
 }
 

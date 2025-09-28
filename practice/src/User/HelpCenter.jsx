@@ -5,89 +5,151 @@ export default function HelpCenter({ setView }) {
   return (
     <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col">
       {/* HEADER */}
-      <header className=" text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
-  <h1 className="text-xl md:text-2xl font-bold tracking-wide">Help Center</h1>
-</header>
+      <header className="text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
+        <h1 className="text-xl md:text-2xl font-bold tracking-wide">
+          Help Center
+        </h1>
+      </header>
 
       {/* CONTENT */}
       <div className="p-6 flex-1 overflow-y-auto">
-
         <div className="space-y-4">
           {/* Section 1 */}
           <details className="border border-red-300 shadow-sm rounded-lg p-4">
-  <summary className="font-medium cursor-pointer text-gray-800">
-    Getting Started
-  </summary>
-  <div className="border-b border-gray-300 mt-3"></div>
-  <div className="mt-2 text-sm text-gray-600 space-y-3 leading-relaxed">
-    <p>
-  <span className="font-semibold">How to sign up and log in:</span><br />
-  Go to the homepage and click the <span className="font-medium text-blue-600">“Login”</span> button. If you don’t have an account yet, click the <span className="font-medium text-blue-600">“Sign Up”</span> link located below the login form. Fill out your full name, ID number, email, and password, then select your role as either <span className="italic">Student</span> or <span className="italic">Faculty</span>. After signing up, you will need to verify your ID number before using the reservation system. Once verified, log in with your email and password to access your dashboard.
-</p>
+            <summary className="font-medium cursor-pointer text-gray-800">
+              Getting Started
+            </summary>
+            <div className="border-b border-gray-300 mt-3"></div>
+            <div className="mt-2 text-sm text-gray-600 space-y-3 leading-relaxed">
+              <p>
+                <span className="font-semibold">How to sign up and log in:</span>
+                <br />
+                To begin using the reservation system, visit the homepage and
+                click the{" "}
+                <span className="font-medium text-blue-600">“Login”</span>{" "}
+                button. If this is your first time using the system, click on{" "}
+                <span className="font-medium text-blue-600">“Sign Up”</span>{" "}
+                found just below the login form. You will need to provide your
+                full name, ID number, email address, and password. Select your
+                role carefully either <span className="italic">Student</span>{" "}
+                or <span className="italic">Faculty</span>.
+              </p>
 
+              <p>
+                <span className="font-semibold">
+                  Student vs Faculty account roles:
+                </span>
+                <br />
+                When creating an account, select your correct role based on your
+                university affiliation. Both students and faculty share the same
+                core features such as making reservations, joining as
+                participants, and checking room availability. Choosing the
+                correct role helps the library staff verify your identity and
+                ensures that your account is approved without unnecessary delay.
+              </p>
 
-   <p>
-  <span className="font-semibold">Student vs Faculty account roles:</span><br />
-  When signing up, choose your correct role based on your university affiliation. Both <span className="font-medium">Students</span> and <span className="font-medium">Faculty</span> have access to the same reservation system features — including creating reservations, joining as participants, and viewing room availability. This role selection helps the library staff identify your affiliation during verification and approval processes.
-</p>
+              <p>
+                <span className="font-semibold">
+                  Verifying your ID number:
+                </span>
+                <br />
+                After you have signed up, bring your official university ID or
+                RFID card to the library staff for verification. You may also
+                email a clear picture of your ID to{" "}
+                <a
+                  href="mailto:circulation@usa.edu.ph"
+                  className="text-blue-600 hover:underline"
+                >
+                  circulation@usa.edu.ph
+                </a>
+                . Once your ID is verified, your account will be fully
+                activated. You will see a{" "}
+                <span className="font-medium text-green-600">“Verified”</span>{" "}
+                label on your account when you log in.
+              </p>
 
-
-  <p>
-  <span className="font-semibold">How to verify your ID number:</span><br />
-  After signing up, visit the library and send a photo of your official RFID card to <a href="mailto:circulation@usa.edu.ph" className="text-blue-600 hover:underline">circulation@usa.edu.ph</a>. The library staff will check and validate your ID. Once approved, your account will be activated, and your status will show <span className="font-medium text-green-600">“Verified”</span> when reserving or joining as a participant.
-</p>
-
-    <p>
-      <span className="font-semibold">What to do if your account is blocked:</span><br />
-      If you are blocked from making a reservation, it may be due to:
-      <br />
-      - Unverified account<br />
-      - Already having a reservation on the same day<br />
-      - Violation of reservation policies<br />
-      If you believe this is a mistake, contact the admin through the <span className="font-medium text-blue-600">Messages</span> tab or visit the library staff for assistance.
-    </p>
-  </div>
-</details>
-
+              <p>
+                <span className="font-semibold">
+                  What to do if your account is blocked:
+                </span>
+                <br />
+                A blocked account may happen if you have violated the
+                reservation policies, exceeded your allowed number of
+                reservations, or are still pending verification. If you believe
+                this is a mistake, message the admin using the{" "}
+                <span className="font-medium text-blue-600">Messages</span> tab
+                on your dashboard or approach the library staff for manual
+                assistance.
+              </p>
+            </div>
+          </details>
 
           {/* Section 2 */}
-<details className="border border-red-300 shadow-sm rounded-lg p-4">
-  <summary className="font-medium cursor-pointer text-gray-800">
-    Making a Reservation
-  </summary>
-  <div className="border-b border-gray-300 mt-3"></div>
-  <div className="mt-2 text-sm text-gray-600 space-y-3 leading-relaxed">
-<p>
-  <span className="font-semibold">How to select a location and room:</span><br />
-  On your dashboard, click the <span className="font-medium text-blue-600">“Reserve Room”</span> button. Start by choosing your desired date using the calendar. Then, select a location (e.g., Ground Floor, Second Floor) shown as image tiles. After selecting a floor, you can pick from the available rooms for that location.
-</p>
+          <details className="border border-red-300 shadow-sm rounded-lg p-4">
+            <summary className="font-medium cursor-pointer text-gray-800">
+              Making a Reservation
+            </summary>
+            <div className="border-b border-gray-300 mt-3"></div>
+            <div className="mt-2 text-sm text-gray-600 space-y-3 leading-relaxed">
+              <p>
+                <span className="font-semibold">
+                  Choosing a date, location, and room:
+                </span>
+                <br />
+                From your dashboard, click the{" "}
+                <span className="font-medium text-blue-600">“Reserve Room”</span>{" "}
+                button. Select the date you want to reserve using the calendar
+                view. Next, choose a location (such as Ground Floor or Second
+                Floor) from the displayed image tiles. Once a floor is chosen,
+                the available rooms will appear, allowing you to pick one that
+                best suits your group size and preferences.
+              </p>
 
-<p>
-  <span className="font-semibold">Date and time selection:</span><br />
-  Select your reservation date first. Then choose your preferred time slot — reservations are limited to <span className="font-medium">one hour</span> per group per day. The system will automatically block time slots that are already reserved or overlapping.
-</p>
+              <p>
+                <span className="font-semibold">Date and time selection:</span>
+                <br />
+                Reservations are limited to one hour per day per group. After
+                selecting the date, pick an available time slot. The system
+                automatically blocks slots that are already reserved or overlap
+                with existing bookings, ensuring that there are no conflicts.
+              </p>
 
+              <p>
+                <span className="font-semibold">Adding participants:</span>
+                <br />
+                You must add at least three participants by entering their
+                verified student or faculty ID numbers. The system will
+                cross-check these IDs and notify you if they are invalid,
+                duplicated, or already reserved for that day.
+              </p>
 
-    <p>
-      <span className="font-semibold">Adding participants:</span><br />
-      You are required to add at least 3 participants by entering their valid ID numbers. The system will verify if these participants exist and are eligible (verified). Duplicates or already-reserved users will not be accepted.
-    </p>
+              <p>
+                <span className="font-semibold">
+                  Reservation limit and restrictions:
+                </span>
+                <br />
+                Each user including participants is allowed only one active
+                reservation per day. This means that even if your previous
+                reservation was cancelled or rejected, you cannot make another
+                one until the next day.
+              </p>
 
-    <p>
-      <span className="font-semibold">Reservation limit: one per day:</span><br />
-      Each user (whether main reserver or participant) is allowed only one active reservation per day. If you already have a reservation (Pending, Approved, Rejected, or Cancelled), you will not be able to create another until the next day.
-    </p>
-
-    <p>
-      <span className="font-semibold">Why you may be blocked from reserving:</span><br />
-      If you see a message saying you are blocked from reserving, it may be because:<br />
-      - You already have a reservation on the same day<br />
-      - Your account is not verified<br />
-      - You were added as a participant in another reservation today<br />
-      If unsure, check your reservation history or contact the admin via Messages.
-    </p>
-  </div>
-</details>
+              <p>
+                <span className="font-semibold">
+                  Why you may be blocked from reserving:
+                </span>
+                <br />
+                If the system prevents you from submitting a reservation, it
+                could be due to:
+                <br />- Having another reservation on the same day
+                <br />- Being unverified
+                <br />- Already being a participant in another reservation for
+                that day
+                <br />
+                Always check your reservation history for confirmation.
+              </p>
+            </div>
+          </details>
 
 
           {/* Section 3 */}
@@ -201,7 +263,7 @@ export default function HelpCenter({ setView }) {
   <div className="mt-2 text-sm text-gray-600 space-y-3 leading-relaxed">
 <p>
   <span className="font-semibold">Reservation form not submitting:</span><br />
-  Double-check that all required fields are filled out — especially the date, time, and participants. Make sure:<br />
+  Double-check that all required fields are filled out especially the date, time, and participants. Make sure:<br />
   - You selected a room<br />
   - The time slot is available<br />
   - You added at least 3 valid participant ID numbers<br />
@@ -246,12 +308,12 @@ export default function HelpCenter({ setView }) {
   <div className="mt-2 text-sm text-gray-600 space-y-3 leading-relaxed">
     <p>
       <span className="font-semibold">Why can’t I reserve more than once today?</span><br />
-      To maintain fairness and allow equal access to rooms, each user is limited to one reservation per day — whether you are the main reserver or added as a participant. This rule applies even if the reservation was rejected or canceled.
+      To maintain fairness and allow equal access to rooms, each user is limited to one reservation per day whether you are the main reserver or added as a participant. This rule applies even if the reservation was rejected or canceled.
     </p>
 
     <p>
       <span className="font-semibold">Can participants reserve too?</span><br />
-      Yes, participants can also reserve — but only if they haven’t already joined another reservation that day. Once you're involved in any reservation (even as a participant), the system will block you from creating or joining another on the same day.
+      Yes, participants can also reserve but only if they haven’t already joined another reservation that day. Once you're involved in any reservation (even as a participant), the system will block you from creating or joining another on the same day.
     </p>
 
     <p>

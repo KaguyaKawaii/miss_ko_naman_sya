@@ -61,13 +61,21 @@ function Notification({ user, setView, setSelectedReservation }) {
 
   const markAsRead = (id) => {
     axios.put(`http://localhost:5000/api/notifications/${id}/read`)
-      .then(() => fetchNotifications())
+      .then(() => {
+        // Update local state immediately instead of refetching all notifications
+        setNotifications(prev => prev.map(notif => 
+          notif._id === id ? { ...notif, isRead: true } : notif
+        ));
+      })
       .catch((err) => console.error("Failed to mark as read:", err));
   };
 
   const markAllAsRead = () => {
     axios.put(`http://localhost:5000/api/notifications/mark-all-read/${user._id}`)
-      .then(() => fetchNotifications())
+      .then(() => {
+        // Update local state immediately
+        setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
+      })
       .catch((err) => console.error("Failed to mark all as read:", err));
   };
 
@@ -216,16 +224,7 @@ function Notification({ user, setView, setSelectedReservation }) {
             {/* Header with stats and filters */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
-                <div className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Total Notifcation: <span className="font-bold text-gray-800">{notifications.length}</span>
-                    {unreadCount > 0 && (
-                      <span className="ml-3">
-                        Unread: <span className="font-bold text-red-600">{unreadCount}</span>
-                      </span>
-                    )}
-                  </p>
-                </div>
+                
               </div>
               
               <div className="flex gap-2">
@@ -364,14 +363,7 @@ function Notification({ user, setView, setSelectedReservation }) {
                           </button>
                         )}
 
-                        {!notif.isRead && (
-                          <button
-                            onClick={() => markAsRead(notif._id)}
-                            className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-all"
-                          >
-                            <CheckCircleIcon /> Mark Read
-                          </button>
-                        )}
+                        
                       </div>
                     </div>
                   </li>

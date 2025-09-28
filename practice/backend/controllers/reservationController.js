@@ -72,43 +72,70 @@ exports.checkUserReservationLimit = async (req, res) => {
 /* ------------------------------------------------
    ✅ GET RESERVATIONS
 ------------------------------------------------ */
+
+
+// In reservationController.js - getAllReservations function
 exports.getAllReservations = async (req, res) => {
   try {
-    const reservations = await Reservation.find()
+    const { userId } = req.query;
+    let query = {};
+
+    if (userId) {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.role === "Staff" && user.floor && user.floor !== "N/A") {
+        // Normalize floor names for matching
+        const normalizeFloor = (floorName) => {
+          if (!floorName) return "";
+          const normalized = floorName.toLowerCase().trim();
+          
+          if (normalized.includes("2nd") || normalized.includes("second")) return "2nd Floor";
+          if (normalized.includes("3rd") || normalized.includes("third")) return "3rd Floor";
+          if (normalized.includes("4th") || normalized.includes("fourth")) return "4th Floor";
+          if (normalized.includes("5th") || normalized.includes("fifth")) return "5th Floor";
+          
+          return floorName;
+        };
+
+        const normalizedStaffFloor = normalizeFloor(user.floor);
+        
+        // Use regex to match floor names with different formats
+        query.location = { 
+          $regex: normalizedStaffFloor.replace(" Floor", "").trim(), 
+          $options: "i" 
+        };
+      }
+      // Admin → query stays empty (fetch all)
+    }
+
+    const reservations = await Reservation.find(query)
       .populate("userId room_Id")
       .sort({ datetime: -1 });
+
     res.json(reservations);
   } catch (err) {
+    console.error("Error fetching reservations:", err);
     res.status(500).json({ message: "Failed to fetch reservations" });
   }
 };
+
+
+
 
 exports.getUserReservations = async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ message: "User not found." });
 
-    // Calculate the cutoff time (24 hours ago)
-    const twentyFourHoursAgo = new Date();
-    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-
+    // ✅ Fetch ALL reservations (including Expired/Rejected, no 24h cutoff)
     const reservations = await Reservation.find({
-      $or: [{ userId: req.params.userId }, { "participants.idNumber": user.id_number }],
-      // Filter out Rejected/Expired reservations older than 24 hours
-      $and: [
-        {
-          $or: [
-            {
-              // Show all reservations that are NOT Rejected or Expired
-              status: { $nin: ["Rejected", "Expired"] }
-            },
-            {
-              // OR show Rejected/Expired reservations that were created within last 24 hours
-              status: { $in: ["Rejected", "Expired"] },
-              createdAt: { $gte: twentyFourHoursAgo }
-            }
-          ]
-        }
+      $or: [
+        { userId: req.params.userId },
+        { "participants.idNumber": user.id_number }
       ]
     }).sort({ datetime: -1 });
 
@@ -117,6 +144,7 @@ exports.getUserReservations = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch reservations." });
   }
 };
+
 
 exports.getActiveReservation = async (req, res) => {
   try {
@@ -169,9 +197,30 @@ exports.createReservation = async (req, res) => {
     const parsedDatetime = new Date(datetime);
     const endDatetime = new Date(parsedDatetime.getTime() + 60 * 60 * 1000);
 
+    // ✅ RULE: Reservation must be booked at least 1 day in advance
+    const now = new Date();
+    const minAllowed = new Date();
+    minAllowed.setDate(minAllowed.getDate() + 1);
+    minAllowed.setHours(0, 0, 0, 0);
+    if (parsedDatetime < minAllowed) {
+      return res.status(400).json({
+        message: "Reservations must be made at least 1 day in advance."
+      });
+    }
+
+    // ✅ RULE: Group size must be between 4 and 8 (including main user)
+    const totalGroupSize = (participants?.length || 0) + 1;
+    if (totalGroupSize < 4 || totalGroupSize > 8) {
+      return res.status(400).json({
+        message: "Group size must be between 4 and 8 users including the main reserver."
+      });
+    }
+
     // ✅ Get main user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found." });
+    if (!user.verified)
+      return res.status(400).json({ message: "Main user account is not verified." });
 
     // ✅ Check overlapping reservations for room
     const conflictingReservation = await Reservation.findOne({
@@ -236,19 +285,20 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    // ✅ Create reservation
+    // ✅ Create reservation (with expireAt for auto-cancel if no-show)
     const reservation = await Reservation.create({
       userId,
       room_Id,
       date,
       datetime: parsedDatetime,
       endDatetime,
-      numUsers,
+      numUsers: totalGroupSize,
       purpose,
       location,
       roomName,
       participants: enrichedParticipants,
-      status: "Pending"
+      status: "Pending",
+      expireAt: new Date(parsedDatetime.getTime() + 15 * 60 * 1000) // auto-expire after 15 mins
     });
 
     // ✅ Notify user
@@ -263,7 +313,7 @@ exports.createReservation = async (req, res) => {
     });
 
     // ✅ Notify admins from Admins collection
-    const admins = await Admin.find(); // ⬅️ FIX: get from admins collection
+    const admins = await Admin.find();
     const adminNotifs = admins.map(a => ({
       adminId: a._id,
       reservationId: reservation._id,
@@ -273,19 +323,16 @@ exports.createReservation = async (req, res) => {
       isRead: false,
       dismissed: false
     }));
-
     await Notification.insertMany(adminNotifs);
 
     // ✅ Emit via Socket.IO
     const io = req.app.get("io");
     if (io) {
-      // send to the user
       io.to(userId.toString()).emit("notification", {
         message: `Your reservation for ${roomName} on ${date} is pending approval.`,
         type: "reservation"
       });
 
-      // send to each admin individually
       admins.forEach(a => {
         io.to(a._id.toString()).emit("notification", {
           message: `📅 New reservation request by ${user.name} for ${roomName} on ${date}.`,
@@ -335,6 +382,7 @@ exports.createReservation = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+
 
 
 
@@ -603,5 +651,154 @@ exports.getAvailability = async (req, res) => {
     res.json(availability);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch availability", error: error.message });
+  }
+};
+
+// ✅ Check and mark expired reservations + notify
+// ✅ Check and mark expired reservations + notify
+exports.checkExpiredReservations = async (req, res) => {
+  try {
+    console.log("🔄 Running checkExpiredReservations...");
+    const now = new Date();
+
+    // Find reservations that should expire (ended or no-show after 15 min)
+    const expiringReservations = await Reservation.find({
+      status: { $in: ["Pending", "Approved", "Ongoing"] },
+      $or: [
+        { endDatetime: { $lte: now } }, // already ended
+        { datetime: { $lte: new Date(now.getTime() - 15 * 60 * 1000) }, checkedIn: false } // no-show
+      ]
+    }).populate("userId");
+
+    if (expiringReservations.length === 0) {
+      return res.json({ message: "No reservations to expire." });
+    }
+
+    // Mark them as expired
+    const ids = expiringReservations.map(r => r._id);
+    await Reservation.updateMany(
+      { _id: { $in: ids } },
+      { $set: { status: "Expired" } }
+    );
+
+    const io = req.app.get("io");
+
+    // Process each reservation
+    for (const reservation of expiringReservations) {
+      const reason =
+        reservation.endDatetime <= now
+          ? "has ended."
+          : "was cancelled because no one checked in within 15 minutes.";
+
+      // ✅ DB notification for main user
+      await Notification.create({
+        userId: reservation.userId._id,
+        reservationId: reservation._id,
+        message: `Your reservation for ${reservation.roomName} ${reason}`,
+        status: "Expired",
+        type: "reservation",
+        isRead: false,
+        dismissed: false,
+      });
+
+      // ✅ Real-time socket update for main user
+      if (io) {
+        io.to(reservation.userId._id.toString()).emit("notification", {
+          message: `Your reservation for ${reservation.roomName} ${reason}`,
+          type: "reservation",
+        });
+      }
+
+      // ✅ Email main user
+      if (reservation.userId.email) {
+        try {
+          await sendEmail({
+            to: reservation.userId.email,
+            subject: "Reservation Expired",
+            html: generateReservationEmail({
+              status: "Expired",
+              toName: reservation.userId.name,
+              reservation,
+              formattedDate: reservation.date,
+              time: `${new Date(reservation.datetime).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })} - ${new Date(reservation.endDatetime).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}`,
+              participants: reservation.participants,
+              extraNote: reason,
+            }),
+          });
+        } catch (emailErr) {
+          console.warn("⚠️ Failed to send expiration email:", emailErr.message);
+        }
+      }
+
+      // ✅ Notify participants
+      for (const participant of reservation.participants) {
+        if (participant.idNumber === reservation.userId.id_number) continue; // skip main
+        const participantUser = await User.findOne({ id_number: participant.idNumber });
+
+        if (participantUser?.email) {
+          await sendEmail({
+            to: participantUser.email,
+            subject: "Reservation Expired",
+            html: generateReservationEmail({
+              status: "Expired",
+              toName: participant.name,
+              reservation,
+              formattedDate: reservation.date,
+              time: `${new Date(reservation.datetime).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })} - ${new Date(reservation.endDatetime).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}`,
+              participants: reservation.participants,
+              isParticipant: true,
+              extraNote: reason,
+            }),
+          });
+        }
+
+        // ✅ Real-time socket for participants
+        if (io && participantUser) {
+          io.to(participantUser._id.toString()).emit("notification", {
+            message: `Reservation for ${reservation.roomName} ${reason}`,
+            type: "reservation",
+          });
+        }
+      }
+    }
+
+    res.json({ message: `${expiringReservations.length} reservations expired and notified.` });
+  } catch (err) {
+    console.error("Error checking expired reservations:", err);
+    res.status(500).json({ message: "Failed to check expired reservations." });
+  }
+};
+
+
+// controllers/reservationController.js
+// controllers/reservationController.js
+exports.getReservationsByFloor = async (req, res) => {
+  try {
+    const floor = req.query.floor || req.params.floor; // works with ?floor= or /floor/:floor
+    let query = {};
+    if (floor) {
+      query.floor = floor;
+    }
+
+    const reservations = await Reservation.find(query)
+      .populate("userId", "name email")
+      .sort({ created_at: -1 });
+
+    res.status(200).json(reservations);
+  } catch (err) {
+    console.error("Error fetching reservations by floor:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };

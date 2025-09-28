@@ -26,6 +26,11 @@ const userSchema = new mongoose.Schema({
   },
 
   verified:   { type: Boolean, default: false },
+  suspended: {
+  type: Boolean,
+  default: false,
+},
+
 
   otp:        { type: String },
   otpExpiry:  { type: Date },

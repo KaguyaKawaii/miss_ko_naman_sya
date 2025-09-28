@@ -20,6 +20,19 @@ const uploadToCloudinary = (fileBuffer, folder) => {
   });
 };
 
+const FLOORS = ["Ground Floor", "2nd Floor", "3rd Floor", "4th Floor", "5th Floor"];
+
+const getLeastPopulatedFloor = async () => {
+  const counts = await Promise.all(
+    FLOORS.map(async (floor) => ({
+      floor,
+      count: await User.countDocuments({ role: "Staff", floor })
+    }))
+  );
+  counts.sort((a, b) => a.count - b.count);
+  return counts[0].floor;
+};
+
 // Add User (Admin)
 const addUser = async (data, file) => {
   const { name, email, id_number, password, role, department, course, yearLevel, floor, verified } = data;
@@ -119,6 +132,10 @@ const login = async ({ email, password }) => {
   const validPass = await bcrypt.compare(password, user.password);
   if (!validPass) throw new Error("Invalid credentials.");
 
+    if (user.suspended) {
+    throw new Error("This account is suspended. Please contact the administrator.");
+  }
+
   await logAction(user._id, user.id_number, user.name, "User Login", "Logged in");
 
   const { _id, name, id_number, department, course, year_level, floor, role, verified, profilePicture } = user;
@@ -174,11 +191,16 @@ const adminEditUser = async (id, data, file) => {
     }
   });
 
-  if (typeof data.verified !== "undefined") user.verified = data.verified === "true" || data.verified === true;
+  if (typeof data.verified !== "undefined") {
+    user.verified = data.verified === "true" || data.verified === true;
+  }
 
-  if (data.password && data.password.length >= 8) {
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(data.password, salt);
+  // ✅ Fix password handling → no double-hash
+  if (data.password && data.password.trim() !== "") {
+    if (data.password.length < 8) {
+      throw new Error("Password must be at least 8 characters.");
+    }
+    user.password = data.password; // let pre-save hook hash it
   }
 
   if (file) {
@@ -190,6 +212,7 @@ const adminEditUser = async (id, data, file) => {
   await logAction(user._id, user.id_number, user.name, "Admin Edited User", "User info updated by admin");
   return user.toObject();
 };
+
 
 
 // Change Password
@@ -255,9 +278,86 @@ const verifyUser = async (id, verified, io) => {
   return user;
 };
 
+// Suspend user (set suspended: true)
+const suspendUser = async (id, io) => {
+  const user = await User.findByIdAndUpdate(
+    id,
+    { suspended: true },
+    { new: true }
+  );
 
+  if (user) {
+    await logAction(user._id, user.id_number, user.name, "User Suspended", "User account suspended");
+    await createNotification(
+      {
+        userId: user._id,
+        message: "Your account has been suspended. Contact support for more information.",
+        type: "system",
+        status: "New",
+      },
+      io
+    );
+  }
 
+  return user;
+};
 
+// Unsuspend user (set suspended: false)
+const unsuspendUser = async (id, io) => {
+  const user = await User.findByIdAndUpdate(
+    id,
+    { suspended: false },
+    { new: true }
+  );
+
+  if (user) {
+    await logAction(user._id, user.id_number, user.name, "User Unsuspended", "User account unsuspended");
+    await createNotification(
+      {
+        userId: user._id,
+        message: "Your account has been restored. You may now log in.",
+        type: "system",
+        status: "New",
+      },
+      io
+    );
+  }
+
+  return user;
+};
+
+// Toggle suspend state (accepts boolean suspend)
+const toggleSuspend = async (id, suspend, io) => {
+  const user = await User.findByIdAndUpdate(
+    id,
+    { suspended: !!suspend },
+    { new: true }
+  );
+
+  if (user) {
+    await logAction(
+      user._id,
+      user.id_number,
+      user.name,
+      suspend ? "User Suspended" : "User Unsuspended",
+      suspend ? "User account suspended via admin toggle" : "User account unsuspended via admin toggle"
+    );
+
+    await createNotification(
+      {
+        userId: user._id,
+        message: suspend
+          ? "Your account has been suspended. Contact support for more information."
+          : "Your account has been restored. You may now log in.",
+        type: "system",
+        status: "New",
+      },
+      io
+    );
+  }
+
+  return user;
+};
 
 // ✅ Archive user with timestamp
 const archiveUser = async (id) => {
@@ -288,6 +388,31 @@ const deleteArchivedUser = async (id) => {
   return user;
 };
 
+// Add this to userService.js
+exports.updateProfile = async (userId, updateData, file) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) throw new Error("User not found");
+
+    // Handle file upload if provided
+    if (file) {
+      updateData.profilePicture = `/uploads/profiles/${file.filename}`;
+    }
+
+    // Update user data
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        user[key] = updateData[key];
+      }
+    });
+
+    await user.save();
+    return user;
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 module.exports = {
   addUser,
   signup,
@@ -302,4 +427,10 @@ module.exports = {
   restoreUser,
   deleteArchivedUser,
   getArchivedUsers,
+  updateProfile,
+   // newly exported suspend functions:
+  suspendUser,
+  unsuspendUser,
+  toggleSuspend,
+  // note: updateProfile is already exported above — keep it once
 };

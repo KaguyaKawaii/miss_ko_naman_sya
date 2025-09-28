@@ -1,20 +1,14 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { 
-  X, User, Mail, IdCard, Shield, Building, GraduationCap, 
-  Layers, Calendar, Clock 
-} from "lucide-react";
+import React from "react";
+import { X, User, Mail, IdCard, Shield, Building, GraduationCap, Calendar, Clock } from "lucide-react";
 
-export default function UserViewModal({ user, onClose, onToggleVerified, onUserUpdated }) {
-  const [imgTimestamp, setImgTimestamp] = useState(Date.now());
-  const [loading, setLoading] = useState(false);
-
+export default function StaffUserViewModal({ user, onClose }) {
   const getProfilePictureUrl = () => {
     if (!user.profilePicture) return null;
+    
     if (user.profilePicture.startsWith("http")) {
-      return `${user.profilePicture}?t=${imgTimestamp}`;
+      return user.profilePicture;
     } else {
-      return `http://localhost:5000${user.profilePicture}?t=${imgTimestamp}`;
+      return `http://localhost:5000${user.profilePicture}`;
     }
   };
 
@@ -32,37 +26,15 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
     });
   };
 
-  // ✅ FIX: handle suspend/unsuspend with correct endpoint + better error messages
-  const handleToggleSuspension = async () => {
-    try {
-      setLoading(true);
-      console.log("Toggling suspension for:", user._id, "=>", !user.suspended);
-      const response = await axios.put(
-        `http://localhost:5000/api/users/toggle-suspend/${user._id}`,
-        { suspend: !user.suspended }
-      );
-      if (onUserUpdated) {
-        onUserUpdated(response.data.user); // refresh parent state
-      }
-    } catch (error) {
-      console.error("Failed to toggle suspension:", error.response?.data || error.message);
-      alert(error.response?.data?.message || "Failed to update suspension status.");
-    } finally {
-      setLoading(false);
-      setImgTimestamp(Date.now()); // force reload image if status changes overlay
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white w-full max-w-4xl rounded-xl shadow-lg overflow-hidden">
         {/* Modal Header */}
         <header className="flex justify-between items-center bg-gray-50 border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-800">User Profile</h2>
+          <h2 className="text-xl font-semibold text-gray-800">User Profile (View Only)</h2>
           <button 
             onClick={onClose}
             className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition"
-            aria-label="Close modal"
           >
             <X size={20} />
           </button>
@@ -71,7 +43,7 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
         {/* Modal Content */}
         <div className="p-6">
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* Profile Picture + Actions */}
+            {/* Profile Picture Section */}
             <div className="flex flex-col items-center w-full lg:w-1/3">
               <div className="relative w-40 h-40 rounded-full bg-gray-100 border-2 border-gray-200 overflow-hidden mb-4">
                 {user.profilePicture ? (
@@ -90,9 +62,7 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
                   </div>
                 )}
               </div>
-
-              {/* Status Badges */}
-              <div className="flex flex-col gap-2 mb-4 items-center">
+              <div className="mb-4">
                 <span className={`px-3 py-0.5 rounded-full text-xs font-medium ${
                   user.verified 
                     ? "bg-green-50 text-green-700 border border-green-100" 
@@ -100,49 +70,10 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
                 }`}>
                   {user.verified ? "Verified" : "Unverified"}
                 </span>
-
-                {user.suspended && (
-                  <span className="px-3 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
-                    Suspended
-                  </span>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2 w-full max-w-xs">
-                <button
-                  onClick={() => {
-                    onToggleVerified(user);
-                    setImgTimestamp(Date.now());
-                  }}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors border ${
-                    user.verified
-                      ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200"
-                      : "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100"
-                  }`}
-                >
-                  {user.verified ? "Revoke Verification" : "Verify Account"}
-                </button>
-
-                <button
-                  onClick={handleToggleSuspension}
-                  disabled={loading}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors border ${
-                    user.suspended
-                      ? "bg-green-50 text-green-600 hover:bg-green-100 border-green-100"
-                      : "bg-red-50 text-red-600 hover:bg-red-100 border-red-100"
-                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {loading
-                    ? "Processing..."
-                    : user.suspended
-                      ? "Unsuspend Account"
-                      : "Suspend Account"}
-                </button>
               </div>
             </div>
 
-            {/* User Details */}
+            {/* User Details Section */}
             <div className="w-full lg:w-2/3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Basic Information */}
@@ -160,33 +91,50 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
                   />
                 </div>
 
-                {/* Role-Specific Info */}
+                {/* Role-Specific Information */}
                 <div className="space-y-4">
                   <h3 className="text-base font-medium text-gray-700 flex items-center gap-2">
                     <Building size={18} className="text-gray-500" /> Institution
                   </h3>
                   {(user.role === "Student" || user.role === "Faculty") && (
-                    <DetailItem icon={<Building size={16} />} label="Department" value={user.department || "—"} />
-                  )}
-                  {user.role === "Staff" && (
-                    <DetailItem icon={<Layers size={16} />} label="Assigned Floor" value={user.floor || "—"} />
+                    <DetailItem 
+                      icon={<Building size={16} />} 
+                      label="Department" 
+                      value={user.department || "—"} 
+                    />
                   )}
                   {user.role === "Student" && (
                     <>
-                      <DetailItem icon={<GraduationCap size={16} />} label="Course" value={user.course || "—"} />
-                      <DetailItem icon={<GraduationCap size={16} />} label="Year Level" value={user.year_level || user.yearLevel || "—"} />
+                      <DetailItem 
+                        icon={<GraduationCap size={16} />} 
+                        label="Course" 
+                        value={user.course || "—"} 
+                      />
+                      <DetailItem 
+                        icon={<GraduationCap size={16} />} 
+                        label="Year Level" 
+                        value={user.year_level || user.yearLevel || "—"} 
+                      />
                     </>
                   )}
                 </div>
 
-                {/* System Info */}
+                {/* System Information */}
                 <div className="md:col-span-2 space-y-4 pt-2">
                   <h3 className="text-base font-medium text-gray-700 flex items-center gap-2">
                     <Clock size={18} className="text-gray-500" /> System Info
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <DetailItem icon={<Calendar size={16} />} label="Account Created" value={formatDate(user.createdAt || user.created_at)} />
-                    <DetailItem icon={<Clock size={16} />} label="Last Updated" value={formatDate(user.updatedAt || user.updated_at)} />
+                    <DetailItem 
+                      icon={<Calendar size={16} />} 
+                      label="Account Created" 
+                      value={formatDate(user.createdAt || user.created_at)} 
+                    />
+                    <DetailItem 
+                      icon={<Clock size={16} />} 
+                      label="Last Updated" 
+                      value={formatDate(user.updatedAt || user.updated_at)}
+                    />
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import socket from "../utils/socket";
 import api from "../utils/api";
-import Logo from "../assets/logo.png";
+import Logo from "../assets/logo3.png";
 import {
   LayoutDashboard,
   History,
@@ -121,11 +121,19 @@ function Navigation_User({ user: initialUser, setView, currentView, onLogout }) 
     <aside>
       <div className="fixed top-0 left-0 h-screen w-[250px] bg-[#171717] p-6 shadow-md flex flex-col rounded-r-2xl">
         {/* Logo */}
-        <div className="flex items-center justify-between">
-          <img src={Logo} alt="Logo" className="h-[70px] w-[70px]" />
-          <h1 className="text-[19px] font-serif leading-5 text-white">
-            University of <br /> San Agustin
-          </h1>
+        <div className="flex items-center justify-around ">
+          <img src={Logo} alt="Logo" className="h-[100px] w-[100px]" />
+
+          <div className="flex flex-col items-start ">
+            <h1 className="text-[15px] font-serif  text-white">
+              University of <br /> San Agustin
+            </h1>
+
+            <div className="border w-full border-b-white/50"></div>
+
+            <p className="text-[20px] font-serif font-semibold text-white">CircuLink</p>
+
+          </div>
         </div>
         <div className="border-b border-gray-700 opacity-50 w-[calc(100%+3rem)] -mx-6 my-4"></div>
 

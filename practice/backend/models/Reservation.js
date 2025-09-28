@@ -21,12 +21,12 @@ const reservationSchema = new mongoose.Schema(
       required: true,
     },
     datetime: { type: Date, required: true }, // Start time
-    endDatetime: { type: Date, required: true }, // Original end time
+    endDatetime: { type: Date, required: true }, // End time
     date: { type: String, required: true },
     numUsers: { type: Number, required: true },
     purpose: { type: String, required: true },
-    location: { type: String }, // For display only
-    roomName: { type: String }, // For display only
+    location: { type: String },
+    roomName: { type: String },
     participants: [participantSchema],
 
     status: {
@@ -35,13 +35,11 @@ const reservationSchema = new mongoose.Schema(
       default: "Pending",
     },
 
-    // 🔹 Archive flag
     archived: {
       type: Boolean,
       default: false,
     },
 
-    // Notification fields
     notificationSent: {
       type: Boolean,
       default: false,
@@ -52,7 +50,6 @@ const reservationSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Check-in tracking
     checkedIn: {
       type: Boolean,
       default: false,
@@ -60,13 +57,12 @@ const reservationSchema = new mongoose.Schema(
     actualStartTime: Date,
     actualEndTime: Date,
 
-    // EXTENSION FIELDS
     extensionRequested: {
       type: Boolean,
       default: false,
     },
     extensionHours: {
-      type: Number, // 1 or 2 only
+      type: Number,
       enum: [1, 2, null],
       default: null,
     },
@@ -76,18 +72,18 @@ const reservationSchema = new mongoose.Schema(
       default: null,
     },
     extendedEndDatetime: {
-      type: Date, // Only set if admin approves the extension
+      type: Date,
       default: null,
     },
   },
   { timestamps: true }
 );
 
-// Indexes for efficient queries
+// ✅ Indexes for faster queries
 reservationSchema.index({ datetime: 1 });
 reservationSchema.index({ status: 1 });
 reservationSchema.index({ userId: 1 });
-reservationSchema.index({ archived: 1 }); // ✅ Add index for archive filtering
+reservationSchema.index({ archived: 1 });
 
 module.exports =
   mongoose.models.Reservation ||

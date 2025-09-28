@@ -67,3 +67,12 @@ department: participantUser.department || "N/A",
 }
 return enriched;
 };
+
+// services/reservationService.js
+exports.expirePastReservations = async () => {
+  const now = new Date();
+  await Reservation.updateMany(
+    { endDatetime: { $lt: now }, status: { $in: ["Pending", "Approved", "Ongoing"] } },
+    { $set: { status: "Expired" } }
+  );
+};

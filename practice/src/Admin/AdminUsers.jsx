@@ -32,7 +32,6 @@ function AdminUsers({ setView }) {
 
   const formatPHDateTime = (date) => {
     if (!date) return "—";
-    
     try {
       return new Date(date).toLocaleString("en-PH", {
         timeZone: "Asia/Manila",
@@ -63,7 +62,7 @@ function AdminUsers({ setView }) {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/users");
+      const res = await axios.get("http://localhost:5000/api/users/all/users");
       if (res.data.success) {
         setUsers(res.data.users);
       } else {
@@ -78,24 +77,22 @@ function AdminUsers({ setView }) {
     }
   };
 
-  
-
-
   const toggleVerified = async (user) => {
     try {
-      const res = await axios.patch(`http://localhost:5000/api/users/verify/${user._id}`, {
-        verified: !user.verified
-      });
-      
+      const res = await axios.patch(
+        `http://localhost:5000/api/users/verify/${user._id}`,
+        { verified: !user.verified }
+      );
+
       if (res.data.success) {
-        // Update the user in the local state
-        setUsers(prevUsers => 
-          prevUsers.map(u => 
+        // Update local state
+        setUsers((prevUsers) =>
+          prevUsers.map((u) =>
             u._id === user._id ? { ...u, verified: !u.verified } : u
           )
         );
-        
-        // Update the modal if it's open for this user
+
+        // Update modal state if open
         setModal((m) =>
           m.user && m.user._id === user._id
             ? { ...m, user: { ...m.user, verified: !m.user.verified } }
@@ -116,7 +113,6 @@ function AdminUsers({ setView }) {
 
     try {
       await axios.put(`http://localhost:5000/api/users/archive/${user._id}`);
-
       fetchUsers();
       closeModal();
     } catch (err) {
@@ -127,16 +123,17 @@ function AdminUsers({ setView }) {
 
   const userStats = {
     total: users.length,
-    students: users.filter(u => u.role === "Student").length,
-    faculty: users.filter(u => u.role === "Faculty").length,
-    staff: users.filter(u => u.role === "Staff").length,
-    verified: users.filter(u => u.verified).length,
-    unverified: users.filter(u => !u.verified).length
+    students: users.filter((u) => u.role === "Student").length,
+    faculty: users.filter((u) => u.role === "Faculty").length,
+    staff: users.filter((u) => u.role === "Staff").length,
+    verified: users.filter((u) => u.verified).length,
+    unverified: users.filter((u) => !u.verified).length,
   };
 
   const filteredUsers = users.filter((user) => {
-    const matchesStatus = filter === "All" || 
-      (filter === "Verified" && user.verified) || 
+    const matchesStatus =
+      filter === "All" ||
+      (filter === "Verified" && user.verified) ||
       (filter === "Not Verified" && !user.verified);
     const matchesRole = roleFilter === "All" || user.role === roleFilter;
     const matchesSearch =
@@ -160,12 +157,18 @@ function AdminUsers({ setView }) {
         <header className="bg-white px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-[#CC0000]">User Management</h1>
+              <h1 className="text-2xl font-bold text-[#CC0000]">
+                User Management
+              </h1>
               <p className="text-gray-600">View and manage all system users</p>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
               </span>
             </div>
           </div>
@@ -176,138 +179,20 @@ function AdminUsers({ setView }) {
           {/* User Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
             {/* Total Users */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Users</p>
-                  <p className="text-2xl font-bold">{userStats.total}</p>
-                </div>
-                <div className="p-2 bg-blue-100 rounded-full text-blue-600">
-                  <Users size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Students */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Students</p>
-                  <p className="text-2xl font-bold">{userStats.students}</p>
-                </div>
-                <div className="p-2 bg-green-100 rounded-full text-green-600">
-                  <GraduationCap size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Faculty */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Faculty</p>
-                  <p className="text-2xl font-bold">{userStats.faculty}</p>
-                </div>
-                <div className="p-2 bg-purple-100 rounded-full text-purple-600">
-                  <UserCog size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Staff */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Staff</p>
-                  <p className="text-2xl font-bold">{userStats.staff}</p>
-                </div>
-                <div className="p-2 bg-yellow-100 rounded-full text-yellow-600">
-                  <UserCheck size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Verified */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Verified</p>
-                  <p className="text-2xl font-bold">{userStats.verified}</p>
-                </div>
-                <div className="p-2 bg-green-100 rounded-full text-green-600">
-                  <UserCheck size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Unverified */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Unverified</p>
-                  <p className="text-2xl font-bold">{userStats.unverified}</p>
-                </div>
-                <div className="p-2 bg-red-100 rounded-full text-red-600">
-                  <UserX size={20} />
-                </div>
-              </div>
-            </div>
+            <StatCard label="Total Users" value={userStats.total} icon={<Users size={20} />} color="blue" />
+            <StatCard label="Students" value={userStats.students} icon={<GraduationCap size={20} />} color="green" />
+            <StatCard label="Faculty" value={userStats.faculty} icon={<UserCog size={20} />} color="purple" />
+            <StatCard label="Staff" value={userStats.staff} icon={<UserCheck size={20} />} color="yellow" />
+            <StatCard label="Verified" value={userStats.verified} icon={<UserCheck size={20} />} color="green" />
+            <StatCard label="Unverified" value={userStats.unverified} icon={<UserX size={20} />} color="red" />
           </div>
 
           {/* Filters */}
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, email, ID number..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  aria-label="Search users"
-                />
-                {search && (
-                  <button 
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    aria-label="Clear search"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex gap-4">
-                <div className="relative">
-                  <select
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    className="appearance-none pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    aria-label="Filter by status"
-                  >
-                    <option value="All">All Status</option>
-                    <option value="Verified">Verified</option>
-                    <option value="Not Verified">Not Verified</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    className="appearance-none pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    aria-label="Filter by role"
-                  >
-                    <option value="All">All Roles</option>
-                    <option value="Student">Student</option>
-                    <option value="Faculty">Faculty</option>
-                    <option value="Staff">Staff</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                </div>
-              </div>
+              <SearchInput search={search} setSearch={setSearch} />
+              <FilterDropdown value={filter} setValue={setFilter} label="Status" options={["All", "Verified", "Not Verified"]} />
+              <FilterDropdown value={roleFilter} setValue={setRoleFilter} label="Role" options={["All", "Student", "Faculty", "Staff"]} />
 
               <button
                 onClick={() => {
@@ -317,7 +202,6 @@ function AdminUsers({ setView }) {
                   fetchUsers();
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                aria-label="Refresh users"
               >
                 <RefreshCw size={16} />
                 <span>Refresh</span>
@@ -326,7 +210,6 @@ function AdminUsers({ setView }) {
               <button
                 onClick={() => setModal({ type: "add", user: null })}
                 className="flex items-center gap-2 px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-[#990000] transition-colors"
-                aria-label="Add new user"
               >
                 <UserPlus size={16} />
                 <span>Add User</span>
@@ -372,15 +255,27 @@ function AdminUsers({ setView }) {
                         <td className="px-6 py-4 whitespace-nowrap">{u.id_number || "—"}</td>
                         <td className="px-6 py-4 whitespace-nowrap capitalize">{u.role}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              u.verified
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {u.verified ? "Verified" : "Not Verified"}
-                          </span>
+                          {/* Show Verified + Suspension Badge */}
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                u.verified
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {u.verified ? "Verified" : "Not Verified"}
+                            </span>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                u.suspended
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {u.suspended ? "Suspended" : "Active"}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {u.created_at ? formatPHDateTime(u.created_at) : "—"}
@@ -391,7 +286,6 @@ function AdminUsers({ setView }) {
                               onClick={() => setModal({ type: "view", user: u })}
                               className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
                               title="View Details"
-                              aria-label={`View details for ${u.name}`}
                             >
                               <Eye size={18} />
                             </button>
@@ -399,7 +293,6 @@ function AdminUsers({ setView }) {
                               onClick={() => setModal({ type: "edit", user: u })}
                               className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
                               title="Edit"
-                              aria-label={`Edit ${u.name}`}
                             >
                               <Pencil size={18} />
                             </button>
@@ -407,7 +300,6 @@ function AdminUsers({ setView }) {
                               onClick={() => archiveUser(u)}
                               className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Archive"
-                              aria-label={`Archive ${u.name}`}
                             >
                               <Trash2 size={18} />
                             </button>
@@ -429,6 +321,17 @@ function AdminUsers({ setView }) {
           user={modal.user}
           onClose={closeModal}
           onToggleVerified={toggleVerified}
+          onUserUpdated={(updatedUser) => {
+            // Update users state instantly when suspension is toggled
+            setUsers((prev) =>
+              prev.map((u) => (u._id === updatedUser._id ? updatedUser : u))
+            );
+            setModal((m) =>
+              m.user && m.user._id === updatedUser._id
+                ? { ...m, user: updatedUser }
+                : m
+            );
+          }}
         />
       )}
 
@@ -444,6 +347,65 @@ function AdminUsers({ setView }) {
         />
       )}
     </>
+  );
+}
+
+// Small helper components for cleaner JSX
+function StatCard({ label, value, icon, color }) {
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500">{label}</p>
+          <p className="text-2xl font-bold">{value}</p>
+        </div>
+        <div className={`p-2 bg-${color}-100 rounded-full text-${color}-600`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchInput({ search, setSearch }) {
+  return (
+    <div className="relative flex-1">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name, email, ID number..."
+        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      />
+      {search && (
+        <button
+          onClick={() => setSearch("")}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function FilterDropdown({ value, setValue, label, options }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="appearance-none pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt === "All" ? `All ${label}` : opt}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+    </div>
   );
 }
 

@@ -58,6 +58,9 @@ import StaffReservations from "./Staff/StaffReservations.jsx";
 import StaffUsers from "./Staff/StaffUsers.jsx";
 import StaffMessages from "./Staff/StaffMessages.jsx";
 import StaffNotification from "./Staff/StaffNotifications.jsx";
+import StaffProfile from "./Staff/StaffProfile.jsx";
+import StaffReports from "./Staff/StaffReports.jsx";
+
 
 function App() {
   const navigate = useNavigate();
@@ -115,6 +118,9 @@ function App() {
     staffUsers: "/staff/users",
     staffMessages: "/staff/messages",
     staffNotification: "/staff/notifications",
+    staffProfile: "/staff/profile",
+    staffReports: "/staff/reports"
+
   };
 
   const pathToView = Object.fromEntries(
@@ -362,6 +368,9 @@ function App() {
       {view === "staffUsers" && renderStaffNavigation(<StaffUsers setView={setView} staff={user} />)}
       {view === "staffMessages" && renderStaffNavigation(<StaffMessages setView={setView} staff={user} />)}
       {view === "staffNotification" && renderStaffNavigation(<StaffNotification setView={setView} staff={user} />)}
+      {view === "staffProfile" && renderStaffNavigation(<StaffProfile setView={setView} staff={user} />)}
+      {view === "staffReports" && renderStaffNavigation(<StaffReports setView={setView} staff={user} />)}
+
 
       {/* Logout Modal */}
       {showLogoutModal && (

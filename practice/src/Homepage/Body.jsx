@@ -1,5 +1,6 @@
 import Picture from '../assets/picture2.jpg';
 import Logo2 from '../assets/logo.png';
+import Logo3 from '../assets/logo3.png';
 import lrc from '../assets/logo2.png';
 import { ChevronDown, ArrowRight } from 'lucide-react';
 
@@ -59,6 +60,19 @@ function Body() {
               <div className="absolute -inset-3 bg-amber-400/20 rounded-full blur-md group-hover:bg-amber-400/30 transition-all duration-500"></div>
               <img 
                 src={lrc} 
+                alt="Learning Resource Center Logo" 
+                className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 drop-shadow-lg transform group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+
+                        <div className="hidden md:block">
+              <div className="h-32 w-px bg-gradient-to-b from-transparent via-white/50 to-transparent mx-2"></div>
+            </div>
+
+            <div className="relative group">
+              <div className="absolute -inset-3 bg-amber-400/20 rounded-full blur-md group-hover:bg-amber-400/30 transition-all duration-500"></div>
+              <img 
+                src={Logo3} 
                 alt="Learning Resource Center Logo" 
                 className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 drop-shadow-lg transform group-hover:scale-105 transition-transform duration-500"
               />

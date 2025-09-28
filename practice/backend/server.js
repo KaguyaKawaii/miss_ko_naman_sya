@@ -22,7 +22,6 @@ const reportRoutes = require("./routes/reportRoutes");
 const logRoutes = require("./routes/logRoutes");
 const availabilityRoutes = require("./routes/availabilityRoutes"); // ✅ NEW
 
-
 const app = express();
 const server = http.createServer(app);
 
@@ -30,7 +29,10 @@ app.use(cors());
 app.use(express.json());
 
 // Static file serving
-app.use("/uploads/profile-pictures", express.static(path.join(__dirname, "uploads", "profile-pictures")));
+app.use(
+  "/uploads/profile-pictures",
+  express.static(path.join(__dirname, "uploads", "profile-pictures"))
+);
 app.use("/uploads/news", express.static(path.join(__dirname, "uploads", "news")));
 
 const io = new Server(server, {
@@ -54,8 +56,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", forgotPasswordRoutes);
 app.use("/rooms", roomRoutes);
 app.use("/reports", reportRoutes);
-app.use("/api", availabilityRoutes); // ✅ Added so /api/availability works
-
+app.use("/api", availabilityRoutes);
 
 // Socket.io events
 io.on("connection", (socket) => {
@@ -73,18 +74,28 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {});
 });
 
-// Database connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+// ✅ Database connection + Start Server ONLY AFTER CONNECTED
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("✅ MongoDB connected");
 
-// CRON job to check expired reservations
-cron.schedule("*/5 * * * *", async () => {
-  try {
-    const { data } = await axios.get("http://localhost:5000/reservations/check-expired");
-    console.log(`✅ Expired reservations checked: ${data.message}`);
-  } catch (err) {}
-});
+    // CRON job to check expired reservations
+    cron.schedule("*/5 * * * *", async () => {
+      try {
+        const { data } = await axios.get(
+          "http://localhost:5000/reservations/check-expired"
+        );
+        console.log(`✅ Expired reservations checked: ${data.message}`);
+      } catch (err) {}
+    });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`✅ Server running with Socket.io on port ${PORT}`));
+    const PORT = process.env.PORT || 5000;
+    server.listen(PORT, () =>
+      console.log(`✅ Server running with Socket.io on port ${PORT}`)
+    );
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  });

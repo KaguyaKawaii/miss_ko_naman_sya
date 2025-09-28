@@ -29,61 +29,62 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   }, [error]);
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
 
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
+  if (!email || !password) {
+    setError("Please enter both email and password.");
+    return;
+  }
 
-    // Secret override: Admin portal shortcut
-    if (
-      email.trim().toLowerCase() === "enteradminportal" &&
-      password === "1"
-    ) {
-      setView("adminLogin");
-      return;
-    }
+  // Secret override: Admin portal shortcut
+  if (email.trim().toLowerCase() === "enteradminportal" && password === "1") {
+    setView("adminLogin");
+    return;
+  }
 
-    if (
-      email.trim().toLowerCase() === "admin" &&
-      password === "krulcifer1234567890"
-    ) {
-      setError("Admin accounts must log in through the admin portal.");
-      return;
-    }
+  if (email.trim().toLowerCase() === "admin" && password === "krulcifer1234567890") {
+    setError("Admin accounts must log in through the admin portal.");
+    return;
+  }
 
-    const start = Date.now();
-    setLoading(true);
+  const start = Date.now();
+  setLoading(true);
 
-    try {
-      const res = await fetch("http://localhost:5000/api/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
+  try {
+    const res = await fetch("http://localhost:5000/api/users/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (!res.ok)
-        throw new Error(data.message || "Login failed. Please try again.");
+    const data = await res.json();
 
-      if (data.user?.role?.toLowerCase() === "admin") {
-        throw new Error("Admin accounts must log in through the admin portal.");
+    if (!res.ok) {
+      // ✅ Handle suspended accounts with a more friendly message
+      if (res.status === 403 || data.message?.toLowerCase().includes("suspended")) {
+        throw new Error("Your account has been suspended. Please contact the administrator.");
       }
-
-      const elapsed = Date.now() - start;
-      const delay = elapsed < 1000 ? 1000 - elapsed : 0;
-      setTimeout(() => {
-        setLoading(false);
-        setAuthedUser(data.user);
-        setSuccessModal(true);
-      }, delay);
-    } catch (err) {
-      setLoading(false);
-      setError(err.message || "An error occurred. Please try again later.");
+      throw new Error(data.message || "Login failed. Please try again.");
     }
-  };
+
+    if (data.user?.role?.toLowerCase() === "admin") {
+      throw new Error("Admin accounts must log in through the admin portal.");
+    }
+
+    const elapsed = Date.now() - start;
+    const delay = elapsed < 1000 ? 1000 - elapsed : 0;
+    setTimeout(() => {
+      setLoading(false);
+      setAuthedUser(data.user);
+      setSuccessModal(true);
+    }, delay);
+  } catch (err) {
+    setLoading(false);
+    setError(err.message || "An error occurred. Please try again later.");
+  }
+};
+
 
   const closeSuccess = () => {
     setSuccessModal(false);

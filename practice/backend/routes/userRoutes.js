@@ -1,51 +1,38 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
-const multer = require("multer");
+const upload = require("../middleware/upload");
 
-// ✅ Multer memory storage for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-// -----------------------------
-// User CRUD
-// -----------------------------
-router.post("/", upload.single("profile"), userController.addUser);
+// Public routes
 router.post("/signup", upload.single("profile"), userController.signup);
 router.post("/login", userController.login);
 
-// -----------------------------
-// Profile Pictures
-// -----------------------------
+// ✅ Admin & special routes first (to avoid conflict with "/:id")
+router.put("/toggle-suspend/:id", userController.toggleSuspendUser);
+router.put("/suspend/:id", userController.suspendUser);
+router.put("/unsuspend/:id", userController.unsuspendUser);
+router.put("/verify/:id", userController.verifyUser);
+router.put("/archive/:id", userController.archiveUser);
+router.put("/restore/:id", userController.restoreUser);
+router.put("/admin-edit/:id", upload.single("profile"), userController.adminEditUser);
+router.post("/add-user", upload.single("profile"), userController.addUser);
+router.get("/archived/all", userController.getArchivedUsers);
+router.delete("/archived/:id", userController.deleteArchivedUser);
+router.get("/all/users", userController.getAllUsers);
+router.get("/search/users", userController.searchUsers);
+router.get("/unread/counts", userController.getUnreadCounts);
+router.get("/check/participant", userController.checkParticipant);
+
+// ✅ NEW: Fetch users by role (Staff, Student, etc.)
+router.get("/", userController.getUsersByRole);
+
+// ✅ Profile routes after special routes
+router.put("/:id/update-profile", userController.updateProfile);
 router.post("/upload-picture/:id", upload.single("profile"), userController.uploadPicture);
 router.delete("/remove-picture/:id", userController.removePicture);
-
-// -----------------------------
-// Get Users & Participant Check
-// -----------------------------
-router.get("/check-participant", userController.checkParticipant);  // ✅ Fixed: placed before dynamic routes
-router.get("/", userController.getAllUsers);
-
-// -----------------------------
-// Archived Users
-// -----------------------------
-router.get("/archived", userController.getArchivedUsers);
-router.put("/archived/restore/:id", userController.restoreUser);
-router.delete("/archived/:id", userController.deleteArchivedUser);
-router.put("/archive/:id", userController.archiveUser);
-
-// -----------------------------
-// Update & Admin Edit
-// -----------------------------
-router.put("/:id/update-profile", upload.single("profile"), userController.updateProfile);
 router.put("/change-password/:id", userController.changePassword);
-router.patch("/verify/:id", userController.verifyUser);
-router.put("/edit/:id", upload.single("profile"), userController.adminEditUser);
 
-// -----------------------------
-// Dynamic routes (must come last)
-// -----------------------------
-router.get("/:id/unread-counts", userController.getUnreadCounts);
+// ✅ Generic route LAST (avoid route conflicts)
 router.get("/:id", userController.getUserById);
 
 module.exports = router;

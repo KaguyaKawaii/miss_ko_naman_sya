@@ -35,18 +35,25 @@ const notificationSchema = new mongoose.Schema(
         "Ongoing",
         "Expired",
         "Info",
-        "New", // ✅ "New" is enough to indicate a fresh notification
+        "New", // indicates a fresh notification
       ],
       default: "New",
     },
     type: {
       type: String,
-      enum: ["reservation", "report", "system", "alert", "user"],
+      enum: [
+        "reservation",      // general reservation notifications
+        "report",           // general report notifications
+        "report-assignment",// ✅ NEW: specifically for staff assignment to a report
+        "system",           // general system messages
+        "alert",            // urgent notifications
+        "user",             // user-related events
+      ],
       default: "system",
     },
     isRead: {
       type: Boolean,
-      default: false, // ✅ this is what we use to track unread/read
+      default: false, // used to track unread/read
       index: true,
     },
     dismissed: {

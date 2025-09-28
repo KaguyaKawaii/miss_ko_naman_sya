@@ -1,5 +1,21 @@
+const mongoose = require("mongoose");
 const userService = require("../services/userService");
 const User = require("../models/User");  // ✅ ADD THIS
+
+// 📌 Fetch users by role (used in AdminReports for staff assignment)
+exports.getUsersByRole = async (req, res) => {
+  try {
+    const query = {};
+    if (req.query.role) {
+      query.role = req.query.role;
+    }
+    const users = await User.find(query).select("-password");
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error("Get Users By Role Error:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
+  }
+};
 
 // 📌 Add User (Admin)
 exports.addUser = async (req, res) => {
@@ -31,10 +47,10 @@ exports.login = async (req, res) => {
   }
 };
 
-// 📌 Update Profile (Self)
+// 📌 Update Profile (Self) - FIXED ENDPOINT
 exports.updateProfile = async (req, res) => {
   try {
-    const updatedUser = await userService.updateProfile(req.params.id, req.body, req.file);
+    const updatedUser = await userService.updateProfile(req.params.id, req.body);
     res.json({ success: true, message: "Profile updated successfully.", user: updatedUser });
   } catch (err) {
     console.error("Update Profile Error:", err);
@@ -149,32 +165,92 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// 📌 Get User By ID
-exports.getUserById = async (req, res) => {
+exports.toggleSuspendUser = async (req, res) => {
   try {
-    const user = await userService.getUserById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found." });
-    res.json({ success: true, user });
-  } catch (err) {
-    console.error("Get User By ID Error:", err);
-    res.status(500).json({ success: false, message: err.message || "Failed to fetch user." });
+    const suspend = req.body.suspend === true || req.body.suspend === "true";
+    const io = req.io || null;
+    const user = await userService.toggleSuspend(req.params.id, suspend, io);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: `User ${user.suspended ? "suspended" : "unsuspended"} successfully`, user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
-// 📌 Verify User (toggle true/false)
+// Suspend User
+exports.suspendUser = async (req, res) => {
+  try {
+    const user = await userService.suspendUser(req.params.id, req.io);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User suspended successfully", user });
+  } catch (error) {
+    res.status(500).json({ message: "Error suspending user", error });
+  }
+};
+
+// Unsuspend User
+exports.unsuspendUser = async (req, res) => {
+  try {
+    const user = await userService.unsuspendUser(req.params.id, req.io);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User unsuspended successfully", user });
+  } catch (error) {
+    res.status(500).json({ message: "Error unsuspending user", error });
+  }
+};
+
+// 📌 Get User By ID
+exports.getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID format" });
+    }
+    const user = await User.findById(id).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("Error fetching user by ID:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch user" });
+  }
+};
+
+// 📌 Search Users
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      return res.status(400).json({ success: false, message: "Search query required" });
+    }
+    const users = await User.find({
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { department: { $regex: q, $options: 'i' } },
+        { id_number: { $regex: q, $options: 'i' } }
+      ],
+      archived: { $ne: true }
+    }).select('name email department role id_number');
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error("Search users error:", err);
+    res.status(500).json({ success: false, message: "Search failed" });
+  }
+};
+
+// 📌 Verify User
 exports.verifyUser = async (req, res) => {
   try {
-    const { verified } = req.body; // frontend sends { verified: true/false }
-
+    const { verified } = req.body;
     if (verified === undefined) {
       return res.status(400).json({ success: false, message: "Verified status is required." });
     }
-
     const updatedUser = await userService.verifyUser(req.params.id, verified);
     if (!updatedUser) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
-
     res.json({
       success: true,
       message: `User ${verified ? "verified" : "unverified"}.`,
@@ -185,8 +261,6 @@ exports.verifyUser = async (req, res) => {
     res.status(400).json({ success: false, message: err.message || "Failed to update verification status." });
   }
 };
-
-
 
 // 📌 Get Unread Counts
 exports.getUnreadCounts = async (req, res) => {
@@ -203,17 +277,15 @@ exports.checkParticipant = async (req, res) => {
   try {
     const { idNumber } = req.query;
     if (!idNumber) return res.status(400).json({ exists: false, message: "Missing ID number" });
-
     const user = await User.findOne({ id_number: idNumber });
     if (!user) return res.json({ exists: false });
-
     res.json({
       exists: true,
       verified: user.verified,
       name: user.name,
       department: user.department,
       course: user.course,
-      year_level: user.year_level,  // ✅ FIXED: use correct schema field
+      year_level: user.year_level,
       role: user.role
     });
   } catch (err) {

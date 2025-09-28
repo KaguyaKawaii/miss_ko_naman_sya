@@ -41,6 +41,7 @@ function ReserveRoom({ user, setView }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [rooms, setRooms] = useState([]);
+  const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
 
   // Calendar generation functions
   const months = [
@@ -250,6 +251,13 @@ function ReserveRoom({ user, setView }) {
       return false;
     }
 
+    // Check if selected room is disabled
+    const selectedRoom = rooms.find(room => room._id === formData.room_Id);
+    if (selectedRoom && !selectedRoom.isActive) {
+      alert("This room is currently unavailable. Please select another room.");
+      return false;
+    }
+
     // Check if selected date/time is in the past
     const now = new Date();
     const selectedDate = new Date(`${formData.date}T${formData.time}`);
@@ -382,6 +390,49 @@ const submitReservation = async () => {
   const formatDisplayTime = (timeValue) => {
     const slot = timeSlots.find(t => t.value === timeValue);
     return slot ? slot.display : "Select Time";
+  };
+
+  const handleRoomSelect = (room) => {
+    if (!room.isActive) {
+      alert("This room is currently unavailable. Please select another room.");
+      return;
+    }
+    
+    setFormData((prev) => ({
+      ...prev,
+      roomName: room.room,
+      room_Id: room._id,
+    }));
+    setSelectedRoomDetails(room);
+  };
+
+  const getRoomImage = (room) => {
+    // if (room.room === "Faculty Room") return FacultyRoomImg;
+    // if (room.room === "Collaboration Room") return Collab;
+    // if (room.floor === "5th Floor") return FifthFloorImg;
+    return GroundFloorImg;
+  };
+
+const RoomFeatureIcon = ({ feature, enabled }) => {
+  const icons = {
+    wifi: ".",
+    aircon: ".",
+    projector: ".",
+    monitor: "."
+  };
+
+    return (
+      <span 
+        className={`text-xs px-2 py-1 rounded-full ${
+          enabled 
+            ? "bg-blue-100 text-blue-700 border border-blue-200" 
+            : "bg-gray-100 text-gray-400 border border-gray-200"
+        }`}
+        title={feature}
+      >
+        {icons[feature] || feature} {feature}
+      </span>
+    );
   };
 
   return (
@@ -762,21 +813,18 @@ const submitReservation = async () => {
                   }
                 })
                 .map((room) => {
-                  let roomImage = null;
+                  const roomImage = getRoomImage(room);
+                  const isDisabled = !room.isActive;
 
                   return (
                     <div
                       key={room._id}
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          roomName: room.room,
-                          room_Id: room._id,
-                        }))
-                      }
+                      onClick={() => handleRoomSelect(room)}
                       className={`border-2 rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden transition-all duration-200 ${
                         formData.room_Id === room._id
                           ? "border-[#CC0000] ring-2 ring-red-100 bg-red-50"
+                          : isDisabled
+                          ? "border-gray-300 bg-gray-100 cursor-not-allowed opacity-60"
                           : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
@@ -788,13 +836,135 @@ const submitReservation = async () => {
                           loading="lazy"
                         />
                       )}
-                      <div className="absolute inset-0 bg-black/30 z-0"></div>
-                      <p className="text-white text-xl font-semibold drop-shadow-md z-10">
-                        {room.room}
-                      </p>
+                      <div className={`absolute inset-0 z-0 ${
+                        isDisabled ? "bg-gray-800/60" : "bg-black/30"
+                      }`}></div>
+                      
+                      {/* Room Status Badge */}
+                      {isDisabled && (
+                        <div className="absolute top-3 right-3 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold z-10">
+                          Unavailable
+                        </div>
+                      )}
+                      
+                      <div className="relative z-10 text-center text-white p-4">
+                        <p className="text-xl font-semibold drop-shadow-md mb-2">
+                          {room.room}
+                        </p>
+                        
+                        {/* Room Features */}
+                        {room.features && Object.values(room.features).some(val => val) && (
+                          <div className="flex flex-wrap justify-center gap-1 mb-2">
+                            {Object.entries(room.features).map(([feature, enabled]) => 
+                              enabled && (
+                                <RoomFeatureIcon key={feature} feature={feature} enabled={enabled} />
+                              )
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Capacity */}
+                        <div className="flex items-center justify-center text-sm mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          Capacity: {room.capacity}
+                        </div>
+                        
+                        {/* Room Type */}
+                        <div className="text-sm opacity-90">
+                          {room.type}
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
+            </div>
+          </div>
+        )}
+
+        {/* Selected Room Details */}
+        {selectedRoomDetails && (
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Selected Room Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">{selectedRoomDetails.room}</h3>
+                    <p className="text-gray-600">{selectedRoomDetails.floor} • {selectedRoomDetails.type}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedRoomDetails.isActive 
+                      ? "bg-green-100 text-green-800 border border-green-200" 
+                      : "bg-red-100 text-red-800 border border-red-200"
+                  }`}>
+                    {selectedRoomDetails.isActive ? "Available" : "Unavailable"}
+                  </span>
+                </div>
+
+                {/* Room Features */}
+                {selectedRoomDetails.features && Object.values(selectedRoomDetails.features).some(val => val) && (
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-gray-700 mb-2">Room Features:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(selectedRoomDetails.features).map(([feature, enabled]) => (
+                        <div
+                          key={feature}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                            enabled 
+                              ? "bg-blue-50 border-blue-200 text-blue-700" 
+                              : "bg-gray-50 border-gray-200 text-gray-400"
+                          }`}
+                        >
+                          <RoomFeatureIcon feature={feature} enabled={enabled} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Room Notes */}
+                {selectedRoomDetails.notes && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-yellow-800 mb-2 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Important Notes:
+                    </h4>
+                    <p className="text-yellow-700 text-sm">{selectedRoomDetails.notes}</p>
+                  </div>
+                )}
+
+                
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-700 mb-3">Room Specifications</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Capacity:</span>
+                    <span className="font-medium">{selectedRoomDetails.capacity} people</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Floor:</span>
+                    <span className="font-medium">{selectedRoomDetails.floor}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Type:</span>
+                    <span className="font-medium">{selectedRoomDetails.type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`font-medium ${
+                      selectedRoomDetails.isActive ? "text-green-600" : "text-red-600"
+                    }`}>
+                      {selectedRoomDetails.isActive ? "Available" : "Unavailable"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -955,9 +1125,11 @@ const submitReservation = async () => {
           <button
             onClick={submitReservation}
             type="button"
-            disabled={loading}
-            className={`bg-[#CC0000] text-white px-8 py-3 rounded-lg transition cursor-pointer flex items-center ${
-              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700 hover:shadow-md"
+            disabled={loading || (selectedRoomDetails && !selectedRoomDetails.isActive)}
+            className={`px-8 py-3 rounded-lg transition cursor-pointer flex items-center ${
+              loading || (selectedRoomDetails && !selectedRoomDetails.isActive)
+                ? "bg-gray-400 text-gray-200 cursor-not-allowed" 
+                : "bg-[#CC0000] text-white hover:bg-red-700 hover:shadow-md"
             }`}
           >
             {loading ? (
@@ -985,7 +1157,7 @@ const submitReservation = async () => {
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             )}
-            Submit Reservation
+            {selectedRoomDetails && !selectedRoomDetails.isActive ? "Room Unavailable" : "Submit Reservation"}
           </button>
         </div>
       </div>

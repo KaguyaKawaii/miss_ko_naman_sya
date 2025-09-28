@@ -16,9 +16,10 @@ exports.getAllNotifications = async (req, res) => {
 };
 
 // 📌 Create a new notification
+// 📌 Create a new notification
 exports.createNotification = async (req, res) => {
   try {
-    const { userId, message, status, reservationId, type } = req.body;
+    const { userId, message, status, reservationId, type, reportId } = req.body;
 
     const notificationsToSave = [];
 
@@ -37,7 +38,7 @@ exports.createNotification = async (req, res) => {
       );
     }
 
-    // ✅ If it's a reservation, notify staff (from Users) and admins (from Admins)
+    // ✅ Handle reservation notifications (existing)
     if (type === "reservation") {
       const staff = await User.find({ role: "staff" });
       const admins = await Admin.find();
@@ -71,6 +72,25 @@ exports.createNotification = async (req, res) => {
       });
     }
 
+    // ✅ Handle report notifications (NEW)
+    if (type === "report") {
+      const staff = await User.find({ role: "staff" });
+
+      staff.forEach((u) => {
+        notificationsToSave.push(
+          new Notification({
+            userId: u._id,
+            message: `🛠️ New report submitted: ${message}`,
+            status: "New",
+            type: "report",
+            reportId: reportId || null,
+            isRead: false,
+            dismissed: false,
+          })
+        );
+      });
+    }
+
     // ✅ Save all notifications
     const saved = await Notification.insertMany(notificationsToSave);
 
@@ -83,7 +103,14 @@ exports.createNotification = async (req, res) => {
         }
       });
 
-      // Broadcast to admin room if type is reservation
+      // Broadcast to staff room if type is report
+      if (type === "report") {
+        saved.forEach((notif) => {
+          io.to("staff").emit("notification", notif);
+        });
+      }
+
+      // Keep your reservation broadcast for admins & staff
       if (type === "reservation") {
         saved.forEach((notif) => {
           io.to("admin").emit("notification", notif);
@@ -98,6 +125,7 @@ exports.createNotification = async (req, res) => {
     res.status(500).json({ message: "Failed to create notification." });
   }
 };
+
 
 // 📌 Get only report notifications
 exports.getReportNotifications = async (req, res) => {

@@ -2,18 +2,32 @@ const express = require("express");
 const router = express.Router();
 const messageController = require("../controllers/messageController");
 
-// Recipients list
-router.get("/recipients/:userId", messageController.getRecipients);
+// Generic message sending route
+router.post("/send", messageController.sendMessage);
 
-// Conversation
-router.get("/conversation/:userId/:recipientId", messageController.getConversation);
+// User routes
+router.post("/send-to-floor", messageController.sendMessageToFloor);
+router.post("/send-to-admin", messageController.sendMessageToAdmin);
 
-// Send message
-router.post("/", messageController.sendMessage);
+// Staff routes
+router.post("/staff-reply", messageController.staffReplyToUser);
+router.post("/staff-to-admin", messageController.staffMessageToAdmin);
 
-// Archive / Restore / Get archived
-router.put("/archive/:id", messageController.archiveMessage);
-router.put("/restore/:id", messageController.restoreMessage);
-router.get("/archived", messageController.getArchivedMessages);
+// Admin routes
+router.post("/admin-to-user", messageController.adminMessageToUser);
+router.post("/admin-to-staff", messageController.adminMessageToStaff);
+router.post("/admin-to-floor", messageController.adminMessageToFloor);
+
+// Conversation fetching routes
+router.get("/floor-conversation/:userId/:floor", messageController.getFloorConversation);
+router.get("/user-admin-conversation/:userId", messageController.getUserAdminConversation);
+router.get("/staff-user-conversation/:staffId/:userId", messageController.getStaffUserConversation);
+router.get("/staff-admin-conversation/:staffId", messageController.getStaffAdminConversation);
+router.get("/admin-conversation/:entityId", messageController.getAdminConversation);
+
+// Recipient list routes
+router.get("/floor-users/:floor", messageController.getFloorUsers);
+router.get("/recipients/admin", messageController.getAdminRecipients);
+router.get("/recipients/staff/:staffId", messageController.getStaffRecipients);
 
 module.exports = router;
