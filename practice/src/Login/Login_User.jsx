@@ -61,7 +61,6 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
     const data = await res.json();
 
     if (!res.ok) {
-      // ✅ Handle suspended accounts with a more friendly message
       if (res.status === 403 || data.message?.toLowerCase().includes("suspended")) {
         throw new Error("Your account has been suspended. Please contact the administrator.");
       }
