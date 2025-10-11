@@ -33,6 +33,7 @@ function SignUp_User({ onSwitchToLogin }) {
   const courseOptions = {
     SHS: ["STEM", "ABM", "HUMSS"],
     CLASE: [
+      // Undergraduate Programs
       "Bachelor of Arts in Communication",
       "Bachelor of Arts in Philosophy",
       "Bachelor of Arts in Political Science",
@@ -54,6 +55,21 @@ function SignUp_User({ onSwitchToLogin }) {
       "Bachelor of Science in Secondary Education (Social Studies)",
       "Bachelor of Culture And Arts Education",
       "Bachelor of Special Need Education (Early Childhood Education)",
+      // Graduate Programs - Master's
+      "Master of Arts in Guidance and Counseling (MAGC)",
+      "Master of Arts in Religious Studies (MARS)",
+      "Master of Arts in Education - English",
+      "Master of Arts in Education - Filipino",
+      "Master of Arts in Education - Mathematics",
+      "Master of Arts in Education - Natural Science",
+      "Master of Arts in Education - Physics",
+      "Master of Arts in Education - Religious Education",
+      "Master of Arts in Education - Social Science",
+      "Master of Arts in Education - Special Education",
+      // Graduate Programs - PhD
+      "Doctor of Philosophy in Education - Educational Management",
+      "Doctor of Philosophy in Education - Psychology and Guidance",
+      "Doctor of Philosophy in Education - Curriculum Development",
     ],
     CNND: [
       "Bachelor of Science in Nursing",
@@ -81,7 +97,22 @@ function SignUp_User({ onSwitchToLogin }) {
       "Bachelor of Science in Business Administration (Marketing Management)",
       "Bachelor of Science in Hospitality Management",
       "Bachelor of Science in Tourism Management (Certificate of Culinary Arts)",
+      // Graduate Programs
+      "Master of Business Administration (MBA) - General",
+      "Master of Business Administration (MBA) - Marketing Management",
+      "Master of Business Administration (MBA) - Financial Management",
+      "Master of Business Administration (MBA) - Human Resource Management",
+      "Master in Public Administration (MPA)",
     ],
+    COL: [
+      "Juris Doctor"
+    ],
+  };
+
+  // Check if a course is a graduate program
+  const isGraduateProgram = (course) => {
+    const graduateKeywords = ["Master", "Doctor", "MBA", "MPA", "MAGC", "MARS", "MAED"];
+    return graduateKeywords.some(keyword => course.includes(keyword));
   };
 
   useEffect(() => {
@@ -129,6 +160,15 @@ const handleChange = (e) => {
     return;
   }
 
+  if (name === "course") {
+    setFormData((p) => ({
+      ...p,
+      course: value,
+      year_level: "", // Reset year level when course changes
+    }));
+    return;
+  }
+
   setFormData((p) => ({
     ...p,
     [name]: name === "email" ? value.toLowerCase() : value,
@@ -148,8 +188,12 @@ const handleSubmit = async (e) => {
     return setMessage("Passwords do not match");
   if (!formData.role) return setMessage("Please select an account role");
   if (!formData.department) return setMessage("Please select a department");
-  if (formData.role === "Student" && (!formData.course || !formData.year_level))
-    return setMessage("Program and Year Level are required for students");
+  
+  // For students, check if course and year level are required
+  if (formData.role === "Student") {
+    if (!formData.course) return setMessage("Program is required for students");
+    if (!formData.year_level) return setMessage("Year Level is required for students");
+  }
 
   try {
     setLoading(true);
@@ -399,31 +443,55 @@ const handleSubmit = async (e) => {
                       </select>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-gray-700">Year Level</label>
-                      <select
-                        name="year_level"
-                        value={formData.year_level}
-                        onChange={handleChange}
-                        className="border border-gray-300 p-3 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        required
-                      >
-                        <option value="">Select Year Level</option>
-                        {formData.department === "SHS" ? (
-                          <>
-                            <option value="Grade 11">Grade 11</option>
-                            <option value="Grade 12">Grade 12</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="1st Year">1st Year</option>
-                            <option value="2nd Year">2nd Year</option>
-                            <option value="3rd Year">3rd Year</option>
-                            <option value="4th Year">4th Year</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    {/* Year Level - Show for all departments including COL */}
+                    {formData.course && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-gray-700">Year Level</label>
+                        <select
+                          name="year_level"
+                          value={formData.year_level}
+                          onChange={handleChange}
+                          className="border border-gray-300 p-3 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                          required
+                        >
+                          <option value="">Select Year Level</option>
+                          {formData.department === "SHS" ? (
+                            <>
+                              <option value="Grade 11">Grade 11</option>
+                              <option value="Grade 12">Grade 12</option>
+                            </>
+                          ) : formData.department === "COL" ? (
+                            // COL year levels - 1st to 4th Year
+                            <>
+                              <option value="1st Year">1st Year</option>
+                              <option value="2nd Year">2nd Year</option>
+                              <option value="3rd Year">3rd Year</option>
+                              <option value="4th Year">4th Year</option>
+                            </>
+                          ) : isGraduateProgram(formData.course) ? (
+                            // Graduate program year levels
+                            <>
+                              <option value="1st Year">1st Year</option>
+                              <option value="2nd Year">2nd Year</option>
+                              {formData.course.includes("Doctor") && (
+                                <>
+                                  <option value="3rd Year">3rd Year</option>
+                                  <option value="4th Year">4th Year</option>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            // Undergraduate program year levels
+                            <>
+                              <option value="1st Year">1st Year</option>
+                              <option value="2nd Year">2nd Year</option>
+                              <option value="3rd Year">3rd Year</option>
+                              <option value="4th Year">4th Year</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                    )}
                   </>
                 )}
 

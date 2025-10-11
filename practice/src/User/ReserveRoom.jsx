@@ -19,12 +19,13 @@ function ReserveRoom({ user, setView }) {
     location: "",
     roomName: "",
     room_Id: "",
+    idNumber: "",
     participants: Array.from({ length: 4 }, () => ({
       name: "",
       course: "",
       year_level: "",
       department: "",
-      idNumber: "",
+      id_number: "",
       role: "",
     })),
   });
@@ -42,6 +43,7 @@ function ReserveRoom({ user, setView }) {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [rooms, setRooms] = useState([]);
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // Calendar generation functions
   const months = [
@@ -84,6 +86,15 @@ function ReserveRoom({ user, setView }) {
   }, {});
 
   useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     const fetchRooms = async () => {
       try {
         const res = await axios.get("http://localhost:5000/rooms");
@@ -123,7 +134,7 @@ function ReserveRoom({ user, setView }) {
         course: user.course || "",
         year_level: user.year_level || "",
         department: user.department || "",
-        idNumber: user.id_number || "",
+        id_number: user.id_number || "",
         role: user.role || "",
       };
 
@@ -168,16 +179,17 @@ function ReserveRoom({ user, setView }) {
     const updated = [...formData.participants];
     updated[idx][field] = val;
 
-    if (field === "idNumber" && val.trim()) {
+    if (field === "id_number" && val.trim()) {
       const isDuplicate = formData.participants.some(
-        (p, i) => i !== idx && p.idNumber === val
+        (p, i) => i !== idx && p.id_number === val
       );
 
       const v = [...validation];
-      
+
       if (isDuplicate) {
         v[idx] = { status: "invalid", message: "Duplicate ID Number", loading: false };
         setValidation(v);
+        updated[idx].id_number = val;
         setFormData({ ...formData, participants: updated });
         return;
       }
@@ -185,33 +197,27 @@ function ReserveRoom({ user, setView }) {
       // Set loading state
       v[idx] = { ...v[idx], loading: true };
       setValidation(v);
-      
+
       try {
         const res = await axios.get(
-           `http://localhost:5000/api/users/check-participant?idNumber=${val}`
+          `http://localhost:5000/api/users/check-participant?id_number=${val}`
         );
 
         if (!res.data.exists) {
           v[idx] = { status: "invalid", message: "Not registered", loading: false };
-          updated[idx] = { name: "", course: "", year_level: "", department: "", idNumber: val, role: "" };
+          updated[idx] = { ...updated[idx], name: "", course: "", year_level: "", department: "", id_number: val, role: "" };
         } else if (!res.data.verified) {
           v[idx] = { status: "invalid", message: "Not verified", loading: false };
-          updated[idx] = { name: "", course: "", year_level: "", department: "", idNumber: val, role: "" };
+          updated[idx] = { ...updated[idx], name: "", course: "", year_level: "", department: "", id_number: val, role: "" };
         } else {
-          updated[idx] = res.data.role === "Faculty" || res.data.role === "Staff" ? {
+          updated[idx] = {
+            ...updated[idx],
             name: res.data.name,
-            department: res.data.department,
-            idNumber: val,
-            course: "",
-            year_level: "",
-            role: res.data.role,
-          } : {
-            name: res.data.name,
-            course: res.data.course,
-            year_level: res.data.year_level, // ✅ FIXED HERE
-            department: res.data.department,
-            idNumber: val,
-            role: res.data.role,
+            course: res.data.course || "",
+            year_level: res.data.year_level || "",
+            department: res.data.department || "",
+            id_number: val,
+            role: res.data.role || "",
           };
           v[idx] = { status: "valid", message: "Verified ✓", loading: false };
         }
@@ -224,6 +230,7 @@ function ReserveRoom({ user, setView }) {
         setValidation(v);
       }
     } else {
+      updated[idx][field] = val;
       setFormData({ ...formData, participants: updated });
     }
   };
@@ -234,7 +241,7 @@ function ReserveRoom({ user, setView }) {
     const v = [...validation];
     
     while (updated.length < n) {
-      updated.push({ name: "", course: "", year_level: "", department: "", idNumber: "", role: "" });
+      updated.push({ name: "", course: "", year_level: "", department: "", id_number: "", role: "" });
       v.push({ status: null, message: "", loading: false });
     }
 
@@ -268,7 +275,7 @@ function ReserveRoom({ user, setView }) {
 
     for (let i = 0; i < formData.participants.length; i++) {
       const p = formData.participants[i];
-      if (!p.name || !p.department || !p.idNumber) {
+      if (!p.name || !p.department || !p.id_number) {
         alert(`Please complete all fields for participant ${i + 1}.`);
         return false;
       }
@@ -286,47 +293,44 @@ function ReserveRoom({ user, setView }) {
     return true;
   };
 
-const submitReservation = async () => {
-  if (!user.verified) {
-    setShowNotVerifiedWarning(true); // Show modal again
-    alert("You cannot reserve a room until your account is verified.");
-    return; // Stop further execution
-  }
-
-  if (!validateForm()) return;
-
-  // ⛔️ Add this to check weekly/day limits before setting loading
-  try {
-    const check = await axios.get(`http://localhost:5000/reservations/check-limit/${user._id}`, {
-  params: {
-    date: formData.date,
-    time: formData.time,
-    asMain: true // ✅ this is the fix
-  }
-});
-
-    if (check.data.blocked) {
-      alert(check.data.reason || "You have reached your reservation limit for this week.");
+  const submitReservation = async () => {
+    if (!user.verified) {
+      setShowNotVerifiedWarning(true);
+      alert("You cannot reserve a room until your account is verified.");
       return;
     }
-  } catch (err) {
-  console.error("Limit check failed", err);
-  const message = err.response?.data?.message || "Failed to verify reservation limit.";
-  alert(message);
-  return;
-}
 
-  setLoading(true);
+    if (!validateForm()) return;
 
     try {
-      // Create moment objects in Manila timezone
+      const check = await axios.get(`http://localhost:5000/reservations/check-limit/${user._id}`, {
+        params: {
+          date: formData.date,
+          time: formData.time,
+          asMain: true
+        }
+      });
+
+      if (check.data.blocked) {
+        alert(check.data.reason || "You have reached your reservation limit for this week.");
+        return;
+      }
+    } catch (err) {
+      console.error("Limit check failed", err);
+      const message = err.response?.data?.message || "Failed to verify reservation limit.";
+      alert(message);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
       const manilaTime = moment.tz(
         `${formData.date}T${formData.time}`,
         "YYYY-MM-DDTHH:mm",
         "Asia/Manila"
       );
 
-      // Calculate end time (1 hour later)
       const endManilaTime = manilaTime.clone().add(1, 'hour');
 
       const reservationData = {
@@ -334,8 +338,8 @@ const submitReservation = async () => {
         room_Id: formData.room_Id,
         roomName: formData.roomName,
         location: formData.location,
-        datetime: manilaTime.format(), // ISO string in Manila time
-        datetimeUTC: manilaTime.utc().format(), // UTC version
+        datetime: manilaTime.format(),
+        datetimeUTC: manilaTime.utc().format(),
         date: formData.date,
         time: formData.time,
         endDatetime: endManilaTime.format(),
@@ -344,7 +348,7 @@ const submitReservation = async () => {
         purpose: formData.purpose,
         participants: formData.participants,
         timezone: "Asia/Manila",
-        status: "Pending" // Initial status
+        status: "Pending"
       };
 
       await axios.post("http://localhost:5000/reservations", reservationData);
@@ -364,7 +368,6 @@ const submitReservation = async () => {
 
   const roomLocations = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
   
-  // Updated times with AM/PM format
   const timeSlots = [
     { value: "07:00", display: "7:00 AM" },
     { value: "07:30", display: "7:30 AM" },
@@ -407,19 +410,16 @@ const submitReservation = async () => {
   };
 
   const getRoomImage = (room) => {
-    // if (room.room === "Faculty Room") return FacultyRoomImg;
-    // if (room.room === "Collaboration Room") return Collab;
-    // if (room.floor === "5th Floor") return FifthFloorImg;
     return GroundFloorImg;
   };
 
-const RoomFeatureIcon = ({ feature, enabled }) => {
-  const icons = {
-    wifi: ".",
-    aircon: ".",
-    projector: ".",
-    monitor: "."
-  };
+  const RoomFeatureIcon = ({ feature, enabled }) => {
+    const icons = {
+      wifi: "📶",
+      aircon: "❄️",
+      projector: "📽️",
+      monitor: "🖥️"
+    };
 
     return (
       <span 
@@ -435,8 +435,143 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
     );
   };
 
+  // Mobile Participant Card Component
+  const MobileParticipantCard = ({ participant, index, validation }) => (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4">
+      <div className="flex justify-between items-start mb-3">
+        <h3 className="font-semibold text-gray-800">Participant {index + 1}</h3>
+        {index === 0 && (
+          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+            Main Reserver
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {/* ID Number */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">ID Number</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="ID Number"
+              className={`w-full p-2 rounded-lg outline-none border shadow-sm transition-colors text-sm
+                ${
+                  validation?.status === "valid"
+                    ? "border-green-500 bg-green-50"
+                    : validation?.status === "invalid"
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 focus:border-[#CC0000]"
+                }`}
+              value={participant.id_number}
+              disabled={index === 0}
+              onChange={(e) =>
+                handleParticipantChange(index, "id_number", e.target.value)
+              }
+            />
+            {validation?.loading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <svg className="animate-spin h-4 w-4 text-gray-500" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"></path>
+                </svg>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Name */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+          <input
+            type="text"
+            placeholder="Full Name"
+            className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-sm"
+            value={participant.name}
+            disabled={index === 0 || validation.status === "valid"}
+            onChange={(e) =>
+              handleParticipantChange(index, "name", e.target.value)
+            }
+          />
+        </div>
+
+        {/* Course and Year Level - Conditionally Rendered */}
+        {(!participant.role || (participant.role !== "Faculty" && participant.role !== "Staff")) && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Course</label>
+                <input
+                  type="text"
+                  placeholder="Course"
+                  className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-sm"
+                  value={participant.course}
+                  disabled={index === 0 || validation.status === "valid"}
+                  onChange={(e) =>
+                    handleParticipantChange(index, "course", e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Year Level</label>
+                <input
+                  type="text"
+                  placeholder="Year Level"
+                  className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-sm"
+                  value={participant.year_level}
+                  disabled={index === 0 || validation.status === "valid"}
+                  onChange={(e) =>
+                    handleParticipantChange(index, "year_level", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Department */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+          <input
+            type="text"
+            placeholder="Department"
+            className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-sm"
+            value={participant.department}
+            disabled={index === 0 || validation.status === "valid"}
+            onChange={(e) =>
+              handleParticipantChange(index, "department", e.target.value)
+            }
+          />
+        </div>
+
+        {/* Status */}
+        <div className="pt-2 border-t border-gray-100">
+          {validation?.status === "valid" && (
+            <span className="text-green-600 text-sm font-medium flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Verified
+            </span>
+          )}
+          {validation?.status === "invalid" && (
+            <span className="text-red-600 text-sm font-medium flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {validation?.message}
+            </span>
+          )}
+          {!validation?.status && participant.id_number && (
+            <span className="text-gray-500 text-sm">Enter ID to verify</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <main className="ml-[250px] w-[calc(100%-250px)] flex flex-col  bg-gray-50">
+    <main className="w-full md:ml-[250px] md:w-[calc(100%-250px)] flex flex-col bg-gray-50 min-h-screen">
       {loading && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50">
           <svg
@@ -462,28 +597,29 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
         </div>
       )}
 
-      <header className="text-black px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
-        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Room Reservation Request</h1>
+      <header className="text-black px-4 sm:px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-wide">Room Reservation Request</h1>
         <button 
           onClick={() => setView("dashboard")}
-          className="text-sm text-gray-500 hover:text-gray-700 flex items-center cursor-pointer"
+          className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 flex items-center cursor-pointer"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          Back to Dashboard
+          <span className="hidden sm:inline">Back to Dashboard</span>
+          <span className="sm:hidden">Back</span>
         </button>
       </header>
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Form Controls */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Reservation Details</h2>
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-100">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-100">Reservation Details</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {/* Date Selector */}
             <div className="space-y-1">
-              <p className="font-medium text-gray-700 flex items-center">
+              <p className="font-medium text-gray-700 flex items-center text-sm sm:text-base">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -491,7 +627,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
               </p>
               <div
                 onClick={() => setShowDateModal(true)}
-                className="w-full p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                className="w-full p-2 sm:p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors text-sm sm:text-base"
               >
                 {formData.date ? (
                   new Date(formData.date).toLocaleDateString('en-US', {
@@ -507,7 +643,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
             {/* Time Selector */}
             <div className="space-y-1">
-              <p className="font-medium text-gray-700 flex items-center">
+              <p className="font-medium text-gray-700 flex items-center text-sm sm:text-base">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -515,7 +651,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
               </p>
               <div
                 onClick={() => setShowTimeModal(true)}
-                className="w-full p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                className="w-full p-2 sm:p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors text-sm sm:text-base"
               >
                 {formData.time ? formatDisplayTime(formData.time) : <span className="text-gray-400">Select Time</span>}
               </div>
@@ -523,7 +659,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
             {/* Number of Users Selector */}
             <div className="space-y-1">
-              <p className="font-medium text-gray-700 flex items-center">
+              <p className="font-medium text-gray-700 flex items-center text-sm sm:text-base">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -531,7 +667,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
               </p>
               <div
                 onClick={() => setShowUsersModal(true)}
-                className="w-full p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                className="w-full p-2 sm:p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors text-sm sm:text-base"
               >
                 {formData.numUsers ? `${formData.numUsers} Users` : <span className="text-gray-400">Select Users</span>}
               </div>
@@ -539,15 +675,15 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
           </div>
 
           {/* Purpose */}
-          <div className="mt-4">
-            <p className="font-medium text-gray-700 flex items-center">
+          <div className="mt-3 sm:mt-4">
+            <p className="font-medium text-gray-700 flex items-center text-sm sm:text-base">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Purpose
             </p>
             <input
-              className="w-full p-3 mt-1 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000]"
+              className="w-full p-2 sm:p-3 mt-1 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] text-sm sm:text-base"
               type="text"
               value={formData.purpose}
               onChange={(e) =>
@@ -560,8 +696,8 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
         {/* Date Selection Modal */}
         {showDateModal && (
-          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px] shadow-xl">
+          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-[350px] shadow-xl">
               <div className="flex justify-between items-center mb-4">
                 <button 
                   onClick={() => handleMonthChange(-1)}
@@ -569,7 +705,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                 >
                   &lt;
                 </button>
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-lg sm:text-xl font-semibold">
                   {months[currentMonth]} {currentYear}
                 </h2>
                 <button 
@@ -582,7 +718,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
               
               <div className="grid grid-cols-7 gap-1 mb-4">
                 {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                  <div key={day} className="text-center font-medium text-gray-500 text-sm">
+                  <div key={day} className="text-center font-medium text-gray-500 text-xs sm:text-sm">
                     {day}
                   </div>
                 ))}
@@ -599,7 +735,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                             setShowDateModal(false);
                           }
                         }}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors text-sm sm:text-base
                           ${day.disabled ? 'text-gray-300 cursor-not-allowed' : 
                             formData.date === day.date ? 
                               'bg-[#CC0000] text-white' : 
@@ -610,7 +746,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                         {day.day}
                       </button>
                     ) : (
-                      <div className="w-10 h-10"></div>
+                      <div className="w-8 h-8 sm:w-10 sm:h-10"></div>
                     )}
                   </div>
                 ))}
@@ -628,22 +764,22 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
         {/* Time Selection Modal */}
         {showTimeModal && (
-          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px] md:w-[600px] max-h-[90vh] overflow-y-auto shadow-xl">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-[600px] max-h-[90vh] overflow-y-auto shadow-xl">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Select Time
               </h2>
 
-              <div className="flex flex-col md:flex-row gap-6">
+              <div className="flex flex-col md:flex-row gap-4 sm:gap-6">
                 {/* Morning */}
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                  <h3 className="text-xs sm:text-sm font-semibold text-gray-500 mb-2">
                     Morning (7:00 AM – 11:30 AM)
                   </h3>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
                     {timeSlots
                       .filter((slot) => {
                         const [hourStr] = slot.value.split(":");
@@ -657,7 +793,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                             setFormData({ ...formData, time: slot.value });
                             setShowTimeModal(false);
                           }}
-                          className={`p-3 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors ${
+                          className={`p-2 sm:p-3 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors text-sm sm:text-base ${
                             formData.time === slot.value
                               ? "bg-[#CC0000] text-white border-[#CC0000]"
                               : "hover:bg-gray-100"
@@ -671,10 +807,10 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
                 {/* Afternoon */}
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                  <h3 className="text-xs sm:text-sm font-semibold text-gray-500 mb-2">
                     Afternoon (1:00 PM – 5:00 PM)
                   </h3>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
                     {timeSlots
                       .filter((slot) => {
                         const [hourStr] = slot.value.split(":");
@@ -688,7 +824,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                             setFormData({ ...formData, time: slot.value });
                             setShowTimeModal(false);
                           }}
-                          className={`p-3 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors ${
+                          className={`p-2 sm:p-3 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors text-sm sm:text-base ${
                             formData.time === slot.value
                               ? "bg-[#CC0000] text-white border-[#CC0000]"
                               : "hover:bg-gray-100"
@@ -713,15 +849,15 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
         {/* Number of Users Modal */}
         {showUsersModal && (
-          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px] shadow-xl">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="fixed top-0 left-0 w-screen h-screen bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-[350px] shadow-xl">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 Number of Users
               </h2>
-              <div className="grid grid-cols-1 gap-3 mb-4">
+              <div className="grid grid-cols-1 gap-2 sm:gap-3 mb-4">
                 {[4, 5, 6, 7, 8].map((num) => (
                   <button
                     key={num}
@@ -729,7 +865,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                       handleNumUsersChange(num.toString());
                       setShowUsersModal(false);
                     }}
-                    className={`p-4 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors ${
+                    className={`p-3 sm:p-4 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors text-sm sm:text-base ${
                       formData.numUsers === num.toString()
                         ? "bg-[#CC0000] text-white border-[#CC0000]"
                         : "hover:bg-gray-100"
@@ -750,9 +886,9 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
         )}
 
         {/* Room Location */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Room Location</h2>
-          <div className="flex flex-wrap gap-5 justify-center">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-100">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-100">Room Location</h2>
+          <div className="flex flex-wrap gap-3 sm:gap-5 justify-center">
             {roomLocations.map((loc) => {
               let imageSrc = null;
               if (loc === "Ground Floor") imageSrc = GroundFloorImg;
@@ -768,7 +904,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                       room_Id: "",
                     })
                   }
-                  className={`border-2 rounded-2xl w-[200px] h-[200px] flex justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
+                  className={`border-2 rounded-2xl w-full xs:w-[150px] sm:w-[180px] md:w-[200px] h-[120px] sm:h-[150px] md:h-[200px] flex justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
                     formData.location === loc 
                       ? "border-[#CC0000] ring-2 ring-red-100 opacity-100 scale-105" 
                       : "border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300"
@@ -783,7 +919,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                     />
                   )}
                   <div className="absolute inset-0 bg-black/40"></div>
-                  <p className="relative z-10 text-white text-lg font-semibold text-center px-2 drop-shadow-md">
+                  <p className="relative z-10 text-white text-sm sm:text-base md:text-lg font-semibold text-center px-2 drop-shadow-md">
                     {loc}
                   </p>
                 </div>
@@ -794,10 +930,10 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
         {/* Room Selection */}
         {formData.location && (
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Select Room</h2>
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-100">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-100">Select Room</h2>
 
-            <div className="flex flex-wrap gap-5 justify-center">
+            <div className="flex flex-wrap gap-3 sm:gap-5 justify-center">
               {rooms
                 .filter((room) => {
                   const floor = formData.location;
@@ -820,7 +956,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                     <div
                       key={room._id}
                       onClick={() => handleRoomSelect(room)}
-                      className={`border-2 rounded-2xl w-[300px] h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden transition-all duration-200 ${
+                      className={`border-2 rounded-2xl w-full sm:w-[280px] md:w-[300px] h-[250px] sm:h-[280px] md:h-[300px] flex justify-center items-center cursor-pointer relative overflow-hidden transition-all duration-200 ${
                         formData.room_Id === room._id
                           ? "border-[#CC0000] ring-2 ring-red-100 bg-red-50"
                           : isDisabled
@@ -842,13 +978,13 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                       
                       {/* Room Status Badge */}
                       {isDisabled && (
-                        <div className="absolute top-3 right-3 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold z-10">
+                        <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold z-10">
                           Unavailable
                         </div>
                       )}
                       
-                      <div className="relative z-10 text-center text-white p-4">
-                        <p className="text-xl font-semibold drop-shadow-md mb-2">
+                      <div className="relative z-10 text-center text-white p-3 sm:p-4">
+                        <p className="text-lg sm:text-xl font-semibold drop-shadow-md mb-2">
                           {room.room}
                         </p>
                         
@@ -864,15 +1000,15 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                         )}
                         
                         {/* Capacity */}
-                        <div className="flex items-center justify-center text-sm mb-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="flex items-center justify-center text-xs sm:text-sm mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
                           Capacity: {room.capacity}
                         </div>
                         
                         {/* Room Type */}
-                        <div className="text-sm opacity-90">
+                        <div className="text-xs sm:text-sm opacity-90">
                           {room.type}
                         </div>
                       </div>
@@ -885,16 +1021,16 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
         {/* Selected Room Details */}
         {selectedRoomDetails && (
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Selected Room Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-100">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-100">Selected Room Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               <div className="md:col-span-2">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 sm:mb-4 gap-2">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">{selectedRoomDetails.room}</h3>
-                    <p className="text-gray-600">{selectedRoomDetails.floor} • {selectedRoomDetails.type}</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800">{selectedRoomDetails.room}</h3>
+                    <p className="text-gray-600 text-sm sm:text-base">{selectedRoomDetails.floor} • {selectedRoomDetails.type}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium self-start ${
                     selectedRoomDetails.isActive 
                       ? "bg-green-100 text-green-800 border border-green-200" 
                       : "bg-red-100 text-red-800 border border-red-200"
@@ -905,13 +1041,13 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
                 {/* Room Features */}
                 {selectedRoomDetails.features && Object.values(selectedRoomDetails.features).some(val => val) && (
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-gray-700 mb-2">Room Features:</h4>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="mb-3 sm:mb-4">
+                    <h4 className="font-semibold text-gray-700 mb-2 text-sm sm:text-base">Room Features:</h4>
+                    <div className="flex flex-wrap gap-1 sm:gap-2">
                       {Object.entries(selectedRoomDetails.features).map(([feature, enabled]) => (
                         <div
                           key={feature}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                          className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg border text-xs sm:text-sm ${
                             enabled 
                               ? "bg-blue-50 border-blue-200 text-blue-700" 
                               : "bg-gray-50 border-gray-200 text-gray-400"
@@ -926,23 +1062,21 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
                 {/* Room Notes */}
                 {selectedRoomDetails.notes && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-yellow-800 mb-2 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+                    <h4 className="font-semibold text-yellow-800 mb-1 sm:mb-2 flex items-center text-sm sm:text-base">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Important Notes:
                     </h4>
-                    <p className="text-yellow-700 text-sm">{selectedRoomDetails.notes}</p>
+                    <p className="text-yellow-700 text-xs sm:text-sm">{selectedRoomDetails.notes}</p>
                   </div>
                 )}
-
-                
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-700 mb-3">Room Specifications</h4>
-                <div className="space-y-2 text-sm">
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                <h4 className="font-semibold text-gray-700 mb-2 sm:mb-3 text-sm sm:text-base">Room Specifications</h4>
+                <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Capacity:</span>
                     <span className="font-medium">{selectedRoomDetails.capacity} people</span>
@@ -969,151 +1103,168 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
           </div>
         )}
 
-        {/* Participants */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Participants</h2>
+        {/* Participants - Responsive Design */}
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-100">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-100">
+            Participants ({formData.participants.length})
+          </h2>
           
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-[#FFCC00]">
-                <tr>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">ID Number</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Name</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Course</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Year Level</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Department</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {formData.participants.map((p, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50 hover:bg-gray-100"}>
-                    <td className="py-3 px-4">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="ID Number"
-                          className={`w-full p-2 pr-10 rounded-lg outline-none border shadow-sm transition-colors
-                            ${
-                              validation[idx]?.status === "valid"
-                                ? "border-green-500 bg-green-50"
-                                : validation[idx]?.status === "invalid"
-                                ? "border-red-500 bg-red-50"
-                                : "border-gray-300 focus:border-[#CC0000]"
-                            }`}
-                          value={p.idNumber}
-                          disabled={idx === 0}
-                          onChange={(e) =>
-                            handleParticipantChange(idx, "idNumber", e.target.value)
-                          }
-                        />
-                        {validation[idx]?.loading && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <svg className="animate-spin h-4 w-4 text-gray-500" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"></path>
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="text"
-                        placeholder="Full Name"
-                        className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
-                        value={p.name}
-                        disabled={idx === 0 || validation[idx].status === "valid"}
-                        onChange={(e) =>
-                          handleParticipantChange(idx, "name", e.target.value)
-                        }
-                      />
-                    </td>
-                    {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
-                      <td className="py-3 px-4">
-                        <input
-                          type="text"
-                          placeholder="Course"
-                          className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
-                          value={p.course}
-                          disabled={idx === 0 || validation[idx].status === "valid"}
-                          onChange={(e) =>
-                            handleParticipantChange(idx, "course", e.target.value)
-                          }
-                        />
-                      </td>
-                    ) : (
-                      <td className="py-3 px-4 text-gray-400 italic">N/A</td>
-                    )}
-                    {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
-                      <td className="py-3 px-4">
-                        <input
-                          type="text"
-                          placeholder="Year Level"
-                          className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
-                          value={p.year_level}
-                          disabled={idx === 0 || validation[idx].status === "valid"}
-                          onChange={(e) =>
-                            handleParticipantChange(idx, "year_level", e.target.value)
-                          }
-                        />
-                      </td>
-                    ) : (
-                      <td className="py-3 px-4 text-gray-400 italic">N/A</td>
-                    )}
-                    <td className="py-3 px-4">
-                      <input
-                        type="text"
-                        placeholder="Department"
-                        className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors"
-                        value={p.department}
-                        disabled={idx === 0 || validation[idx].status === "valid"}
-                        onChange={(e) =>
-                          handleParticipantChange(idx, "department", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      {validation[idx]?.status === "valid" && (
-                        <span className="text-green-600 text-sm font-medium flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          Verified
-                        </span>
-                      )}
-                      {validation[idx]?.status === "invalid" && (
-                        <span className="text-red-600 text-sm font-medium flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                          </svg>
-                          {validation[idx]?.message}
-                        </span>
-                      )}
-                      {!validation[idx]?.status && p.idNumber && (
-                        <span className="text-gray-500 text-sm">Enter ID to verify</span>
-                      )}
-                    </td>
+          {/* Mobile View - Card Layout */}
+          {isMobile ? (
+            <div className="space-y-4">
+              {formData.participants.map((participant, index) => (
+                <MobileParticipantCard
+                  key={index}
+                  participant={participant}
+                  index={index}
+                  validation={validation[index]}
+                />
+              ))}
+            </div>
+          ) : (
+            /* Desktop View - Table Layout */
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-[#FFCC00]">
+                  <tr>
+                    <th className="py-2 px-2 sm:py-3 sm:px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">ID Number</th>
+                    <th className="py-2 px-2 sm:py-3 sm:px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Name</th>
+                    <th className="py-2 px-2 sm:py-3 sm:px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Course</th>
+                    <th className="py-2 px-2 sm:py-3 sm:px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Year Level</th>
+                    <th className="py-2 px-2 sm:py-3 sm:px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Department</th>
+                    <th className="py-2 px-2 sm:py-3 sm:px-4 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {formData.participants.map((p, idx) => (
+                    <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50 hover:bg-gray-100"}>
+                      <td className="py-2 px-2 sm:py-3 sm:px-4">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="ID Number"
+                            className={`w-full p-1 sm:p-2 pr-8 sm:pr-10 rounded-lg outline-none border shadow-sm transition-colors text-xs sm:text-sm
+                              ${
+                                validation[idx]?.status === "valid"
+                                  ? "border-green-500 bg-green-50"
+                                  : validation[idx]?.status === "invalid"
+                                  ? "border-red-500 bg-red-50"
+                                  : "border-gray-300 focus:border-[#CC0000]"
+                              }`}
+                            value={p.id_number}
+                            disabled={idx === 0}
+                            onChange={(e) =>
+                              handleParticipantChange(idx, "id_number", e.target.value)
+                            }
+                          />
+                          {validation[idx]?.loading && (
+                            <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2">
+                              <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-gray-500" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"></path>
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 sm:py-3 sm:px-4">
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          className="w-full p-1 sm:p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-xs sm:text-sm"
+                          value={p.name}
+                          disabled={idx === 0 || validation[idx].status === "valid"}
+                          onChange={(e) =>
+                            handleParticipantChange(idx, "name", e.target.value)
+                          }
+                        />
+                      </td>
+                      {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
+                        <td className="py-2 px-2 sm:py-3 sm:px-4">
+                          <input
+                            type="text"
+                            placeholder="Course"
+                            className="w-full p-1 sm:p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-xs sm:text-sm"
+                            value={p.course}
+                            disabled={idx === 0 || validation[idx].status === "valid"}
+                            onChange={(e) =>
+                              handleParticipantChange(idx, "course", e.target.value)
+                            }
+                          />
+                        </td>
+                      ) : (
+                        <td className="py-2 px-2 sm:py-3 sm:px-4 text-gray-400 italic text-xs sm:text-sm">N/A</td>
+                      )}
+                      {!p.role || (p.role !== "Faculty" && p.role !== "Staff") ? (
+                        <td className="py-2 px-2 sm:py-3 sm:px-4">
+                          <input
+                            type="text"
+                            placeholder="Year Level"
+                            className="w-full p-1 sm:p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-xs sm:text-sm"
+                            value={p.year_level}
+                            disabled={idx === 0 || validation[idx].status === "valid"}
+                            onChange={(e) =>
+                              handleParticipantChange(idx, "year_level", e.target.value)
+                            }
+                          />
+                        </td>
+                      ) : (
+                        <td className="py-2 px-2 sm:py-3 sm:px-4 text-gray-400 italic text-xs sm:text-sm">N/A</td>
+                      )}
+                      <td className="py-2 px-2 sm:py-3 sm:px-4">
+                        <input
+                          type="text"
+                          placeholder="Department"
+                          className="w-full p-1 sm:p-2 border border-gray-300 rounded-lg outline-none focus:border-[#CC0000] transition-colors text-xs sm:text-sm"
+                          value={p.department}
+                          disabled={idx === 0 || validation[idx].status === "valid"}
+                          onChange={(e) =>
+                            handleParticipantChange(idx, "department", e.target.value)
+                          }
+                        />
+                      </td>
+                      <td className="py-2 px-2 sm:py-3 sm:px-4">
+                        {validation[idx]?.status === "valid" && (
+                          <span className="text-green-600 text-xs sm:text-sm font-medium flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            Verified
+                          </span>
+                        )}
+                        {validation[idx]?.status === "invalid" && (
+                          <span className="text-red-600 text-xs sm:text-sm font-medium flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                            {validation[idx]?.message}
+                          </span>
+                        )}
+                        {!validation[idx]?.status && p.id_number && (
+                          <span className="text-gray-500 text-xs">Enter ID to verify</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           
-          <p className="text-sm text-gray-600 italic mt-3">
+          <p className="text-xs sm:text-sm text-gray-600 italic mt-2 sm:mt-3">
             * Enter ID Number to auto-fill participant details. Verified fields will be locked.
           </p>
         </div>
 
         {/* Notes Section */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Important Notes</h2>
-          <ul className="space-y-2">
-            <li className="text-sm text-gray-600 flex items-start">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-100">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-100">Important Notes</h2>
+          <ul className="space-y-1 sm:space-y-2">
+            <li className="text-xs sm:text-sm text-gray-600 flex items-start">
               <span className="text-red-600 font-bold mr-1">•</span>
               The group will be notified fifteen (15) minutes before the usage is terminated. If there are no standing reservations for the next hour, the group may request a one-hour extension.
             </li>
-            <li className="text-sm text-gray-600 flex items-start">
+            <li className="text-xs sm:text-sm text-gray-600 flex items-start">
               <span className="text-red-600 font-bold mr-1">•</span>
               The Learning Resource Center reserves the right to cancel the reservation of any group that does not arrive within fifteen (15) minutes of the scheduled reservation time.
             </li>
@@ -1126,7 +1277,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
             onClick={submitReservation}
             type="button"
             disabled={loading || (selectedRoomDetails && !selectedRoomDetails.isActive)}
-            className={`px-8 py-3 rounded-lg transition cursor-pointer flex items-center ${
+            className={`px-6 sm:px-8 py-2 sm:py-3 rounded-lg transition cursor-pointer flex items-center text-sm sm:text-base ${
               loading || (selectedRoomDetails && !selectedRoomDetails.isActive)
                 ? "bg-gray-400 text-gray-200 cursor-not-allowed" 
                 : "bg-[#CC0000] text-white hover:bg-red-700 hover:shadow-md"
@@ -1134,7 +1285,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
           >
             {loading ? (
               <svg
-                className="animate-spin h-5 w-5 mr-2"
+                className="animate-spin h-4 w-4 sm:h-5 sm:w-5 mr-2"
                 viewBox="0 0 24 24"
               >
                 <circle
@@ -1153,7 +1304,7 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                 ></path>
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             )}
@@ -1164,10 +1315,10 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
       {/* Success Modal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-[350px] text-center shadow-xl">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-[350px] text-center shadow-xl">
             <svg
-              className="w-16 h-16 text-green-600 mx-auto mb-4"
+              className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mx-auto mb-3 sm:mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1179,8 +1330,8 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                 d="M5 13l4 4L19 7"
               ></path>
             </svg>
-            <h2 className="text-xl font-semibold mb-2">Success!</h2>
-            <p className="text-gray-600 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold mb-2">Success!</h2>
+            <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">
               Your reservation request has been submitted successfully.
             </p>
             <button
@@ -1195,10 +1346,10 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
 
       {/* Not Verified Warning Modal */}
       {showNotVerifiedWarning && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-[350px] text-center shadow-xl">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-4 sm:p-6 rounded-xl w-full max-w-[350px] text-center shadow-xl">
             <svg
-              className="w-16 h-16 text-yellow-500 mx-auto mb-4"
+              className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-3 sm:mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1210,8 +1361,8 @@ const RoomFeatureIcon = ({ feature, enabled }) => {
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               ></path>
             </svg>
-            <h2 className="text-xl font-semibold mb-2">Account Not Verified</h2>
-            <p className="text-gray-600 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold mb-2">Account Not Verified</h2>
+            <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">
               Your account is not yet verified. You can still fill out the form,
               but you won't be able to submit a reservation until your account
               is verified.

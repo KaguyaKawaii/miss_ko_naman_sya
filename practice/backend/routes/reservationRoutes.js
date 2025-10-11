@@ -1,38 +1,38 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const reservationController = require("../controllers/reservationController");
+const reservationController = require('../controllers/reservationController');
 
-// ✅ Reservation limits
-router.get("/check-limit/:userId", reservationController.checkUserReservationLimit);
+router.get('/check-limit/:userId', reservationController.checkUserReservationLimit);
 
-// ✅ Availability
-router.get("/availability", reservationController.getAvailability);
+// Reservation routes
+router.get('/', reservationController.getAllReservations);
+router.get('/user/:userId', reservationController.getUserReservations);
+router.get('/active/:userId', reservationController.getActiveReservation);
+router.post('/', reservationController.createReservation);
+router.patch('/:id/status', reservationController.updateReservationStatus);
+router.delete('/:id', reservationController.cancelReservation);
 
-// ✅ Floor-based filter
-router.get("/floor/:floor", reservationController.getReservationsByFloor);
+// Archive routes - MOVED HIGHER UP
+router.post('/:id/archive', reservationController.archiveReservation);
+router.get('/archived/all', reservationController.getArchivedReservations);
+router.post('/archived/:id/restore', reservationController.restoreReservation);
+router.delete('/archived/:id', reservationController.deleteArchivedReservation);
 
-// ✅ Archived Reservations
-router.get("/archived", reservationController.getArchivedReservations);
-router.delete("/archived/:id", reservationController.deleteArchivedReservation);
+// Reservation actions
+router.post('/start/:id', reservationController.startReservation);
+router.put('/:id/end-early', reservationController.endReservationEarly);
 
-// ✅ Reservations CRUD
-router.get("/", reservationController.getAllReservations);
-router.get("/user/:userId", reservationController.getUserReservations);
-router.get("/active/:userId", reservationController.getActiveReservation);
-router.post("/", reservationController.createReservation);
-router.put("/:id", reservationController.updateReservationStatus);
-router.delete("/:id", reservationController.cancelReservation);
+// Extension routes
+router.put('/:id/request-extension', reservationController.requestExtension);
+router.put('/:id/handle-extension', reservationController.handleExtension);
 
-// ✅ Archive & Restore
-router.put("/archive/:id", reservationController.archiveReservation);
-router.put("/restore/:id", reservationController.restoreReservation);
+// Participants route
+router.get('/participants/details/:reservationId', reservationController.getParticipantsDetails);
 
-// ✅ Expired reservations check
-router.get("/check-expired", reservationController.checkExpiredReservations);
+// Availability
+router.get('/availability', reservationController.getAvailability);
 
-// ✅ New PATCH for status updates
-router.patch("/:id/status", reservationController.updateReservationStatus);
-
-
+// Maintenance
+router.post('/check-expired', reservationController.checkExpiredReservations);
 
 module.exports = router;

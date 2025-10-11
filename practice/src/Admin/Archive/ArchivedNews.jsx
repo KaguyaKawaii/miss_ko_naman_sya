@@ -199,7 +199,7 @@ function ArchivedNews({ setView }) {
                               title="Restore"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 极速赛车开奖结果历史记录 极速赛车开奖直播 极速赛车开奖结果 极速赛车开奖网 极速赛车开奖官网 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                               </svg>
                             </button>
                             
@@ -208,8 +208,8 @@ function ArchivedNews({ setView }) {
                               onClick={() => setDeleteConfirm(item)}
                               title="Delete Permanently"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 极速赛车开奖结果历史记录 极速赛车开奖直播 极速赛车开奖结果 极速赛车开奖网 极速赛车开奖官网 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1极速赛车开奖结果历史记录 极速赛车开奖直播 极速赛车开奖结果 极速赛车开奖网 极速赛车开奖官网 v3M4 7h16" />
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>
                           </div>
@@ -234,7 +234,7 @@ function ArchivedNews({ setView }) {
                     className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 极速赛车开奖结果历史记录 极速赛车开奖直播 极速赛车开奖结果 极速赛车开奖网 极速赛车开奖官网 19l-7-7 7-7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                     Previous
                   </button>
@@ -305,7 +305,7 @@ function ArchivedNews({ setView }) {
           {/* Delete Confirmation Modal */}
           {deleteConfirm && (
             <div className="fixed inset-0 bg-black/25 flex items-center justify-center z-50 p-4">
-              <div className="bg-white p-6 rounded-xl w-full极速赛车开奖结果历史记录 极速赛车开奖直播 极速赛车开奖结果 极速赛车开奖网 极速赛车开奖官网  max-w-md">
+              <div className="bg-white p-6 rounded-xl w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-gray-800">Confirm Delete</h2>
                   <button

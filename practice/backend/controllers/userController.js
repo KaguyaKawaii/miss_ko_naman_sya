@@ -165,39 +165,56 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// ✅ Toggle suspend
 exports.toggleSuspendUser = async (req, res) => {
   try {
     const suspend = req.body.suspend === true || req.body.suspend === "true";
     const io = req.io || null;
+
     const user = await userService.toggleSuspend(req.params.id, suspend, io);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ message: `User ${user.suspended ? "suspended" : "unsuspended"} successfully`, user });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      message: `User ${user.suspended ? "suspended" : "unsuspended"} successfully`,
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Toggle Suspend Error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to toggle suspension" });
   }
 };
 
-// Suspend User
+// ✅ Suspend User
 exports.suspendUser = async (req, res) => {
   try {
     const user = await userService.suspendUser(req.params.id, req.io);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ message: "User suspended successfully", user });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, message: "User suspended successfully", user });
   } catch (error) {
-    res.status(500).json({ message: "Error suspending user", error });
+    console.error("Suspend User Error:", error);
+    res.status(500).json({ success: false, message: "Error suspending user", error: error.message });
   }
 };
 
-// Unsuspend User
+// ✅ Unsuspend User
 exports.unsuspendUser = async (req, res) => {
   try {
     const user = await userService.unsuspendUser(req.params.id, req.io);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ message: "User unsuspended successfully", user });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, message: "User unsuspended successfully", user });
   } catch (error) {
-    res.status(500).json({ message: "Error unsuspending user", error });
+    console.error("Unsuspend User Error:", error);
+    res.status(500).json({ success: false, message: "Error unsuspending user", error: error.message });
   }
 };
+
 
 // 📌 Get User By ID
 exports.getUserById = async (req, res) => {
@@ -275,21 +292,93 @@ exports.getUnreadCounts = async (req, res) => {
 // 📌 Check if participant exists and is verified
 exports.checkParticipant = async (req, res) => {
   try {
-    const { idNumber } = req.query;
-    if (!idNumber) return res.status(400).json({ exists: false, message: "Missing ID number" });
-    const user = await User.findOne({ id_number: idNumber });
-    if (!user) return res.json({ exists: false });
+    const { id_number } = req.query;
+    if (!id_number) {
+      return res.status(400).json({ message: "id_number is required" });
+    }
+
+    const user = await User.findOne({ id_number });
+    if (!user) {
+      return res.json({ exists: false, verified: false });
+    }
+
     res.json({
       exists: true,
       verified: user.verified,
+      id_number: user.id_number,
       name: user.name,
-      department: user.department,
-      course: user.course,
-      year_level: user.year_level,
-      role: user.role
+      course: user.course || "N/A",
+      year_level: user.yearLevel || "N/A",
+      department: user.department || "N/A",
+      role: user.role || "Student",
     });
   } catch (err) {
     console.error("Check participant error:", err);
-    res.status(500).json({ exists: false, message: "Server error" });
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// 📌 Get User Unread Counts (for Navigation_User) - FIXED VERSION
+exports.getUserUnreadCounts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Get unread messages count
+    const Message = require("../models/Message");
+    const messagesCount = await Message.countDocuments({
+      receiver: userId,
+      read: false
+    });
+
+    // Get unread notifications count
+    let notificationsCount = 0;
+    try {
+      const Notification = require("../models/Notification");
+      notificationsCount = await Notification.countDocuments({
+        userId: userId, // Fixed: was 'user', should be 'userId' based on your schema
+        isRead: false  // Fixed: was 'read', should be 'isRead' based on your schema
+      });
+    } catch (error) {
+      console.log("Notifications not implemented yet, using 0");
+    }
+
+    res.json({
+      success: true,
+      messages: messagesCount,
+      notifications: notificationsCount
+    });
+  } catch (error) {
+    console.error("Failed to fetch unread counts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch unread counts"
+    });
+  }
+};
+
+// Get all users for admin messaging
+exports.getAllUsersForMessaging = async (req, res) => {
+  try {
+    const users = await User.find({ 
+      archived: { $ne: true },
+      role: { $ne: 'admin' } // Exclude admins
+    })
+    .select('name email role department id_number floor')
+    .sort({ name: 1 });
+
+    res.json({ 
+      success: true, 
+      users 
+    });
+  } catch (error) {
+    console.error('Error fetching users for messaging:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch users' 
+    });
   }
 };

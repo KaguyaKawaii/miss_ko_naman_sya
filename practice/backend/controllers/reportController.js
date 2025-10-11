@@ -1,6 +1,8 @@
 const Report = require("../models/Report");
 const ArchivedReport = require("../models/ArchivedReport");
 const Notification = require("../models/Notification");
+const User = require("../models/User");
+const logAction = require("../utils/logAction");
 
 /* ------------------------------------------------
    ✅ Get all active reports
@@ -8,8 +10,8 @@ const Notification = require("../models/Notification");
 exports.getReports = async (req, res) => {
   try {
     const reports = await Report.find()
-      .populate("assignedTo", "name email floor") // include staff details
-      .populate("assignedBy", "name email")       // optional: who assigned
+      .populate("assignedTo", "name email floor")
+      .populate("assignedBy", "name email")
       .sort({ createdAt: -1 });
 
     res.status(200).json(reports);
@@ -54,8 +56,6 @@ exports.getArchivedReports = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-const User = require("../models/User"); // ⬅️ import User so we can find staff
 
 /* ------------------------------------------------
    ✅ Create Report + Auto-Assign Staff + Notify Admin
@@ -103,7 +103,16 @@ exports.createReport = async (req, res) => {
       assignedTo: assignedTo || null,
     });
 
-    // 3️⃣ Create notification (admins will see this)
+    // 3️⃣ Log report creation
+    await logAction(
+      userId,
+      "Report Creator",
+      reportedBy,
+      "Report Created",
+      `${reportedBy} created a ${category} report for ${floor} - ${room}`
+    );
+
+    // 4️⃣ Create notification (admins will see this)
     let notification = await Notification.create({
       userId: null,
       reportId: newReport._id,
@@ -114,8 +123,9 @@ exports.createReport = async (req, res) => {
       dismissed: false,
     });
 
-    // 4️⃣ Notify assigned staff (if any)
+    // 5️⃣ Notify assigned staff (if any)
     if (assignedTo) {
+      const assignedStaff = await User.findById(assignedTo);
       await Notification.create({
         userId: assignedTo,
         reportId: newReport._id,
@@ -125,9 +135,11 @@ exports.createReport = async (req, res) => {
         isRead: false,
         dismissed: false,
       });
+
+  
     }
 
-    // 5️⃣ Emit via socket.io if available
+    // 6️⃣ Emit via socket.io if available
     notification = await notification.populate("reportId", "category floor room");
     const io = req.app.get("io");
     if (io) {
@@ -150,13 +162,12 @@ exports.createReport = async (req, res) => {
   }
 };
 
-
 /* ------------------------------------------------
    ✅ Resolve Report
 ------------------------------------------------ */
 exports.resolveReport = async (req, res) => {
   try {
-    const { actionTaken } = req.body;
+    const { actionTaken, resolvedBy } = req.body;
 
     if (!actionTaken || actionTaken.trim() === "") {
       return res.status(400).json({ message: "Action taken is required" });
@@ -167,6 +178,10 @@ exports.resolveReport = async (req, res) => {
       return res.status(404).json({ message: "Report not found" });
     }
 
+    // Get resolver info for logging
+    const resolver = await User.findById(resolvedBy);
+    const resolverName = resolver ? resolver.name : "Admin";
+
     // ✅ Update report status and action taken
     report.status = "Resolved";
     report.actionTaken = actionTaken.trim();
@@ -174,6 +189,15 @@ exports.resolveReport = async (req, res) => {
     report.updatedAt = new Date();
 
     await report.save();
+
+    // ✅ Log resolution
+    await logAction(
+      resolvedBy,
+      resolver?.id_number || "N/A",
+      resolverName,
+      "Report Resolved",
+      `Report ${report._id} resolved by ${resolverName}. Action: ${actionTaken}`
+    );
 
     // ✅ Notify user about resolution
     await Notification.create({
@@ -204,20 +228,34 @@ exports.resolveReport = async (req, res) => {
 ------------------------------------------------ */
 exports.updateReportStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, updatedBy } = req.body;
     const allowedStatuses = ["Pending", "In Progress", "Resolved", "Archived"];
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
 
-    const updatedReport = await Report.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ error: "Report not found" });
 
-    if (!updatedReport) return res.status(404).json({ error: "Report not found" });
+    const previousStatus = report.status;
+    report.status = status;
+    report.updatedAt = new Date();
+    
+    const updatedReport = await report.save();
+
+    // Get updater info for logging
+    const updater = await User.findById(updatedBy);
+    const updaterName = updater ? updater.name : "Admin";
+
+    // ✅ Log status update
+    await logAction(
+      updatedBy,
+      updater?.id_number || "N/A",
+      updaterName,
+      "Report Status Updated",
+      `Report ${report._id} status changed from ${previousStatus} to ${status} by ${updaterName}`
+    );
 
     res.json(updatedReport);
   } catch (err) {
@@ -231,13 +269,27 @@ exports.updateReportStatus = async (req, res) => {
 ------------------------------------------------ */
 exports.archiveReport = async (req, res) => {
   try {
+    const { archivedBy } = req.body;
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ error: "Report not found" });
+
+    // Get archiver info for logging
+    const archiver = await User.findById(archivedBy);
+    const archiverName = archiver ? archiver.name : "Admin";
 
     // ✅ Update status to Archived instead of moving to archive collection
     report.status = "Archived";
     report.updatedAt = new Date();
     await report.save();
+
+    // ✅ Log archiving
+    await logAction(
+      archivedBy,
+      archiver?.id_number || "N/A",
+      archiverName,
+      "Report Archived",
+      `Report ${report._id} archived by ${archiverName}`
+    );
 
     res.json({
       success: true,
@@ -255,13 +307,27 @@ exports.archiveReport = async (req, res) => {
 ------------------------------------------------ */
 exports.restoreReport = async (req, res) => {
   try {
+    const { restoredBy } = req.body;
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ error: "Report not found" });
+
+    // Get restorer info for logging
+    const restorer = await User.findById(restoredBy);
+    const restorerName = restorer ? restorer.name : "Admin";
 
     // ✅ Restore by setting status back to Pending
     report.status = "Pending";
     report.updatedAt = new Date();
     await report.save();
+
+    // ✅ Log restoration
+    await logAction(
+      restoredBy,
+      restorer?.id_number || "N/A",
+      restorerName,
+      "Report Restored",
+      `Report ${report._id} restored from archive by ${restorerName}`
+    );
 
     res.json({
       message: "Report restored successfully",
@@ -278,8 +344,25 @@ exports.restoreReport = async (req, res) => {
 ------------------------------------------------ */
 exports.deleteArchivedReport = async (req, res) => {
   try {
+    const { deletedBy } = req.body;
+    const report = await Report.findById(req.params.id);
+    
+    if (!report) return res.status(404).json({ message: "Report not found" });
+
+    // Get deleter info for logging
+    const deleter = await User.findById(deletedBy);
+    const deleterName = deleter ? deleter.name : "Admin";
+
+    // ✅ Log before deletion
+    await logAction(
+      deletedBy,
+      deleter?.id_number || "N/A",
+      deleterName,
+      "Report Deleted",
+      `Report ${report._id} permanently deleted by ${deleterName}`
+    );
+
     const deleted = await Report.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: "Report not found" });
 
     res.sendStatus(204);
   } catch (err) {
@@ -301,12 +384,40 @@ exports.assignReport = async (req, res) => {
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ message: "Report not found" });
 
+    // Get assigner and staff info for logging
+    const assigner = await User.findById(assignedBy);
+    const staff = await User.findById(staffId);
+    
+    if (!staff) return res.status(404).json({ message: "Staff not found" });
+
+    const assignerName = assigner ? assigner.name : "Admin";
+    const staffName = staff.name;
+
+    // ✅ Check if staff is already assigned to this report
+    if (report.assignedTo && report.assignedTo.toString() === staffId) {
+      return res.status(400).json({ 
+        message: "This staff is already assigned to this report" 
+      });
+    }
+
+    const previousAssignee = report.assignedTo ? await User.findById(report.assignedTo) : null;
+    const previousAssigneeName = previousAssignee ? previousAssignee.name : "Unassigned";
+
     report.assignedTo = staffId;
     if (assignedBy) report.assignedBy = assignedBy;
     report.status = "Pending";
     report.updatedAt = new Date();
 
     await report.save();
+
+    // ✅ Log assignment
+    await logAction(
+      assignedBy,
+      assigner?.id_number || "N/A",
+      assignerName,
+      "Report Assigned",
+      `Report ${report._id} reassigned from ${previousAssigneeName} to ${staffName} by ${assignerName}`
+    );
 
     // ✅ Notify staff
     await Notification.create({
@@ -329,6 +440,9 @@ exports.assignReport = async (req, res) => {
   }
 };
 
+/* ------------------------------------------------
+   ✅ Get Reports by Staff
+------------------------------------------------ */
 exports.getReportsByStaff = async (req, res) => {
   try {
     const staffId = req.params.staffId;

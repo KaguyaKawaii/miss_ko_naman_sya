@@ -2,15 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import AdminNavigation from "./AdminNavigation";
-import { 
-  MessageSquare, 
-  Search, 
-  X, 
-  User, 
-  Users, 
-  Send,
-  Clock
-} from "lucide-react";
 
 const socket = io("http://localhost:5000");
 
@@ -26,10 +17,19 @@ function AdminMessages({ setView }) {
   const [isLoading, setIsLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [error, setError] = useState(null);
 
   const listRef = useRef(null);
-  const bottomRef = useRef(null);
+  const messagesEndRef = useRef(null);
   const searchRef = useRef(null);
+  const chatContainerRef = useRef(null);
+
+  // Smooth scroll to bottom function
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  };
 
   // Load initial data and setup socket
   useEffect(() => {
@@ -52,8 +52,14 @@ function AdminMessages({ setView }) {
     }
 
     const handleNewMessage = (msg) => {
-      const isCurrentConversation = msg.sender === selectedId || msg.receiver === selectedId;
+      // Only handle messages that involve admin
       const involvesAdmin = msg.sender === "admin" || msg.receiver === "admin";
+      
+      if (!involvesAdmin) {
+        return; // Ignore user-staff conversations
+      }
+
+      const isCurrentConversation = msg.sender === selectedId || msg.receiver === selectedId;
 
       if (isCurrentConversation) {
         setMessages((prev) => {
@@ -73,10 +79,8 @@ function AdminMessages({ setView }) {
         });
       }
 
-      // Always update recipients when a new message arrives
-      if (involvesAdmin) {
-        fetchRecipients();
-      }
+      // Always update recipients when a new message arrives that involves admin
+      fetchRecipients();
     };
 
     socket.on("newMessage", handleNewMessage);
@@ -98,42 +102,57 @@ function AdminMessages({ setView }) {
   useEffect(() => {
     if (selectedId) {
       socket.emit("join", { userId: selectedId });
-      fetchMessages();
+      fetchMessagesWithoutLoading();
     }
   }, [selectedId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom();
   }, [messages]);
 
-  // Fetch recipients with proper merging and sorting
+  // Enhanced recipient filtering to ensure privacy
+  const isAdminConversation = (recipient) => {
+    if (!recipient || !recipient._id) return false;
+    
+    // Filter out floors
+    const floorIds = [
+      "Ground Floor",
+      "Second Floor",
+      "Third Floor",
+      "Fourth Floor",
+      "Fifth Floor",
+    ];
+    
+    if (floorIds.includes(recipient._id)) {
+      return false;
+    }
+
+    // Only show conversations where admin is involved
+    // This ensures user-staff conversations are not visible to admin
+    return true;
+  };
+
+  // Fetch recipients with enhanced privacy filtering
   const fetchRecipients = async () => {
     try {
-      setIsLoading(true);
+      setError(null);
       const res = await axios.get(
         "http://localhost:5000/api/messages/recipients/admin"
       );
 
-      // Filter out floors and ensure valid data
-      const backendRecipients = res.data.filter(
-        (recipient) =>
-          recipient &&
-          recipient._id &&
-          recipient.name &&
-          ![
-            "Ground Floor",
-            "Second Floor",
-            "Third Floor",
-            "Fourth Floor",
-            "Fifth Floor",
-          ].includes(recipient._id)
+      // Enhanced filtering for privacy - only show admin-related conversations
+      const backendRecipients = res.data.filter(recipient => 
+        recipient &&
+        recipient._id &&
+        recipient.name &&
+        isAdminConversation(recipient)
       );
 
       // Merge with existing recipients, preserving search-added ones
       const existingRecipientsMap = new Map();
       recipients.forEach(recipient => {
-        if (recipient && recipient._id) {
+        if (recipient && recipient._id && isAdminConversation(recipient)) {
           existingRecipientsMap.set(recipient._id, recipient);
         }
       });
@@ -143,7 +162,7 @@ function AdminMessages({ setView }) {
       
       // Add existing recipients that aren't in backend (like searched users)
       recipients.forEach(recipient => {
-        if (recipient && recipient._id) {
+        if (recipient && recipient._id && isAdminConversation(recipient)) {
           const existsInBackend = backendRecipients.find(r => r._id === recipient._id);
           const existsInMerged = mergedRecipients.find(r => r._id === recipient._id);
           if (!existsInBackend && !existsInMerged) {
@@ -169,22 +188,57 @@ function AdminMessages({ setView }) {
       setRecipients(sortedRecipients);
     } catch (err) {
       console.error("Failed to fetch recipients:", err);
-    } finally {
-      setIsLoading(false);
+      setError("Failed to load conversations. Please try again.");
+      setRecipients([]);
     }
   };
 
+  // Fetch messages with privacy check
+  const fetchMessagesWithoutLoading = async () => {
+    if (!selectedId) return;
+    
+    try {
+      setError(null);
+      const res = await axios.get(
+        `http://localhost:5000/api/messages/admin-conversation/${selectedId}`
+      );
+      
+      // Filter messages to ensure only admin-related conversations
+      const filteredMessages = (res.data || []).filter(msg => 
+        msg && (msg.sender === "admin" || msg.receiver === "admin")
+      );
+      
+      setMessages(filteredMessages);
+    } catch (err) {
+      console.error("Failed to fetch messages:", err);
+      setError("Failed to load messages. Please try again.");
+      setMessages([]);
+    }
+  };
+
+  // Fetch all users with privacy consideration
   const fetchAllUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/users");
-      if (res.data.success) {
-        const usersAndStaff = res.data.users.filter(user => 
+      setError(null);
+      const res = await axios.get("http://localhost:5000/api/users/all/users");
+
+      let usersAndStaff = [];
+      
+      if (res.data && res.data.success) {
+        usersAndStaff = res.data.users.filter(user => 
           user && !user.archived && user.role !== "admin"
         );
-        setAllUsers(usersAndStaff);
+      } else {
+        usersAndStaff = res.data.filter(user => 
+          user && !user.archived && user.role !== "admin"
+        );
       }
+
+      setAllUsers(usersAndStaff);
     } catch (err) {
       console.error("Failed to fetch all users:", err);
+      setError("Failed to load users. Please try again.");
+      setAllUsers([]);
     }
   };
 
@@ -268,33 +322,17 @@ function AdminMessages({ setView }) {
     setSelectedName(recipient.name);
     setSelectedType(getRecipientType(recipient));
     setShowSearchDropdown(false);
+    setError(null);
   };
 
-  const fetchMessages = async () => {
-    if (!selectedId) return;
-    
-    try {
-      setIsLoading(true);
-      const res = await axios.get(
-        `http://localhost:5000/api/messages/admin-conversation/${selectedId}`
-      );
-      setMessages(res.data || []);
-    } catch (err) {
-      console.error("Failed to fetch messages:", err);
-      setMessages([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Send a new message
+  // Send a new message with privacy enforcement
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedId) return;
 
     const tempMsg = {
       _id: "temp-" + Date.now(),
       localId: Date.now(),
-      sender: "admin",
+      sender: "admin", // Always from admin
       senderName: "Admin",
       receiver: selectedId,
       content: newMessage,
@@ -306,8 +344,9 @@ function AdminMessages({ setView }) {
     setNewMessage("");
 
     try {
+      setError(null);
       const response = await axios.post("http://localhost:5000/api/messages/send", {
-        sender: "admin",
+        sender: "admin", // Ensure sender is always admin
         receiver: selectedId,
         content: newMessage
       });
@@ -366,6 +405,7 @@ function AdminMessages({ setView }) {
 
     } catch (err) {
       console.error("Failed to send message:", err);
+      setError("Failed to send message. Please try again.");
       setMessages(prev => prev.map(msg => 
         msg.localId === tempMsg.localId 
           ? { ...msg, status: "failed" }
@@ -381,60 +421,52 @@ function AdminMessages({ setView }) {
     }
   };
 
+  // Format time to match StaffMessages
   const formatTime = (iso) => {
     if (!iso) return "";
     try {
       const d = new Date(iso);
-      return d.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (error) {
       return "";
     }
   };
 
-  const formatMessageTime = (iso) => {
+  // Format date to match StaffMessages
+  const formatDate = (iso) => {
     if (!iso) return "";
     try {
-      const d = new Date(iso);
-      const now = new Date();
-      const diffMs = now - d;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      
-      if (diffMins < 1) return "Just now";
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      
-      return d.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
+      return new Date(iso).toLocaleDateString();
     } catch (error) {
       return "";
     }
   };
 
+  // Group messages by date like StaffMessages
+  const groupMessagesByDate = () => {
+    const groups = {};
+    messages.forEach(msg => {
+      // Additional privacy check for displayed messages
+      if (!msg || !(msg.sender === "admin" || msg.receiver === "admin")) {
+        return; // Skip non-admin messages
+      }
+      
+      const date = formatDate(msg.createdAt);
+      if (!groups[date]) groups[date] = [];
+      
+      const messageExists = groups[date].some(m => m._id === msg._id);
+      if (!messageExists) {
+        groups[date].push(msg);
+      }
+    });
+    return groups;
+  };
+
+  const messageGroups = groupMessagesByDate();
+
   const getAvatar = (name, type = "user") => {
-    const colors = {
-      staff: "#059669", 
-      user: "#DC2626",
-      admin: "#7C3AED"
-    };
-    
-    const color = colors[type] || "#6B7280";
-    
     return (
-      <div 
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-base shadow-md"
-        style={{ backgroundColor: color }}
-      >
+      <div className="w-10 h-10 bg-gradient-to-r from-[#CC0000] to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow">
         {name ? name.charAt(0).toUpperCase() : "U"}
       </div>
     );
@@ -456,30 +488,33 @@ function AdminMessages({ setView }) {
   return (
     <>
       <AdminNavigation setView={setView} currentView="adminMessage" />
-      <div className="ml-[250px] w-[calc(100%-250px)] flex flex-col h-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-        <header className="bg-white px-6 py-4 border-b border-gray-200 shadow-sm">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-[#CC0000]">Message Center</h1>
-              <p className="text-gray-600">Communicate with users and staff</p>
+      
+      <div className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
+        {/* HEADER */}
+        <header className="bg-white px-6 py-4 border-b border-gray-200">
+          <h1 className="text-2xl font-bold text-[#CC0000]">Admin Message Center</h1>
+          <p className="text-gray-600">Communicate with users and staff (Admin conversations only)</p>
+          {error && (
+            <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              {error}
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full shadow-sm">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </span>
-            </div>
-          </div>
+          )}
         </header>
 
-        <div className="flex flex-1 overflow-hidden p-4 gap-4">
-          {/* Sidebar */}
-          <div className="w-80 bg-white rounded-2xl shadow-lg flex flex-col border border-gray-200">
-            <div className="p-4 border-b border-gray-200 relative" ref={searchRef}>
-              <div className="relative">
+        <div className="flex flex-1 overflow-hidden">
+          {/* Conversations Sidebar - ALWAYS VISIBLE */}
+          <div className="w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-600">Admin Conversations</h2>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative mb-3" ref={searchRef}>
                 <input
                   type="text"
                   placeholder="Search users or staff..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-sm transition-all duration-200"
+                  className="w-full bg-gray-100 border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#CC0000] focus:border-transparent text-sm"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -487,210 +522,215 @@ function AdminMessages({ setView }) {
                   }}
                   onFocus={() => searchTerm && setShowSearchDropdown(true)}
                 />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                {searchTerm && (
-                  <button 
-                    onClick={() => {
-                      setSearchTerm("");
-                      setShowSearchDropdown(false);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+
+                {/* Search Dropdown */}
+                {showSearchDropdown && searchTerm && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1 max-h-60 overflow-y-auto">
+                    {searchLoading ? (
+                      <div className="p-3 text-center text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#CC0000] mx-auto"></div>
+                        <span className="text-sm ml-2">Searching...</span>
+                      </div>
+                    ) : filteredSearchResults.length > 0 ? (
+                      filteredSearchResults.map((user) => (
+                        <button
+                          key={user._id}
+                          onClick={() => handleSearchSelect(user)}
+                          className="w-full flex items-center p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        >
+                          {getAvatar(user.name, user.role === "staff" ? "staff" : "user")}
+                          <div className="ml-3 text-left">
+                            <div className="font-medium text-gray-900 text-sm">{user.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {user.role === "staff" ? "Staff" : "User"}
+                              {user.department && ` • ${user.department}`}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-3 text-center text-gray-500 text-sm">
+                        No users found matching "{searchTerm}"
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-
-              {/* Search Dropdown */}
-              {showSearchDropdown && searchTerm && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 mt-1 max-h-60 overflow-y-auto">
-                  {searchLoading ? (
-                    <div className="p-3 text-center text-gray-500">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mx-auto"></div>
-                      <span className="text-sm ml-2">Searching...</span>
-                    </div>
-                  ) : filteredSearchResults.length > 0 ? (
-                    filteredSearchResults.map((user) => (
-                      <button
-                        key={user._id}
-                        onClick={() => handleSearchSelect(user)}
-                        className="w-full flex items-center p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
-                      >
-                        {getAvatar(user.name, user.role === "staff" ? "staff" : "user")}
-                        <div className="ml-3 text-left">
-                          <div className="font-medium text-gray-900 text-sm">{user.name}</div>
-                          <div className="text-xs text-gray-500">
-                            {user.role === "staff" ? "Staff" : "User"}
-                            {user.department && ` • ${user.department}`}
-                            {user.email && ` • ${user.email}`}
-                          </div>
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="p-3 text-center text-gray-500 text-sm">
-                      No users found matching "{searchTerm}"
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {isLoading ? (
-                <div className="p-4 text-center text-gray-500">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mx-auto mb-2"></div>
-                  Loading conversations...
+            
+            <div className="flex-1 overflow-y-auto p-2">
+              {recipients.filter(r => r !== undefined).length === 0 ? (
+                <div className="text-center p-6 text-gray-500">
+                  <svg className="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p className="font-medium text-sm">No admin conversations found</p>
+                  <p className="text-xs mt-1">{searchTerm ? "Try different search terms" : "Start a conversation with a user or staff"}</p>
                 </div>
               ) : (
-                <div className="p-2">
-                  <div className="space-y-1">
-                    {recipients.filter(r => r !== undefined).map((recipient) => (
-                      <button
-                        key={recipient._id}
-                        onClick={() => handleSelectRecipient(recipient)}
-                        className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 ${
-                          selectedId === recipient._id
-                            ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg transform scale-[1.02]"
-                            : "hover:bg-gray-50 hover:shadow-md"
-                        }`}
-                      >
+                recipients.filter(r => r !== undefined).map((recipient) => (
+                  <button
+                    key={recipient._id}
+                    onClick={() => handleSelectRecipient(recipient)}
+                    className={`w-full text-left p-3 rounded-lg mb-1 transition-all duration-200 cursor-pointer ${
+                      selectedId === recipient._id 
+                        ? 'bg-gradient-to-r from-red-50 to-yellow-50 border-2 border-red-200 shadow' 
+                        : 'bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
                         {getAvatar(recipient.name, getRecipientType(recipient))}
-                        <div className="ml-3 text-left flex-1 min-w-0">
-                          <div className={`font-medium truncate ${
-                            selectedId === recipient._id ? "text-white" : "text-gray-900"
-                          }`}>
-                            {recipient.name}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-gray-800 text-sm truncate">
+                              {recipient.name}
+                            </span>
                           </div>
-                          <div className={`text-xs truncate ${
-                            selectedId === recipient._id ? "text-red-100" : "text-gray-500"
-                          }`}>
-                            {recipient.type === "staff" ? "Staff Member" : "User"}
-                            {recipient.department && ` • ${recipient.department}`}
+                          <div className="text-xs text-gray-600 truncate mt-1">
+                            {recipient.latestMessage || "Start a conversation..."}
                           </div>
-                          {recipient.latestMessage && (
-                            <div className={`text-xs truncate mt-1 ${
-                              selectedId === recipient._id ? "text-red-100" : "text-gray-400"
-                            }`}>
-                              {recipient.latestMessage}
-                            </div>
-                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {recipient.timestamp ? formatTime(recipient.timestamp) : 'No messages'}
+                          </div>
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {recipients.length === 0 && !searchTerm && (
-                    <div className="text-center p-4 text-gray-500">
-                      <Users className="mx-auto mb-2 text-gray-300" size={32} />
-                      <p>No conversations yet</p>
-                      <p className="text-sm">Search for users or staff to start messaging</p>
+                      </div>
                     </div>
-                  )}
-
-                  {recipients.length === 0 && searchTerm && (
-                    <div className="text-center p-4 text-gray-500">
-                      <User className="mx-auto mb-2 text-gray-300" size={32} />
-                      <p>No conversations found</p>
-                      <p className="text-sm">Try searching for users or staff above</p>
-                    </div>
-                  )}
-                </div>
+                  </button>
+                ))
               )}
             </div>
           </div>
 
           {/* Chat Area */}
-          <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-gray-200">
+          <div className="flex-1 flex flex-col">
             {selectedId ? (
               <>
-                <div className="border-b border-gray-200 p-4 bg-gradient-to-r from-gray-50 to-white">
-                  <div className="flex items-center">
-                    {getAvatar(selectedName, selectedType)}
-                    <div className="ml-3">
-                      <h2 className="font-semibold text-gray-900 text-lg">{selectedName}</h2>
-                      <p className="text-sm text-gray-500">
-                        {selectedType === "staff" ? "Staff Member" : "User"}
-                      </p>
+                <div className="bg-white p-4 border-b border-gray-200 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {getAvatar(selectedName, selectedType)}
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-800">{selectedName}</h3>
+                        <p className="text-sm text-gray-600">
+                          {selectedType === "staff" ? "Staff Member" : "User"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-white to-gray-50">
-                  <div className="space-y-4" ref={listRef}>
-                    {isLoading ? (
-                      <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="text-center text-gray-500 mt-16">
-                        <MessageSquare className="mx-auto mb-4 text-gray-200" size={64} />
-                        <p className="text-lg font-medium text-gray-400">No messages yet</p>
-                        <p className="text-sm">Start a conversation by sending a message!</p>
+                
+                <div 
+                  ref={chatContainerRef}
+                  className="flex-1 overflow-y-auto bg-gradient-to-b from-red-50/30 to-yellow-50/20"
+                >
+                  <div className="p-4">
+                    {messages.length === 0 ? (
+                      <div className="flex justify-center items-center h-full">
+                        <div className="text-center text-gray-500">
+                          <svg className="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          <h3 className="text-lg font-semibold mb-1">No messages yet</h3>
+                          <p className="text-gray-600 text-sm">Start the conversation with {selectedName}</p>
+                        </div>
                       </div>
                     ) : (
-                      messages.map((msg) => (
-                        <div
-                          key={msg._id || msg.localId}
-                          className={`flex ${msg.sender === "admin" ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
-                              msg.sender === "admin"
-                                ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
-                                : "bg-white border border-gray-200 text-gray-900"
-                            } transition-all duration-200 hover:shadow-md`}
-                          >
-                            <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
-                            <div className={`text-xs mt-2 flex items-center space-x-1 ${
-                              msg.sender === "admin" ? "text-red-100" : "text-gray-500"
-                            }`}>
-                              <Clock size={12} />
-                              <span>{formatTime(msg.createdAt)}</span>
-                              {msg.status === "sending" && <span className="italic ml-2">Sending...</span>}
-                              {msg.status === "failed" && <span className="text-yellow-200 ml-2">Failed</span>}
+                      <div className="max-w-full mx-auto space-y-4">
+                        {Object.entries(messageGroups).map(([date, dateMessages]) => (
+                          <div key={date}>
+                            <div className="flex justify-center mb-3">
+                              <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                                {date}
+                              </div>
                             </div>
-                            <div className={`text-xs mt-1 ${
-                              msg.sender === "admin" ? "text-red-100" : "text-gray-500"
-                            }`}>
-                              {formatMessageTime(msg.createdAt)}
+                            <div className="space-y-2">
+                              {dateMessages.map(msg => (
+                                <div key={msg._id || msg.localId} className={`flex ${msg.sender === "admin" ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`max-w-[75%] rounded-lg p-3 shadow transition-all duration-200 ${
+                                    msg.sender === "admin" 
+                                      ? 'bg-gradient-to-r from-[#CC0000] to-red-600 text-white rounded-br-md' 
+                                      : 'bg-white border border-gray-200 rounded-bl-md'
+                                  }`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="text-xs font-semibold">
+                                        {msg.sender === "admin" ? "Administration" : `${msg.senderName}`}
+                                      </div>
+                                      {msg.status === "sending" && (
+                                        <div className="text-xs opacity-80 animate-pulse flex items-center">
+                                          <div className="w-1.5 h-1.5 bg-white rounded-full mr-1 animate-pulse"></div>
+                                          Sending...
+                                        </div>
+                                      )}
+                                      {msg.status === "failed" && (
+                                        <div className="text-xs opacity-80 text-red-200 flex items-center">
+                                          Failed
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="text-sm leading-relaxed">{msg.content}</div>
+                                    <div className={`text-xs mt-1 text-right ${
+                                      msg.sender === "admin" ? 'text-red-100' : 'text-gray-500'
+                                    }`}>
+                                      {formatTime(msg.createdAt)}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        </div>
-                      ))
+                        ))}
+                        <div ref={messagesEndRef} />
+                      </div>
                     )}
-                    <div ref={bottomRef} />
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 bg-white p-4 rounded-b-2xl">
-                  <div className="flex space-x-3">
-                    <textarea
-                      placeholder="Type your message... (Shift + Enter for new line)"
-                      className="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none transition-all duration-200"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      rows={1}
-                      style={{ minHeight: "44px", maxHeight: "120px" }}
-                    />
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
-                      className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-xl hover:from-red-600 hover:to-red-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 disabled:scale-100 flex items-center space-x-2"
-                    >
-                      <Send size={18} />
-                      <span className="font-medium">Send</span>
-                    </button>
+                <div className="bg-white p-4 border-t border-gray-200 shadow-lg">
+                  <div className="max-w-full mx-auto">
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        placeholder={`Message ${selectedName}...`}
+                        className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#CC0000] focus:border-transparent text-sm shadow-sm"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                      />
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim()}
+                        className="bg-gradient-to-r from-[#CC0000] to-red-600 text-white rounded-lg px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 hover:shadow-lg font-semibold shadow flex items-center space-x-1 text-sm"
+                      >
+                        <span>Send</span>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2 text-center">
+                      Sending as <strong className="text-[#CC0000]">Administration</strong>
+                    </div>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-red-50/50 to-yellow-50/50">
                 <div className="text-center text-gray-500">
-                  <MessageSquare className="mx-auto mb-4 text-gray-200" size={64} />
-                  <p className="text-lg font-medium text-gray-400">Select a conversation</p>
-                  <p className="text-sm">Search for a user or staff member to start messaging</p>
+                  <svg className="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <h3 className="text-xl font-semibold mb-2">Select a Conversation</h3>
+                  <p className="text-gray-600 max-w-md mx-auto">
+                    Choose a user or staff member from the list to start messaging.
+                    <br />
+                    <span className="text-sm text-gray-500">(Only admin-related conversations are shown)</span>
+                  </p>
                 </div>
               </div>
             )}

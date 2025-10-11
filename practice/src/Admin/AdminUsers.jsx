@@ -20,13 +20,16 @@ import AdminNavigation from "./AdminNavigation";
 import UserFormModal from "./Modals/UserFormModal";
 import UserViewModal from "./Modals/UserViewModal";
 
+// ✅ FIXED: Store socket globally to avoid multiple connections
 const socket = io("http://localhost:5000");
+window.socket = socket; // Make it globally accessible
 
 function AdminUsers({ setView }) {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState("All");
   const [roleFilter, setRoleFilter] = useState("All");
+  const [suspendFilter, setSuspendFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState({ type: null, user: null });
 
@@ -50,13 +53,39 @@ function AdminUsers({ setView }) {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    socket.on("user-updated", () => {
-      fetchUsers();
+    
+    // ✅ FIXED: Enhanced socket event listeners
+    socket.on("user-updated", (updatedUser) => {
+      console.log("User updated via socket:", updatedUser);
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === updatedUser._id ? updatedUser : user
+        )
+      );
+      
+      // Update modal if it's open for this user
+      setModal(prevModal => 
+        prevModal.user && prevModal.user._id === updatedUser._id 
+          ? { ...prevModal, user: updatedUser }
+          : prevModal
+      );
     });
-    return () => socket.off("user-updated");
+
+    socket.on("user-created", (newUser) => {
+      console.log("New user created via socket:", newUser);
+      setUsers(prevUsers => [...prevUsers, newUser]);
+    });
+
+    socket.on("user-archived", (archivedUserId) => {
+      console.log("User archived via socket:", archivedUserId);
+      setUsers(prevUsers => prevUsers.filter(user => user._id !== archivedUserId));
+    });
+
+    return () => {
+      socket.off("user-updated");
+      socket.off("user-created");
+      socket.off("user-archived");
+    };
   }, []);
 
   const fetchUsers = async () => {
@@ -77,6 +106,7 @@ function AdminUsers({ setView }) {
     }
   };
 
+  // ✅ FIXED: Improved toggleVerified function with notification creation
   const toggleVerified = async (user) => {
     try {
       const res = await axios.patch(
@@ -85,19 +115,49 @@ function AdminUsers({ setView }) {
       );
 
       if (res.data.success) {
+        const updatedUser = res.data.user;
+        
         // Update local state
         setUsers((prevUsers) =>
           prevUsers.map((u) =>
-            u._id === user._id ? { ...u, verified: !u.verified } : u
+            u._id === user._id ? { ...u, verified: updatedUser.verified } : u
           )
         );
 
         // Update modal state if open
         setModal((m) =>
           m.user && m.user._id === user._id
-            ? { ...m, user: { ...m.user, verified: !m.user.verified } }
+            ? { ...m, user: updatedUser }
             : m
         );
+
+        // ✅ FIXED: Emit socket event for real-time updates
+        socket.emit("user-updated", updatedUser);
+        
+        // ✅ FIXED: Create notification for the user
+        try {
+          const notificationData = {
+            userId: user._id,
+            message: `Your account has been ${updatedUser.verified ? 'verified' : 'unverified'} by an administrator`,
+            type: 'user_verification',
+            status: updatedUser.verified ? 'Verified' : 'Unverified',
+            targetRole: 'user'
+          };
+
+          // Create notification in database
+          const notificationRes = await axios.post('http://localhost:5000/api/notifications', notificationData);
+          
+          // Emit socket event for real-time notification
+          if (notificationRes.data.success) {
+            socket.emit('new-notification', notificationRes.data.notification);
+            console.log("Notification created successfully");
+          }
+        } catch (notifError) {
+          console.error('Failed to create notification:', notifError);
+          // Continue even if notification creation fails
+        }
+        
+        console.log("Verification toggled successfully:", updatedUser.verified);
       } else {
         console.error("Failed to toggle verification:", res.data.message);
         alert(`Failed to change verification status: ${res.data.message}`);
@@ -112,13 +172,38 @@ function AdminUsers({ setView }) {
     if (!window.confirm(`Are you sure you want to archive ${user.name}?`)) return;
 
     try {
-      await axios.put(`http://localhost:5000/api/users/archive/${user._id}`);
-      fetchUsers();
-      closeModal();
+      const response = await axios.put(`http://localhost:5000/api/users/archive/${user._id}`);
+      
+      if (response.data.success) {
+        // ✅ FIXED: Emit socket event for real-time updates
+        socket.emit("user-archived", user._id);
+        
+        // Update local state
+        setUsers(prevUsers => prevUsers.filter(u => u._id !== user._id));
+        
+        closeModal();
+      } else {
+        throw new Error(response.data.message || "Failed to archive user");
+      }
     } catch (err) {
       console.error("Failed to archive user:", err.response?.data || err.message);
       alert("Failed to archive user. Please try again.");
     }
+  };
+
+  // ✅ FIXED: Added function to handle user updates from modals
+  const handleUserUpdated = (updatedUser) => {
+    // Update users state
+    setUsers((prev) =>
+      prev.map((u) => (u._id === updatedUser._id ? updatedUser : u))
+    );
+    
+    // Update modal state if open
+    setModal((m) =>
+      m.user && m.user._id === updatedUser._id
+        ? { ...m, user: updatedUser }
+        : m
+    );
   };
 
   const userStats = {
@@ -128,6 +213,8 @@ function AdminUsers({ setView }) {
     staff: users.filter((u) => u.role === "Staff").length,
     verified: users.filter((u) => u.verified).length,
     unverified: users.filter((u) => !u.verified).length,
+    suspended: users.filter((u) => u.suspended).length,
+    active: users.filter((u) => !u.suspended).length,
   };
 
   const filteredUsers = users.filter((user) => {
@@ -135,12 +222,20 @@ function AdminUsers({ setView }) {
       filter === "All" ||
       (filter === "Verified" && user.verified) ||
       (filter === "Not Verified" && !user.verified);
+    
     const matchesRole = roleFilter === "All" || user.role === roleFilter;
+    
+    const matchesSuspendStatus =
+      suspendFilter === "All" ||
+      (suspendFilter === "Suspended" && user.suspended) ||
+      (suspendFilter === "Active" && !user.suspended);
+    
     const matchesSearch =
       user.name.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase()) ||
       (user.id_number || "").toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesRole && matchesSearch;
+    
+    return matchesStatus && matchesRole && matchesSuspendStatus && matchesSearch;
   });
 
   const closeModal = () => setModal({ type: null, user: null });
@@ -185,6 +280,8 @@ function AdminUsers({ setView }) {
             <StatCard label="Staff" value={userStats.staff} icon={<UserCheck size={20} />} color="yellow" />
             <StatCard label="Verified" value={userStats.verified} icon={<UserCheck size={20} />} color="green" />
             <StatCard label="Unverified" value={userStats.unverified} icon={<UserX size={20} />} color="red" />
+            <StatCard label="Suspended" value={userStats.suspended} icon={<UserX size={20} />} color="red" />
+            <StatCard label="Active" value={userStats.active} icon={<UserCheck size={20} />} color="green" />
           </div>
 
           {/* Filters */}
@@ -193,12 +290,14 @@ function AdminUsers({ setView }) {
               <SearchInput search={search} setSearch={setSearch} />
               <FilterDropdown value={filter} setValue={setFilter} label="Status" options={["All", "Verified", "Not Verified"]} />
               <FilterDropdown value={roleFilter} setValue={setRoleFilter} label="Role" options={["All", "Student", "Faculty", "Staff"]} />
+              <FilterDropdown value={suspendFilter} setValue={setSuspendFilter} label="Suspension" options={["All", "Active", "Suspended"]} />
 
               <button
                 onClick={() => {
                   setSearch("");
                   setFilter("All");
                   setRoleFilter("All");
+                  setSuspendFilter("All");
                   fetchUsers();
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -320,18 +419,8 @@ function AdminUsers({ setView }) {
         <UserViewModal
           user={modal.user}
           onClose={closeModal}
-          onToggleVerified={toggleVerified}
-          onUserUpdated={(updatedUser) => {
-            // Update users state instantly when suspension is toggled
-            setUsers((prev) =>
-              prev.map((u) => (u._id === updatedUser._id ? updatedUser : u))
-            );
-            setModal((m) =>
-              m.user && m.user._id === updatedUser._id
-                ? { ...m, user: updatedUser }
-                : m
-            );
-          }}
+          onToggleVerified={toggleVerified} // ✅ FIXED: Pass the function directly
+          onUserUpdated={handleUserUpdated} // ✅ FIXED: Use the new handler
         />
       )}
 
@@ -340,8 +429,54 @@ function AdminUsers({ setView }) {
           mode={modal.type}
           user={modal.user}
           onClose={closeModal}
-          onSuccess={() => {
-            fetchUsers();
+          onSuccess={(updatedUser) => {
+            // ✅ FIXED: Emit socket event when user is created or updated
+            if (modal.type === "add") {
+              socket.emit("user-created", updatedUser);
+              
+              // ✅ FIXED: Create welcome notification for new user
+              try {
+                const notificationData = {
+                  userId: updatedUser._id,
+                  message: `Welcome to the system! Your account has been created.`,
+                  type: 'user_welcome',
+                  status: 'Info',
+                  targetRole: 'user'
+                };
+                axios.post('http://localhost:5000/api/notifications', notificationData)
+                  .then(res => {
+                    if (res.data.success) {
+                      socket.emit('new-notification', res.data.notification);
+                    }
+                  });
+              } catch (notifError) {
+                console.error('Failed to create welcome notification:', notifError);
+              }
+            } else {
+              socket.emit("user-updated", updatedUser);
+              
+              // ✅ FIXED: Create notification for user profile updates
+              try {
+                const notificationData = {
+                  userId: updatedUser._id,
+                  message: `Your profile information has been updated by an administrator.`,
+                  type: 'profile_update',
+                  status: 'Updated',
+                  targetRole: 'user'
+                };
+                axios.post('http://localhost:5000/api/notifications', notificationData)
+                  .then(res => {
+                    if (res.data.success) {
+                      socket.emit('new-notification', res.data.notification);
+                    }
+                  });
+              } catch (notifError) {
+                console.error('Failed to create update notification:', notifError);
+              }
+            }
+            
+            // Update local state
+            handleUserUpdated(updatedUser);
             closeModal();
           }}
         />
@@ -352,6 +487,14 @@ function AdminUsers({ setView }) {
 
 // Small helper components for cleaner JSX
 function StatCard({ label, value, icon, color }) {
+  const colorClasses = {
+    blue: "bg-blue-100 text-blue-600",
+    green: "bg-green-100 text-green-600",
+    purple: "bg-purple-100 text-purple-600",
+    yellow: "bg-yellow-100 text-yellow-600",
+    red: "bg-red-100 text-red-600"
+  };
+
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
       <div className="flex items-center justify-between">
@@ -359,7 +502,7 @@ function StatCard({ label, value, icon, color }) {
           <p className="text-sm text-gray-500">{label}</p>
           <p className="text-2xl font-bold">{value}</p>
         </div>
-        <div className={`p-2 bg-${color}-100 rounded-full text-${color}-600`}>
+        <div className={`p-2 rounded-full ${colorClasses[color]}`}>
           {icon}
         </div>
       </div>

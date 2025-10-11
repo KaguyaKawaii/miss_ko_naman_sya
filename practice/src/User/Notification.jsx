@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import socket from "../utils/socket";
 
@@ -9,24 +9,136 @@ function Notification({ user, setView, setSelectedReservation }) {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      const res = await axios.get(`http://localhost:5000/api/notifications/user/${user._id}`);
+      const sorted = res.data.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setNotifications(sorted);
+      console.log("📬 Notifications fetched:", sorted.length);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  }, [user._id]);
 
   useEffect(() => {
-    if (user?._id) {
-      fetchNotifications();
+    if (!user?._id) return;
 
-      const handleNewNotification = (newNotif) => {
-        if (newNotif.userId === user._id) {
+    let isSubscribed = true;
+
+    const initializeSocket = async () => {
+      try {
+        await fetchNotifications();
+
+        console.log("🔔 Joining user room:", user._id);
+        socket.emit('join-user-room', user._id);
+
+        const handleNewNotification = (newNotif) => {
+          if (!isSubscribed) return;
+          
+          console.log("🎯 New notification received via socket:", newNotif);
+          
+          const isForCurrentUser = 
+            newNotif.userId === user._id || 
+            newNotif.userId?._id === user._id ||
+            newNotif.targetRole === 'user' ||
+            newNotif.targetRole === 'all';
+          
+          if (isForCurrentUser) {
+            console.log("🔄 Auto-refreshing notifications for current user");
+            fetchNotifications();
+            
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('New Notification', {
+                body: newNotif.message,
+                icon: '/favicon.ico'
+              });
+            }
+          } else {
+            console.log("❌ Notification not for current user:", {
+              notificationUserId: newNotif.userId,
+              currentUserId: user._id,
+              targetRole: newNotif.targetRole
+            });
+          }
+        };
+
+        const handleNotificationsRead = () => {
+          if (!isSubscribed) return;
+          console.log("📖 Notifications read event received");
           fetchNotifications();
-        }
-      };
+        };
 
-      socket.on("notification", handleNewNotification);
+        const handleUserUpdated = (updatedUser) => {
+          if (!isSubscribed) return;
+          console.log("👤 User updated event received:", updatedUser);
+          // If the updated user is the current user, refresh notifications
+          if (updatedUser._id === user._id) {
+            fetchNotifications();
+          }
+        };
 
-      return () => {
-        socket.off("notification", handleNewNotification);
-      };
-    }
-  }, [user]);
+        const handleConnect = () => {
+          if (!isSubscribed) return;
+          console.log("✅ Socket connected in Notification component");
+          setSocketConnected(true);
+          socket.emit('join-user-room', user._id);
+        };
+
+        const handleDisconnect = () => {
+          if (!isSubscribed) return;
+          console.log("❌ Socket disconnected in Notification component");
+          setSocketConnected(false);
+        };
+
+        // Add error handler
+        const handleError = (error) => {
+          console.error("❌ Socket error:", error);
+        };
+
+        // Register all event listeners
+        socket.on('connect', handleConnect);
+        socket.on('disconnect', handleDisconnect);
+        socket.on('error', handleError);
+        socket.on('new-notification', handleNewNotification);
+        socket.on('notification', handleNewNotification);
+        socket.on('notifications-read', handleNotificationsRead);
+        socket.on('user-updated', handleUserUpdated); // Listen for user updates too
+
+        setSocketConnected(socket.connected);
+
+      } catch (error) {
+        console.error('Error initializing socket:', error);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    };
+
+    initializeSocket();
+
+    return () => {
+      isSubscribed = false;
+      console.log("🧹 Cleaning up socket listeners for user:", user._id);
+      
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('error');
+      socket.off('new-notification');
+      socket.off('notification');
+      socket.off('notifications-read');
+      socket.off('user-updated');
+      
+      socket.emit('leave-user-room', user._id);
+    };
+  }, [user, fetchNotifications]);
 
   useEffect(() => {
     let results = [...notifications];
@@ -42,41 +154,38 @@ function Notification({ user, setView, setSelectedReservation }) {
     setFilteredNotifications(results);
   }, [notifications, statusFilter, unreadOnly]);
 
-  const fetchNotifications = () => {
-    setLoading(true);
-    axios.get(`http://localhost:5000/api/notifications/user/${user._id}`)
-      .then((res) => {
-        const sorted = res.data.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
-        setNotifications(sorted);
-        setFilteredNotifications(sorted);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch notifications:", err);
-        setLoading(false);
-      });
+  const markAsRead = async (id) => {
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/${id}/read`);
+      setNotifications(prev => prev.map(notif => 
+        notif._id === id ? { ...notif, isRead: true } : notif
+      ));
+      
+      if (socketConnected) {
+        socket.emit("notification-read", { notificationId: id, userId: user._id });
+      }
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
   };
 
-  const markAsRead = (id) => {
-    axios.put(`http://localhost:5000/api/notifications/${id}/read`)
-      .then(() => {
-        // Update local state immediately instead of refetching all notifications
-        setNotifications(prev => prev.map(notif => 
-          notif._id === id ? { ...notif, isRead: true } : notif
-        ));
-      })
-      .catch((err) => console.error("Failed to mark as read:", err));
+  const markAllAsRead = async () => {
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/mark-all-read/${user._id}`);
+      setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
+      
+      if (socketConnected) {
+        socket.emit("all-notifications-read", { userId: user._id });
+      }
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
   };
 
-  const markAllAsRead = () => {
-    axios.put(`http://localhost:5000/api/notifications/mark-all-read/${user._id}`)
-      .then(() => {
-        // Update local state immediately
-        setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
-      })
-      .catch((err) => console.error("Failed to mark all as read:", err));
+  // Add a manual refresh function
+  const handleManualRefresh = () => {
+    console.log("🔄 Manual refresh triggered");
+    fetchNotifications();
   };
 
   const formatDateTime = (date) =>
@@ -115,6 +224,10 @@ function Notification({ user, setView, setSelectedReservation }) {
         return "bg-red-100 text-red-800 border-red-200";
       case "Ongoing":
         return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Verified":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "Unverified":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -127,7 +240,6 @@ function Notification({ user, setView, setSelectedReservation }) {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  // Custom SVG Icons
   const ClockIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2"/>
@@ -181,17 +293,24 @@ function Notification({ user, setView, setSelectedReservation }) {
     </svg>
   );
 
+  const RefreshIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M23 4V10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M1 20V14H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3.51 9C4.01717 7.56678 4.87913 6.2854 6.01547 5.27542C7.1518 4.26543 8.52547 3.55976 10.0083 3.22426C11.4911 2.88875 13.0348 2.93434 14.4952 3.35677C15.9556 3.77921 17.2853 4.56471 18.36 5.64L23 10M1 14L5.64 18.36C6.71475 19.4353 8.04437 20.2208 9.50481 20.6432C10.9652 21.0657 12.5089 21.1113 13.9917 20.7757C15.4745 20.4402 16.8482 19.7346 17.9845 18.7246C19.1209 17.7146 19.9828 16.4332 20.49 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+
   if (loading) {
     return (
-      <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
-        <header className="text-black px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
-        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Notification</h1>
-        
-      </header>
+      <main className="w-full min-h-screen flex flex-col bg-gray-50 lg:ml-[250px] lg:w-[calc(100%-250px)]">
+        <header className="text-black px-4 sm:px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-wide">Notifications</h1>
+        </header>
 
-        <div className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          <div className="max-w-4xl mx-auto w-full">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <div className="animate-pulse space-y-4">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
@@ -212,25 +331,33 @@ function Notification({ user, setView, setSelectedReservation }) {
   }
 
   return (
-    <main className="ml-[250px] w-[calc(100%-250px)] h-screen flex flex-col bg-gray-50">
-      <header className="text-black px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
-        <h1 className="text-xl md:text-2xl font-bold tracking-wide">Notification</h1>
-        
+    <main className="w-full min-h-screen flex flex-col bg-gray-50 lg:ml-[250px] lg:w-[calc(100%-250px)]">
+      <header className="text-black px-4 sm:px-6 h-[60px] flex items-center justify-between shadow-sm bg-white">
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-wide">Notifications</h1>
+       
       </header>
 
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            {/* Header with stats and filters */}
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto w-full">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
-                
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${unreadCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+                  <span className="text-sm text-gray-600">
+                    {unreadCount} unread {unreadCount === 1 ? 'notification' : 'notifications'}
+                  </span>
+                </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button 
                   onClick={() => setUnreadOnly(!unreadOnly)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-all cursor-pointer ${unreadOnly ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'}`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all cursor-pointer flex-1 sm:flex-none justify-center min-w-[140px] ${
+                    unreadOnly 
+                      ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
                 >
                   {unreadOnly ? <BellOffIcon /> : <BellIcon />}
                   {unreadOnly ? 'Unread Only' : 'All Notifications'}
@@ -238,7 +365,7 @@ function Notification({ user, setView, setSelectedReservation }) {
                 
                 <button 
                   onClick={() => setShowFilterModal(true)}
-                  className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:border-gray-400 transition-all text-sm cursor-pointer"
+                  className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all text-sm cursor-pointer flex-1 sm:flex-none justify-center min-w-[100px]"
                 >
                   <FilterIcon />
                   Filter
@@ -247,15 +374,14 @@ function Notification({ user, setView, setSelectedReservation }) {
                 {(statusFilter !== "all" || unreadOnly) && (
                   <button 
                     onClick={clearFilters}
-                    className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:border-gray-400 transition-all text-sm"
+                    className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all text-sm cursor-pointer flex-1 sm:flex-none justify-center min-w-[120px]"
                   >
-                    Clear
+                    Clear Filters
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Active filters display */}
             {(statusFilter !== "all" || unreadOnly) && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {statusFilter !== "all" && (
@@ -263,7 +389,7 @@ function Notification({ user, setView, setSelectedReservation }) {
                     <span className="text-gray-700">Status: {statusFilter}</span>
                     <button 
                       onClick={() => setStatusFilter("all")}
-                      className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                      className="text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
                     >
                       <CloseIcon />
                     </button>
@@ -274,7 +400,7 @@ function Notification({ user, setView, setSelectedReservation }) {
                     <span className="text-gray-700">Unread Only</span>
                     <button 
                       onClick={() => setUnreadOnly(false)}
-                      className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                      className="text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
                     >
                       <CloseIcon />
                     </button>
@@ -283,32 +409,43 @@ function Notification({ user, setView, setSelectedReservation }) {
               </div>
             )}
 
-            {/* Mark all as read button */}
             {unreadCount > 0 && !unreadOnly && (
-              <button
-                onClick={markAllAsRead}
-                className="mb-6 text-sm text-red-600 hover:text-red-800 font-medium flex items-center gap-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-100 hover:bg-red-100 transition-all cursor-pointer"
-              >
-                <CheckCircleIcon />
-                Mark all as read
-              </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-blue-700 font-medium">
+                    {unreadCount} unread {unreadCount === 1 ? 'notification' : 'notifications'}
+                  </span>
+                </div>
+                <button
+                  onClick={markAllAsRead}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-blue-200 hover:bg-blue-50 transition-all cursor-pointer w-full sm:w-auto justify-center"
+                >
+                  <CheckCircleIcon />
+                  Mark all as read
+                </button>
+              </div>
             )}
 
-            {/* Notifications list */}
             {filteredNotifications.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="mx-auto text-gray-400 mb-3" style={{ width: '48px', height: '48px' }}>
+              <div className="text-center py-8 sm:py-12">
+                <div className="mx-auto text-gray-300 mb-4" style={{ width: '64px', height: '64px' }}>
                   <BellIcon />
                 </div>
-                <p className="text-gray-600 text-lg mb-2">
+                <p className="text-gray-500 text-base sm:text-lg mb-2">
                   {notifications.length === 0 
                     ? "You don't have any notifications yet." 
                     : "No notifications match your filters."}
                 </p>
+                <p className="text-gray-400 text-xs sm:text-sm mb-4">
+                  {notifications.length === 0 
+                    ? "Notifications about your reservations and reports will appear here." 
+                    : "Try adjusting your filters to see more results."}
+                </p>
                 {(statusFilter !== "all" || unreadOnly) && (
                   <button 
                     onClick={clearFilters}
-                    className="text-red-600 font-medium hover:text-red-800 transition-all flex items-center gap-1 mx-auto cursor-pointer hover:underline"
+                    className="text-blue-600 font-medium hover:text-blue-800 transition-all flex items-center gap-1 mx-auto cursor-pointer hover:underline"
                   >
                     Clear filters
                     <CloseIcon />
@@ -316,54 +453,71 @@ function Notification({ user, setView, setSelectedReservation }) {
                 )}
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-3">
                 {filteredNotifications.map((notif) => (
                   <li
                     key={notif._id}
-                    className={`border rounded-xl p-5 transition-all ${notif.isRead 
-                      ? "bg-white border-gray-200 hover:border-gray-300" 
-                      : "bg-red-50 border-red-200 hover:border-red-300"}`}
+                    className={`border rounded-xl p-4 transition-all duration-300 ${
+                      notif.isRead 
+                        ? "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm" 
+                        : "bg-blue-50 border-blue-200 hover:border-blue-300 hover:shadow-sm"
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium text-gray-800">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
+                          <h3 className={`font-medium text-sm leading-relaxed ${notif.isRead ? 'text-gray-800' : 'text-gray-900'}`}>
                             {notif.message}
                           </h3>
-                          <span
-                            className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColor(
-                              notif.status
-                            )}`}
-                          >
-                            {notif.status}
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0 sm:ml-2">
+                            <span
+                              className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColor(
+                                notif.status
+                              )}`}
+                            >
+                              {notif.status}
+                            </span>
+                            {!notif.isRead && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                            )}
+                          </div>
                         </div>
                         
                         <div className="flex items-center text-xs text-gray-500 gap-1 mb-2">
                           <ClockIcon />
                           {formatRelativeTime(notif.createdAt)}
                           {formatRelativeTime(notif.createdAt).includes("ago") && (
-                            <span className="text-gray-400">• {formatDateTime(notif.createdAt)}</span>
+                            <span className="text-gray-400 hidden sm:inline">• {formatDateTime(notif.createdAt)}</span>
                           )}
                         </div>
+
+                        {!notif.isRead && (
+                          <button
+                            onClick={() => markAsRead(notif._id)}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mt-2 cursor-pointer hover:underline transition-colors"
+                          >
+                            <CheckCircleIcon />
+                            Mark as read
+                          </button>
+                        )}
                       </div>
 
-                      <div className="flex flex-col gap-2 items-end shrink-0">
+                      <div className="flex flex-col gap-2 items-start sm:items-end shrink-0">
                         {notif.reservationId && (
                           <button
                             onClick={() => {
                               setSelectedReservation(notif.reservationId);
                               setView("reservationDetails");
-                              markAsRead(notif._id);
+                              if (!notif.isRead) {
+                                markAsRead(notif._id);
+                              }
                             }}
-                            className="text-red-600 text-sm font-medium hover:text-red-800 flex items-center gap-1 whitespace-nowrap px-2 py-1 rounded-md hover:bg-red-50 transition-all hover:underline cursor-pointer"
+                            className="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all cursor-pointer border border-transparent hover:border-blue-200 w-full sm:w-auto justify-center"
                           >
                             <EyeIcon />
                             View Details
                           </button>
                         )}
-
-                        
                       </div>
                     </div>
                   </li>
@@ -374,17 +528,14 @@ function Notification({ user, setView, setSelectedReservation }) {
         </div>
       </div>
 
-      {/* Filter Modal */}
       {showFilterModal && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-5">
-                <div className="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L15 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 019 17v-3.586L3.293 6.707A1 1 0 013 6V4z" />
-                  </svg>
-                <h3 className="text-lg font-bold text-gray-800">Filter Notifications</h3>
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2">
+                  <FilterIcon />
+                  <h3 className="text-lg font-bold text-gray-800">Filter Notifications</h3>
                 </div>
                 <button 
                   onClick={() => setShowFilterModal(false)}
@@ -397,16 +548,18 @@ function Notification({ user, setView, setSelectedReservation }) {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">Filter by Status</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {["all", "Approved", "Pending", "Rejected", "Cancelled", "Ongoing", "Expired"].map(status => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {["all", "Approved", "Pending", "Rejected", "Cancelled", "Ongoing", "Expired", "Verified", "Unverified"].map(status => (
                       <button
                         key={status}
                         onClick={() => setStatusFilter(status)}
-                        className={`px-3 py-2 rounded-lg text-sm border transition-all cursor-pointer ${statusFilter === status 
-                          ? status === "all" 
-                            ? "bg-red-100 text-red-800 border-red-300" 
-                            : statusColor(status) + " border-current"
-                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"}`}
+                        className={`px-3 py-2 rounded-lg text-sm border transition-all cursor-pointer ${
+                          statusFilter === status 
+                            ? status === "all" 
+                              ? "bg-blue-100 text-blue-800 border-blue-300" 
+                              : statusColor(status) + " border-current"
+                            : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                        }`}
                       >
                         {status === "all" ? "All Statuses" : status}
                       </button>
@@ -418,23 +571,27 @@ function Notification({ user, setView, setSelectedReservation }) {
                   <label className="text-sm font-medium text-gray-700">Show only unread</label>
                   <button
                     onClick={() => setUnreadOnly(!unreadOnly)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all cursor-pointer ${unreadOnly ? 'bg-red-500' : 'bg-gray-300'}`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all cursor-pointer ${
+                      unreadOnly ? 'bg-blue-500' : 'bg-gray-300'
+                    }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all ${unreadOnly ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all ${
+                      unreadOnly ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
                   </button>
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end gap-3 pt-5 border-t border-gray-200">
+              <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3 pt-5 border-t border-gray-200">
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all cursor-pointer"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all cursor-pointer order-2 sm:order-1"
                 >
                   Clear All
                 </button>
                 <button
                   onClick={() => setShowFilterModal(false)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium cursor-pointer"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium cursor-pointer order-1 sm:order-2"
                 >
                   Apply Filters
                 </button>

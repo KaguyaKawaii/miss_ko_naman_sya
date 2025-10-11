@@ -268,10 +268,20 @@ function ReportModal({
     fetchStaff();
   }, []);
 
+  // 🔹 Check if staff is already assigned to this report
+  const isStaffAlreadyAssigned = () => {
+    return selectedStaff && report.assignedTo?._id === selectedStaff;
+  };
+
   // 🔹 Assign staff
   const handleAssignStaff = async () => {
     if (!selectedStaff) {
       alert("Please select a staff to assign.");
+      return;
+    }
+
+    if (isStaffAlreadyAssigned()) {
+      alert("This staff is already assigned to this report.");
       return;
     }
 
@@ -383,7 +393,7 @@ function ReportModal({
           </div>
 
           {/* Assign Staff */}
-          {report.status !== "Archived" && (
+          {report.status !== "Resolved" && report.status !== "Archived" && (
             <div className="pt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Assign Staff
@@ -404,10 +414,15 @@ function ReportModal({
               <button
                 onClick={handleAssignStaff}
                 className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                disabled={actionLoading || !selectedStaff}
+                disabled={actionLoading || !selectedStaff || isStaffAlreadyAssigned()}
               >
                 {actionLoading ? "Assigning..." : "Assign Staff"}
               </button>
+              {isStaffAlreadyAssigned() && (
+                <p className="mt-2 text-sm text-yellow-600">
+                  This staff is already assigned to this report.
+                </p>
+              )}
             </div>
           )}
 
@@ -418,7 +433,29 @@ function ReportModal({
           </div>
 
           {/* Action Taken Section */}
-          
+          {report.status !== "Resolved" && report.status !== "Archived" && (
+            <div className="pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Action Taken
+              </label>
+              <textarea
+                value={actionTaken}
+                onChange={(e) => setActionTaken(e.target.value)}
+                placeholder="Describe the actions taken to resolve this report..."
+                rows="4"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC0000] focus:border-transparent"
+                disabled={actionLoading}
+              />
+            </div>
+          )}
+
+          {/* Show existing action taken for resolved reports */}
+          {report.status === "Resolved" && report.actionTaken && (
+            <div className="pt-4">
+              <h3 className="text-sm font-medium text-gray-500">Action Taken</h3>
+              <p className="mt-1 text-gray-800 bg-gray-50 p-4 rounded-lg">{report.actionTaken}</p>
+            </div>
+          )}
         </div>
 
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
@@ -427,10 +464,10 @@ function ReportModal({
             className="px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             disabled={actionLoading}
           >
-            Cancel
+            Close
           </button>
 
-          {report.status !== "Resolved" && (
+          {report.status !== "Resolved" && report.status !== "Archived" && (
             <button
               onClick={handleResolveReport}
               className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-[#A30000] font-medium"

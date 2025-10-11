@@ -26,6 +26,7 @@ exports.sendMessageToFloor = async (userId, floor, content) => {
     content: content,
     senderType: "user",
     floor: floor,
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -50,6 +51,7 @@ exports.sendMessageToAdmin = async (userId, content) => {
     receiver: "admin",
     content: content,
     senderType: "user",
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -80,6 +82,7 @@ exports.sendMessageFromStaff = async (staffId, userId, content) => {
     senderType: "staff",
     displayName: getFloorStaffDisplayName(staff.floor),
     floor: staff.floor,
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -104,6 +107,7 @@ exports.sendMessageFromStaffToAdmin = async (staffId, content) => {
     senderType: "staff",
     displayName: staff.name,
     floor: staff.floor,
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -127,6 +131,7 @@ exports.sendMessageFromAdminToUser = async (userId, content) => {
     content: content,
     senderType: "admin",
     displayName: getAdminDisplayName(),
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -145,11 +150,12 @@ exports.sendMessageFromAdminToStaff = async (staffId, content) => {
   if (!staff) throw new Error("Staff not found");
 
   const newMessage = await new Message({
-    sender: admin._id,
+    sender: "admin",
     receiver: staffId,
     content: content,
     senderType: "admin",
     displayName: getAdminDisplayName(),
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -165,12 +171,13 @@ exports.sendMessageFromAdminToStaff = async (staffId, content) => {
  */
 exports.sendMessageFromAdminToFloor = async (floor, content) => {
   const newMessage = await new Message({
-    sender: admin._id,
+    sender: "admin",
     receiver: floor,
     content: content,
     senderType: "admin",
     displayName: getAdminDisplayName(),
     floor: floor,
+    read: false,
     createdAt: new Date(),
   }).save();
 
@@ -178,6 +185,31 @@ exports.sendMessageFromAdminToFloor = async (floor, content) => {
     ...newMessage.toObject(), 
     senderName: "Admin",
     displayName: getAdminDisplayName()
+  };
+};
+
+/**
+ * User → User messaging (fallback)
+ */
+exports.sendMessageUserToUser = async (senderId, receiverId, content) => {
+  const sender = await User.findById(senderId);
+  const receiver = await User.findById(receiverId);
+  
+  if (!sender || !receiver) throw new Error("User not found");
+
+  const newMessage = await new Message({
+    sender: senderId,
+    receiver: receiverId,
+    content: content,
+    senderType: "user",
+    read: false,
+    createdAt: new Date(),
+  }).save();
+
+  return { 
+    ...newMessage.toObject(), 
+    senderName: sender.name,
+    displayName: sender.name
   };
 };
 
@@ -345,10 +377,12 @@ exports.getFloorUsers = async (floor) => {
       ]
     }).sort({ createdAt: -1 });
 
+    // FIXED: Count unread messages from this user to staff's floor
     const unreadCount = await Message.countDocuments({
-      receiver: user._id,
-      floor: floor,
-      read: false
+      $or: [
+        { sender: user._id, receiver: floor, read: false },
+        { receiver: user._id, floor: floor, read: false }
+      ]
     });
 
     return {
@@ -489,4 +523,263 @@ exports.getStaffRecipients = async (staffId) => {
   return recipients.sort((a, b) => 
     new Date(b.latestMessageAt || 0) - new Date(a.latestMessageAt || 0)
   );
+};
+
+/**
+ * Unread Messages Methods - ADDED MISSING FUNCTIONS
+ */
+
+// Mark messages as read
+exports.markMessagesAsRead = async (userId, conversationId, messageIds = null) => {
+  let query = {
+    receiver: userId,
+    read: false
+  };
+
+  // If specific message IDs are provided, mark only those
+  if (messageIds && messageIds.length > 0) {
+    query._id = { $in: messageIds };
+  } 
+  // If conversation ID is provided, mark all unread messages in that conversation
+  else if (conversationId) {
+    // For admin conversations
+    if (conversationId === "admin") {
+      query.$or = [
+        { sender: "admin", receiver: userId },
+        { receiver: userId, sender: "admin" }
+      ];
+    }
+    // For floor conversations (when staff views user conversation)
+    else if (typeof conversationId === "string" && conversationId.includes("Floor")) {
+      // For staff, mark messages where they are the receiver and the sender is a user from that floor
+      query.$or = [
+        { receiver: userId, floor: conversationId, senderType: "user" },
+        { receiver: userId, sender: conversationId }
+      ];
+    }
+    // For user conversations (when staff views specific user)
+    else {
+      query.$or = [
+        { receiver: userId, sender: conversationId },
+        { receiver: userId, floor: conversationId }
+      ];
+    }
+  }
+
+  const result = await Message.updateMany(
+    query,
+    { $set: { read: true, readAt: new Date() } }
+  );
+
+  return result;
+};
+
+// NEW: Mark messages as read from specific user for staff
+exports.markMessagesAsReadFromUser = async (staffId, userId) => {
+  const staff = await User.findById(staffId);
+  if (!staff || !staff.floor) throw new Error("Staff not found or no floor assigned");
+
+  // Mark all unread messages from this user to staff's floor as read
+  const result = await Message.updateMany(
+    {
+      $or: [
+        { sender: userId, receiver: staff.floor, read: false },
+        { receiver: staffId, sender: userId, read: false }
+      ]
+    },
+    { $set: { read: true, readAt: new Date() } }
+  );
+
+  return result;
+};
+
+exports.getUnreadCount = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) return 0;
+
+  // If user is staff, count both direct messages and floor messages
+  if (user.role === "Staff") {
+    return await this.getStaffTotalUnreadCount(userId);
+  }
+
+  // For regular users and admin, count direct messages only
+  const count = await Message.countDocuments({
+    receiver: userId,
+    read: false
+  });
+
+  return count;
+};
+
+// Get unread count by conversation - FIXED for staff
+exports.getUnreadCountByConversation = async (userId, conversationId) => {
+  const user = await User.findById(userId);
+  if (!user) return 0;
+
+  let query = {
+    read: false
+  };
+
+  // For staff members
+  if (user.role === "Staff") {
+    // For admin conversations with staff
+    if (conversationId === "admin") {
+      query.$or = [
+        { sender: "admin", receiver: userId },
+        { receiver: userId, sender: "admin" }
+      ];
+    }
+    // For floor user conversations with staff
+    else if (mongoose.Types.ObjectId.isValid(conversationId)) {
+      query.$or = [
+        { receiver: userId, sender: conversationId, senderType: "user" },
+        { receiver: userId, floor: user.floor, sender: conversationId }
+      ];
+    }
+    // This shouldn't normally happen for staff
+    else {
+      return 0;
+    }
+  }
+  // For regular users
+  else {
+    query.receiver = userId;
+
+    // For admin conversations
+    if (conversationId === "admin") {
+      query.$or = [
+        { sender: "admin", receiver: userId },
+        { receiver: userId, sender: "admin" }
+      ];
+    }
+    // For floor conversations
+    else if (typeof conversationId === "string" && conversationId.includes("Floor")) {
+      query.$or = [
+        { receiver: userId, floor: conversationId },
+        { receiver: userId, sender: conversationId }
+      ];
+    }
+    // For user conversations
+    else {
+      query.$or = [
+        { receiver: userId, sender: conversationId },
+        { receiver: userId, floor: conversationId }
+      ];
+    }
+  }
+
+  const count = await Message.countDocuments(query);
+  return count;
+};
+
+// NEW: Get unread count for specific user (for staff badges)
+exports.getUnreadCountByUser = async (staffId, userId) => {
+  const staff = await User.findById(staffId);
+  if (!staff || !staff.floor) return 0;
+
+  const count = await Message.countDocuments({
+    $or: [
+      { sender: userId, receiver: staff.floor, read: false },
+      { receiver: staffId, sender: userId, read: false }
+    ]
+  });
+
+  return count;
+};
+
+// Get unread count for staff from floor users - FIXED
+exports.getStaffUnreadCountFromFloor = async (staffId, floor) => {
+  const count = await Message.countDocuments({
+    $or: [
+      // Direct messages to staff from floor users
+      { receiver: staffId, floor: floor, senderType: "user", read: false },
+      // Floor messages that staff should see (sent to their floor)
+      { receiver: floor, floor: floor, senderType: "user", read: false }
+    ]
+  });
+  
+  return count;
+};
+
+// Get total unread count for staff (floor users + admin) - FIXED
+exports.getStaffTotalUnreadCount = async (staffId) => {
+  const staff = await User.findById(staffId);
+  if (!staff || !staff.floor) return 0;
+
+  // Count unread messages from floor users to this staff (both direct and floor messages)
+  const floorUnreadCount = await Message.countDocuments({
+    $or: [
+      // Direct messages to staff
+      { receiver: staffId, floor: staff.floor, senderType: "user", read: false },
+      // Floor messages addressed to staff's floor
+      { receiver: staff.floor, floor: staff.floor, senderType: "user", read: false }
+    ]
+  });
+
+  // Count unread messages from admin to this staff
+  const adminUnreadCount = await Message.countDocuments({
+    sender: "admin",
+    receiver: staffId,
+    read: false
+  });
+
+  return floorUnreadCount + adminUnreadCount;
+};
+
+// NEW: Get detailed unread breakdown for staff
+exports.getStaffUnreadBreakdown = async (staffId) => {
+  const staff = await User.findById(staffId);
+  if (!staff || !staff.floor) {
+    return {
+      total: 0,
+      fromFloor: 0,
+      fromAdmin: 0,
+      byUser: {}
+    };
+  }
+
+  // Get floor unread count
+  const floorUnreadCount = await Message.countDocuments({
+    $or: [
+      { receiver: staffId, floor: staff.floor, senderType: "user", read: false },
+      { receiver: staff.floor, floor: staff.floor, senderType: "user", read: false }
+    ]
+  });
+
+  // Get admin unread count
+  const adminUnreadCount = await Message.countDocuments({
+    sender: "admin",
+    receiver: staffId,
+    read: false
+  });
+
+  // Get unread count by user
+  const userUnreadMessages = await Message.aggregate([
+    {
+      $match: {
+        $or: [
+          { receiver: staffId, floor: staff.floor, senderType: "user", read: false },
+          { receiver: staff.floor, floor: staff.floor, senderType: "user", read: false }
+        ]
+      }
+    },
+    {
+      $group: {
+        _id: "$sender",
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const byUser = {};
+  userUnreadMessages.forEach(item => {
+    byUser[item._id] = item.count;
+  });
+
+  return {
+    total: floorUnreadCount + adminUnreadCount,
+    fromFloor: floorUnreadCount,
+    fromAdmin: adminUnreadCount,
+    byUser: byUser
+  };
 };

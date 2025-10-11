@@ -13,7 +13,10 @@ import {
   Newspaper,
   ListOrdered,
   ChevronDown,
-  HardDrive, // ✅ Backup icon
+  Settings,
+  User,
+  Shield,
+  Cog,
 } from "lucide-react";
 
 function AdminNavigation({ admin, setView, currentView, onLogout }) {
@@ -22,6 +25,7 @@ function AdminNavigation({ admin, setView, currentView, onLogout }) {
     admin || JSON.parse(localStorage.getItem("admin") || "{}")
   );
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (admin && admin.username) {
@@ -53,6 +57,12 @@ function AdminNavigation({ admin, setView, currentView, onLogout }) {
     { id: "archivedReservations", label: "Reservations" },
     { id: "archivedReports", label: "Reports" },
     { id: "archivedNews", label: "News" },
+  ];
+
+  const settingsOptions = [
+    { id: "profileSettings", label: "Profile Settings", icon: User },
+    { id: "passwordSecurity", label: "Password & Security", icon: Shield },
+    { id: "systemSettings", label: "System Settings", icon: Cog },
   ];
 
   return (
@@ -120,6 +130,51 @@ function AdminNavigation({ admin, setView, currentView, onLogout }) {
                           : "text-gray-400 hover:text-gray-200 hover:bg-gray-600"
                       }`}
                     >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Settings Dropdown */}
+            <div>
+              <button
+                onClick={() => setSettingsOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all duration-150 focus:outline-none border-l-4 ${
+                  currentView.startsWith("profileSettings") ||
+                  currentView.startsWith("passwordSecurity") ||
+                  currentView.startsWith("systemSettings")
+                    ? "bg-gray-700 text-white font-medium border-red-500"
+                    : "text-gray-400 border-transparent hover:bg-gray-600 hover:text-gray-200"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Settings size={18} />
+                  <span className="text-sm">Settings</span>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${
+                    settingsOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {settingsOpen && (
+                <div className="flex flex-col pl-10 bg-[#111]">
+                  {settingsOptions.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      ref={(el) => (navRefs.current[id] = el)}
+                      onClick={() => setView(id)}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm rounded transition-colors ${
+                        currentView === id
+                          ? "text-white font-medium bg-gray-700"
+                          : "text-gray-400 hover:text-gray-200 hover:bg-gray-600"
+                      }`}
+                    >
+                      <Icon size={14} />
                       {label}
                     </button>
                   ))}

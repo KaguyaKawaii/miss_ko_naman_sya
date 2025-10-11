@@ -1,3 +1,4 @@
+// routes/messageRoutes.js
 const express = require("express");
 const router = express.Router();
 const messageController = require("../controllers/messageController");
@@ -17,6 +18,8 @@ router.post("/staff-to-admin", messageController.staffMessageToAdmin);
 router.post("/admin-to-user", messageController.adminMessageToUser);
 router.post("/admin-to-staff", messageController.adminMessageToStaff);
 router.post("/admin-to-floor", messageController.adminMessageToFloor);
+router.post("/send", messageController.sendMessage); // This should already be there
+
 
 // Conversation fetching routes
 router.get("/floor-conversation/:userId/:floor", messageController.getFloorConversation);
@@ -29,5 +32,25 @@ router.get("/admin-conversation/:entityId", messageController.getAdminConversati
 router.get("/floor-users/:floor", messageController.getFloorUsers);
 router.get("/recipients/admin", messageController.getAdminRecipients);
 router.get("/recipients/staff/:staffId", messageController.getStaffRecipients);
+
+// Mark messages as read
+router.put("/mark-read", messageController.markMessagesAsRead);
+router.get("/unread-count/:userId", messageController.getUnreadCount);
+router.get("/unread-count/:userId/:conversationId", messageController.getUnreadCountByConversation);
+
+// NEW ROUTES for staff unread counts
+router.get("/staff-total-unread/:staffId", messageController.getStaffTotalUnreadCount);
+router.get("/staff-floor-unread/:staffId/:floor", messageController.getStaffFloorUnreadCount);
+
+// NEW ROUTES for per-user unread counts (these were missing)
+router.get("/unread-count-by-user/:staffId/:userId", messageController.getUnreadCountByUser);
+router.get("/staff-unread-breakdown/:staffId", messageController.getStaffUnreadBreakdown);
+
+// MARK AS READ ROUTES - ADD THESE
+router.post("/mark-read-on-reply", messageController.markMessagesAsReadOnReply);
+router.post("/mark-conversation-read", messageController.markConversationAsRead); // ADD THIS LINE
+
+router.get("/unread-messages/:userId", messageController.getUnreadMessages);
+
 
 module.exports = router;
