@@ -55,28 +55,37 @@ function News({ user, setView }) {
   return (
     <main className="w-full md:ml-[250px] md:w-[calc(100%-250px)] min-h-screen flex flex-col bg-[#FFFCFB]">
       {/* Header */}
-      <header className="text-black px-6 h-[60px] flex items-center justify-between shadow-sm">
-        <h1 className="text-xl md:text-2xl font-bold tracking-wide">News</h1>
+      <header className="text-black px-4 sm:px-6 h-[60px] flex items-center justify-between shadow-sm">
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-wide">News</h1>
       </header>
 
-      {/* Tab Switcher */}
-      <div className="flex w-[200px] justify-between bg-white shadow-md p-1 rounded-3xl mt-6 ml-6">
+      {/* Tab Switcher - Copied from Dashboard.jsx */}
+      <div className="flex w-full max-w-[200px] justify-between bg-white shadow-md p-1 rounded-3xl mt-4 sm:mt-6 ml-4 sm:ml-6 mx-4 sm:mx-0">
         <button
           onClick={() => setView("dashboard")}
-          className="px-4 py-2 rounded-3xl font-semibold transition-all duration-300 text-gray-700 hover:bg-gray-200 cursor-pointer"
+          className={`px-3 sm:px-4 py-2 rounded-3xl font-semibold transition-all duration-300 text-sm sm:text-base cursor-pointer ${
+            "news" === "dashboard" 
+              ? "bg-red-600 text-white" 
+              : "text-gray-700 hover:bg-gray-200"
+          }`}
         >
           Dashboard
         </button>
+
         <button
           onClick={() => setView("news")}
-          className="px-4 py-2 rounded-3xl font-semibold transition-all duration-300 bg-red-600 text-white"
+          className={`px-3 sm:px-4 py-2 rounded-3xl font-semibold transition-all duration-300 cursor-pointer text-sm sm:text-base ${
+            "news" === "news" 
+              ? "bg-red-600 text-white" 
+              : "text-gray-700 hover:bg-gray-200"
+          }`}
         >
           News
         </button>
       </div>
 
       {/* News Content */}
-      <div className="flex justify-center p-6">
+      <div className="flex justify-center p-3 sm:p-4 md:p-6">
         <div className="space-y-4 max-h-[calc(100vh-200px)] pr-2 w-full max-w-6xl">
           {isLoading ? (
             <div className="text-center py-8 text-gray-500">Loading news...</div>
@@ -88,15 +97,15 @@ function News({ user, setView }) {
             newsList.map((n) => (
               <article
                 key={n._id}
-                className="p-4 border border-gray-100 rounded-lg hover:shadow transition-shadow bg-white"
+                className="p-3 sm:p-4 border border-gray-100 rounded-lg hover:shadow transition-shadow bg-white"
               >
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3">
-                  <div className="flex items-center gap-3 mb-2 md:mb-0">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2 md:mb-0">
                     {/* Circle with Admin SVG */}
-                    <div className="flex items-center justify-center border border-gray-500 rounded-full w-[50px] h-[50px] bg-yellow-300">
+                    <div className="flex items-center justify-center border border-gray-500 rounded-full w-[40px] h-[40px] sm:w-[50px] sm:h-[50px] bg-yellow-300">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="w-6 h-6 text-gray-700"
+                        className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -109,9 +118,9 @@ function News({ user, setView }) {
                         />
                       </svg>
                     </div>
-                    <h1 className="font-bold">USA-FLD Admin</h1>
+                    <h1 className="font-bold text-sm sm:text-base">USA-FLD Admin</h1>
                   </div>
-                  <time className="text-xs text-gray-500 flex items-center gap-1">
+                  <time className="text-xs text-gray-500 flex items-center gap-1 mt-1 sm:mt-0">
                     {formatPH(n.createdAt)}
                   </time>
                 </div>
@@ -130,7 +139,7 @@ function News({ user, setView }) {
                 )}
 
                 <div className="border-b border-gray-100 mb-3" />
-                <h2 className="font-bold text-gray-800 text-lg">{n.title}</h2>
+                <h2 className="font-bold text-gray-800 text-base sm:text-lg">{n.title}</h2>
                 <div
                   className="text-sm text-gray-600"
                   dangerouslySetInnerHTML={{ __html: n.content }}
@@ -144,7 +153,7 @@ function News({ user, setView }) {
       {/* Fullscreen Image Modal */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setSelectedImage(null)}
         >
           <img

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Eye, RefreshCw, Search, ChevronDown, X } from "lucide-react";
+import { Eye, RefreshCw, Search, ChevronDown, X, Play } from "lucide-react";
 import ReservationModal from "./Modals/ReservationModal";
 
 function StaffReservations({ staff }) {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingAction, setProcessingAction] = useState(null);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
 
@@ -25,6 +24,24 @@ function StaffReservations({ staff }) {
           hour12: true,
         })
       : "—";
+
+  const handleStart = async (reservation) => {
+    try {
+      setIsProcessing(true);
+      
+      const response = await axios.post(`http://localhost:5000/reservations/start/${reservation._id}`);
+      
+      if (response.data) {
+        await fetchReservations(); // Refresh the list
+        alert("Reservation started successfully!");
+      }
+    } catch (err) {
+      console.error("Error starting reservation:", err);
+      alert(err.response?.data?.message || "Failed to start reservation");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const formatPHDate = (date) =>
     date
@@ -109,54 +126,10 @@ function StaffReservations({ staff }) {
   const handleCloseModal = () => {
     setSelectedReservation(null);
     setShowModal(false);
-    setIsProcessing(false);
-    setProcessingAction(null);
   };
 
-  const handleApprove = async () => {
-    if (!selectedReservation) return;
-    
-    try {
-      setIsProcessing(true);
-      setProcessingAction('approve');
-      
-      await axios.patch(`http://localhost:5000/reservations/${selectedReservation._id}/status`, {
-        status: "Approved"
-      });
-      
-      await fetchReservations();
-      handleCloseModal();
-      alert("Reservation approved successfully!");
-    } catch (err) {
-      console.error("Error approving reservation:", err);
-      alert("Failed to approve reservation. Please try again.");
-    } finally {
-      setIsProcessing(false);
-      setProcessingAction(null);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!selectedReservation) return;
-    
-    try {
-      setIsProcessing(true);
-      setProcessingAction('reject');
-      
-      await axios.patch(`http://localhost:5000/reservations/${selectedReservation._id}/status`, {
-        status: "Rejected"
-      });
-      
-      await fetchReservations();
-      handleCloseModal();
-      alert("Reservation declined successfully!");
-    } catch (err) {
-      console.error("Error rejecting reservation:", err);
-      alert("Failed to decline reservation. Please try again.");
-    } finally {
-      setIsProcessing(false);
-      setProcessingAction(null);
-    }
+  const handleActionSuccess = () => {
+    fetchReservations(); // Refresh the list after successful action
   };
 
   const filteredReservations = reservations.filter((res) => {
@@ -260,7 +233,7 @@ function StaffReservations({ staff }) {
               disabled={isLoading}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
               <span>Refresh</span>
             </button>
           </div>
@@ -272,107 +245,128 @@ function StaffReservations({ staff }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-700 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left font-medium">#</th>
-                  <th className="px-6 py-3 text-left font-medium">Date</th>
-                  <th className="px-6 py-3 text-left font-medium">Time</th>
                   <th className="px-6 py-3 text-left font-medium">Room</th>
                   <th className="px-6 py-3 text-left font-medium">Reserved By</th>
+                  <th className="px-6 py-3 text-left font-medium">Date & Time</th>
+                  <th className="px-6 py-3 text-left font-medium">Location</th>
                   <th className="px-6 py-3 text-left font-medium">Status</th>
-                  <th className="px-6 py-3 text-left font-medium">Created At</th>
-                  <th className="px-6 py-3 text-right font-medium">Actions</th>
+                  <th className="px-6 py-3 text-left font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {!staff?._id ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                      Staff information not available.
-                    </td>
-                  </tr>
-                ) : !staff?.floor || staff.floor === "N/A" ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                      No floor assigned. Please contact administrator.
-                    </td>
-                  </tr>
-                ) : isLoading ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                      Loading reservations...
+                    <td colSpan="6" className="px-6 py-8 text-center">
+                      <div className="flex items-center justify-center">
+                        <RefreshCw className="animate-spin text-blue-600 mr-2" size={16} />
+                        <span className="text-gray-600">Loading reservations...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : filteredReservations.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                      No reservations found {search || filter !== "All" ? "matching your filters" : `for ${staff.floor}`}
+                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                      {reservations.length === 0 
+                        ? "No reservations found for your assigned floor."
+                        : "No reservations match your search criteria."
+                      }
                     </td>
                   </tr>
                 ) : (
-                  filteredReservations.map((r, i) => {
-                    const createdAt = r.createdAt
-                      ? new Date(r.createdAt)
-                      : null;
-                    const startDate = new Date(r.datetime);
-                    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-
-                    const dateOnly = startDate.toLocaleDateString("en-PH", {
-                      timeZone: "Asia/Manila",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    });
-
-                    const startTime = startDate.toLocaleTimeString("en-PH", {
-                      timeZone: "Asia/Manila",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    });
-
-                    const endTime = endDate.toLocaleTimeString("en-PH", {
-                      timeZone: "Asia/Manila",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    });
-
-                    return (
-                      <tr key={r._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">{i + 1}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{dateOnly}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {startTime} — {endTime}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium">{r.roomName}</div>
-                          <div className="text-gray-500 text-xs">{r.location}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">{r.userId?.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(r.status)}`}
-                          >
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {createdAt ? formatPHDateTime(createdAt) : "—"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex justify-end space-x-2">
-                            {/* View */}
-                            <button
-                              onClick={() => handleView(r)}
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                              title="View Details"
-                            >
-                              <Eye size={18} />
-                            </button>
+                  filteredReservations.map((reservation) => (
+                    <tr key={reservation._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {reservation.roomName || "N/A"}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                          <div className="text-xs text-gray-500">
+                            {reservation.purpose || "No purpose specified"}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {reservation.userId?.name || "N/A"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {reservation.userId?.id_number || "N/A"}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {formatPHDate(reservation.datetime)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {reservation.datetime
+                              ? new Date(reservation.datetime).toLocaleTimeString("en-US", {
+                                  timeZone: "Asia/Manila",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                })
+                              : "—"
+                            }
+                            {" - "}
+                            {reservation.endDatetime
+                              ? new Date(reservation.endDatetime).toLocaleTimeString("en-US", {
+                                  timeZone: "Asia/Manila",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                })
+                              : "—"
+                            }
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-gray-900">
+                          {reservation.location || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                            reservation.status
+                          )}`}
+                        >
+                          {reservation.status}
+                          {reservation.extensionRequested && (
+                            <span className="ml-1">
+                              • Ext
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleView(reservation)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Eye size={14} />
+                            <span>View</span>
+                          </button>
+                          
+                          {/* Add Start button for Approved reservations */}
+                          {reservation.status === "Approved" && (
+                            <button
+                              onClick={() => handleStart(reservation)}
+                              disabled={isProcessing}
+                              className="flex items-center gap-1 px-3 py-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              <Play size={14} />
+                              <span>Start</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -380,15 +374,13 @@ function StaffReservations({ staff }) {
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
+      {/* Reservation Modal */}
+      {showModal && selectedReservation && (
         <ReservationModal
           reservation={selectedReservation}
           onClose={handleCloseModal}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          isProcessing={isProcessing}
-          processingAction={processingAction}
+          onActionSuccess={handleActionSuccess}
+          currentUser={staff}
         />
       )}
     </main>

@@ -1,4 +1,3 @@
-// StaffMessages.jsx
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
@@ -14,6 +13,7 @@ function StaffMessages({ setView, staff }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("floor");
   const [searchTerm, setSearchTerm] = useState("");
+  const [totalUnread, setTotalUnread] = useState(0);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
@@ -27,13 +27,116 @@ function StaffMessages({ setView, staff }) {
     scrollToBottom();
   }, [messages]);
 
+  // Fetch total unread count for staff
+  const fetchTotalUnreadCount = async () => {
+    if (!staff?._id) return;
+    
+    try {
+      const { data } = await axios.get(
+        `http://localhost:5000/api/messages/staff-total-unread/${staff._id}`
+      );
+      setTotalUnread(data.count || 0);
+    } catch (err) {
+      console.error("Failed to fetch total unread count:", err);
+      try {
+        const { data } = await axios.get(
+          `http://localhost:5000/api/messages/unread-count/${staff._id}`
+        );
+        setTotalUnread(data.count || 0);
+      } catch (fallbackErr) {
+        console.error("Failed to fetch fallback unread count:", fallbackErr);
+        setTotalUnread(0);
+      }
+    }
+  };
+
+  // Fetch conversations with proper unread counts
+  const fetchConversations = async () => {
+    try {
+      const { data } = await axios.get(
+        `http://localhost:5000/api/messages/floor-users/${staff.floor}`
+      );
+      
+      const conversationsWithUnread = await Promise.all(
+        data.map(async (conv) => {
+          try {
+            const { data: unreadData } = await axios.get(
+              `http://localhost:5000/api/messages/unread-count-by-user/${staff._id}/${conv._id}`
+            );
+            return { ...conv, unreadCount: unreadData.count || 0 };
+          } catch (err) {
+            console.error(`Failed to fetch unread count for ${conv._id}:`, err);
+            return { ...conv, unreadCount: 0 };
+          }
+        })
+      );
+      
+      setConversations(conversationsWithUnread);
+    } catch (err) {
+      console.error("Failed to fetch conversations:", err);
+    }
+  };
+
+  // Mark messages as read for a specific user
+  const markMessagesAsRead = async (userId) => {
+    try {
+      await axios.put("http://localhost:5000/api/messages/mark-read", {
+        staffId: staff._id,
+        userId: userId
+      });
+      
+      fetchTotalUnreadCount();
+      fetchConversations();
+    } catch (err) {
+      console.error("Failed to mark messages as read:", err);
+    }
+  };
+
+  // Mark admin messages as read
+  const markAdminMessagesAsRead = async () => {
+    try {
+      await axios.put("http://localhost:5000/api/messages/mark-read", {
+        userId: staff._id,
+        conversationId: "admin"
+      });
+      
+      fetchTotalUnreadCount();
+    } catch (err) {
+      console.error("Failed to mark admin messages as read:", err);
+    }
+  };
+
+  // Update unread counts locally when staff sends a message
+  const updateUnreadCountsAfterSend = () => {
+    fetchTotalUnreadCount();
+    
+    if (activeTab === "floor") {
+      fetchConversations();
+      
+      if (selectedUser) {
+        setConversations(prev => 
+          prev.map(conv => 
+            conv._id === selectedUser._id 
+              ? { ...conv, unreadCount: 0 } 
+              : conv
+          )
+        );
+        
+        setSelectedUser(prev => prev ? { ...prev, unreadCount: 0 } : null);
+      }
+    }
+  };
+
+  // FIXED: Socket event handling
   useEffect(() => {
     if (!staff?._id) return;
 
+    // Join staff's personal room and floor room
     socket.emit("join", { userId: staff._id });
     socket.emit("join", { userId: staff.floor });
-    socket.emit("join", { userId: "admin" });
 
+    // Fetch initial data
+    fetchTotalUnreadCount();
     if (activeTab === "floor") {
       fetchConversations();
     } else {
@@ -41,42 +144,103 @@ function StaffMessages({ setView, staff }) {
     }
 
     const handleNewMessage = (msg) => {
-      if (msg.receiver === staff._id || msg.sender === "admin" || msg.floor === staff.floor) {
-        if (activeTab === "floor") {
-          fetchConversations();
+      console.log("New message received in StaffMessages:", msg);
+      
+      // Update total unread count
+      fetchTotalUnreadCount();
+      
+      // Update conversations list for floor tab
+      if (activeTab === "floor") {
+        fetchConversations();
+      }
+      
+      // Update admin conversation if relevant
+      if (activeTab === "admin") {
+        fetchAdminConversation();
+      }
+      
+      // Add message to current chat if it belongs to the active conversation
+      if (activeTab === "floor" && selectedUser) {
+        // FIXED: Simplified message matching logic
+        const isRelevantMessage = 
+          (msg.sender === selectedUser._id && msg.receiver === staff.floor) ||
+          (msg.sender === staff._id && msg.receiver === selectedUser._id) ||
+          (msg.floor === staff.floor && msg.receiver === selectedUser._id) ||
+          (msg.sender === selectedUser._id && msg.floor === staff.floor);
+
+        if (isRelevantMessage) {
+          setMessages(prev => {
+            // Remove any temporary messages with same content
+            const filtered = prev.filter(m => 
+              !(m.status === "sending" && m.content === msg.content && m.sender === msg.sender)
+            );
+            
+            // Only add if not already present
+            const exists = filtered.some(m => m._id === msg._id);
+            if (!exists) {
+              return [...filtered, msg];
+            }
+            return filtered;
+          });
         }
-        
-        if (activeTab === "admin" && (msg.sender === "admin" || msg.receiver === "admin")) {
-          fetchAdminConversation();
-        }
-        
-        if (selectedUser && activeTab === "floor" && (
-          msg.sender === selectedUser._id || 
-          msg.receiver === selectedUser._id
-        )) {
-          setMessages(prev => [...prev, msg]);
-        }
-        
-        if (activeTab === "admin" && (msg.sender === "admin" || msg.receiver === staff._id)) {
-          fetchAdminConversation();
+      }
+      
+      if (activeTab === "admin") {
+        const isRelevantAdminMessage = 
+          (msg.sender === "admin" && msg.receiver === staff._id) ||
+          (msg.sender === staff._id && msg.receiver === "admin");
+
+        if (isRelevantAdminMessage) {
+          setMessages(prev => {
+            const messageExists = prev.some(m => m._id === msg._id);
+            if (!messageExists) {
+              return [...prev, msg];
+            }
+            return prev;
+          });
         }
       }
     };
 
-    socket.on("newMessage", handleNewMessage);
-    return () => socket.off("newMessage", handleNewMessage);
-  }, [staff, selectedUser, activeTab]);
+    const handleUnreadCountUpdate = (data) => {
+      if (data.userId === staff._id) {
+        setTotalUnread(data.count);
+        if (activeTab === "floor") {
+          fetchConversations();
+        }
+      }
+    };
 
-  const fetchConversations = async () => {
-    try {
-      const { data } = await axios.get(
-        `http://localhost:5000/api/messages/floor-users/${staff.floor}`
-      );
-      setConversations(data);
-    } catch (err) {
-      console.error("Failed to fetch conversations:", err);
-    }
-  };
+    const handleConversationUnreadUpdate = (data) => {
+      if (data.staffId === staff._id) {
+        setConversations(prev => 
+          prev.map(conv => 
+            conv._id === data.userId 
+              ? { ...conv, unreadCount: data.count || 0 } 
+              : conv
+          )
+        );
+        
+        if (selectedUser && selectedUser._id === data.userId) {
+          setSelectedUser(prev => prev ? { ...prev, unreadCount: data.count || 0 } : null);
+        }
+        
+        fetchTotalUnreadCount();
+      }
+    };
+
+    // FIXED: Proper socket event listeners
+    socket.on("newMessage", handleNewMessage);
+    socket.on("unreadCountUpdate", handleUnreadCountUpdate);
+    socket.on("conversationUnreadUpdate", handleConversationUnreadUpdate);
+    
+    return () => {
+      // FIXED: Clean up all event listeners
+      socket.off("newMessage", handleNewMessage);
+      socket.off("unreadCountUpdate", handleUnreadCountUpdate);
+      socket.off("conversationUnreadUpdate", handleConversationUnreadUpdate);
+    };
+  }, [staff, selectedUser, activeTab]);
 
   const fetchAdminConversation = async () => {
     try {
@@ -84,6 +248,9 @@ function StaffMessages({ setView, staff }) {
         `http://localhost:5000/api/messages/staff-admin-conversation/${staff._id}`
       );
       setMessages(data);
+      
+      await markAdminMessagesAsRead();
+      
       setTimeout(() => {
         scrollToBottom();
       }, 100);
@@ -92,18 +259,29 @@ function StaffMessages({ setView, staff }) {
     }
   };
 
-  const selectUser = async (user) => {
-    setSelectedUser(user);
-    setLoading(true);
-    
+  const fetchUserConversation = async (user) => {
     try {
       const { data } = await axios.get(
         `http://localhost:5000/api/messages/staff-user-conversation/${staff._id}/${user._id}`
       );
       setMessages(data);
+      
+      await markMessagesAsRead(user._id);
+      
       setTimeout(() => {
         scrollToBottom();
       }, 100);
+    } catch (err) {
+      console.error("Failed to fetch user conversation:", err);
+    }
+  };
+
+  const selectUser = async (user) => {
+    setSelectedUser(user);
+    setLoading(true);
+    
+    try {
+      await fetchUserConversation(user);
     } catch (err) {
       console.error("Failed to fetch messages:", err);
     } finally {
@@ -119,9 +297,12 @@ function StaffMessages({ setView, staff }) {
     
     if (tab === "admin") {
       fetchAdminConversation();
+    } else {
+      fetchConversations();
     }
   };
 
+  // FIXED: Improved sendMessage function
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
 
@@ -136,7 +317,8 @@ function StaffMessages({ setView, staff }) {
         createdAt: new Date().toISOString(),
         status: "sending",
         senderName: `${staff.floor} Staff`,
-        displayName: `${staff.floor} Staff`
+        displayName: `${staff.floor} Staff`,
+        floor: staff.floor // Added floor for better socket routing
       };
 
       setMessages(prev => [...prev, tempMsg]);
@@ -146,8 +328,12 @@ function StaffMessages({ setView, staff }) {
         await axios.post("http://localhost:5000/api/messages/staff-reply", {
           staffId: staff._id,
           userId: selectedUser._id,
-          content: newMessage
+          content: newMessage,
+          floor: staff.floor // Ensure floor is sent
         });
+        
+        updateUnreadCountsAfterSend();
+        
       } catch (err) {
         console.error("Failed to send message:", err);
         setMessages(prev => prev.map(msg => 
@@ -174,6 +360,9 @@ function StaffMessages({ setView, staff }) {
           staffId: staff._id,
           content: newMessage
         });
+        
+        fetchTotalUnreadCount();
+        
       } catch (err) {
         console.error("Failed to send message to admin:", err);
         setMessages(prev => prev.map(msg => 
@@ -200,7 +389,11 @@ function StaffMessages({ setView, staff }) {
     messages.forEach(msg => {
       const date = formatDate(msg.createdAt);
       if (!groups[date]) groups[date] = [];
-      groups[date].push(msg);
+      
+      const messageExists = groups[date].some(m => m._id === msg._id);
+      if (!messageExists) {
+        groups[date].push(msg);
+      }
     });
     return groups;
   };
@@ -216,10 +409,11 @@ function StaffMessages({ setView, staff }) {
         <header className="bg-white px-6 py-4 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-[#CC0000]">Message Center</h1>
           <p className="text-gray-600">Communicate with residents and administration</p>
+          
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Conversations Sidebar - Smaller */}
+          {/* Conversations Sidebar */}
           <div className="w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
@@ -253,7 +447,7 @@ function StaffMessages({ setView, staff }) {
                       : "text-gray-600 hover:text-gray-800 hover:bg-white"
                   }`}
                 >
-                  Users
+                  Floor Users
                 </button>
                 <button
                   onClick={() => handleTabChange("admin")}
@@ -289,30 +483,45 @@ function StaffMessages({ setView, staff }) {
                           : 'bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between ">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 bg-gradient-to-r from-[#CC0000] to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          {/* Unread badge on LEFT side */}
+                          {conv.unreadCount > 0 && (
+                            <div className="flex-shrink-0">
+                              <div className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow">
+                                {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                              </div>
+                            </div>
+                          )}
+                          <div className="w-10 h-10 bg-gradient-to-r from-[#CC0000] to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow flex-shrink-0">
                             {conv.name.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 text-sm">{conv.name}</div>
-                            
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-gray-800 text-sm truncate">
+                                {conv.name}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 truncate mt-1">
+                              {conv.latestMessage || "Start a conversation..."}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {conv.latestMessageAt ? formatTime(conv.latestMessageAt) : 'No messages'}
+                            </div>
                           </div>
                         </div>
-                       
-                      </div>
-                      <div className="text-xs text-gray-600 truncate pl-10 mb-1">
-                        {conv.latestMessage || "Start a conversation..."}
-                      </div>
-                      <div className="text-xs text-gray-500 flex justify-between items-center pl-10">
-                        <span>{conv.latestMessageAt ? formatTime(conv.latestMessageAt) : 'No messages'}</span>
                       </div>
                     </button>
                   ))
                 )
               ) : (
                 <div className="p-3">
-                  <div className="bg-gradient-to-r from-red-50 to-yellow-50 border border-red-200 rounded-lg p-3">
+                  <div 
+                    onClick={() => handleTabChange("admin")}
+                    className={`bg-gradient-to-r from-red-50 to-yellow-50 border border-red-200 rounded-lg p-3 cursor-pointer transition-all duration-200 ${
+                      activeTab === "admin" && !selectedUser ? 'ring-2 ring-red-300 shadow' : 'hover:shadow'
+                    }`}
+                  >
                     <div className="flex items-center mb-2">
                       <div className="w-8 h-8 bg-gradient-to-r from-[#CC0000] to-red-600 rounded-lg flex items-center justify-center text-white mr-2 shadow">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,7 +558,11 @@ function StaffMessages({ setView, staff }) {
                         
                       </div>
                     </div>
-
+                    {selectedUser.unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-sm px-3 py-1 rounded-full">
+                        {selectedUser.unreadCount} unread
+                      </span>
+                    )}
                   </div>
                 </div>
                 
@@ -467,10 +680,9 @@ function StaffMessages({ setView, staff }) {
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-gray-800">Administration</h3>
-                       
+                        
                       </div>
                     </div>
-                    
                   </div>
                 </div>
                 
@@ -545,7 +757,7 @@ function StaffMessages({ setView, staff }) {
                     <div className="flex space-x-2">
                       <input
                         type="text"
-                        placeholder="Message administration team..."
+                        placeholder="Message Administration..."
                         className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#CC0000] focus:border-transparent text-sm shadow-sm"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
@@ -563,25 +775,20 @@ function StaffMessages({ setView, staff }) {
                       </button>
                     </div>
                     <div className="text-xs text-gray-500 mt-2 text-center">
-                      Messaging as <strong className="text-[#CC0000]">{staff.name}</strong>
+                      Sending as <strong className="text-[#CC0000]">{staff.name}</strong>
                     </div>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-red-50/30 to-yellow-50/20">
+              <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-red-50/50 to-yellow-50/50">
                 <div className="text-center text-gray-500">
-                  <svg className="w-20 h-20 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-700">
-                    {activeTab === "floor" ? "Welcome to Messages" : "Admin Support"}
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    {activeTab === "floor" 
-                      ? "Select a conversation from the sidebar to start chatting" 
-                      : "Contact the administration team for assistance"
-                    }
+                  <h3 className="text-xl font-semibold mb-2">Select a Conversation</h3>
+                  <p className="text-gray-600 max-w-md mx-auto">
+                    Choose a resident from the list to start messaging, or contact administration for support.
                   </p>
                 </div>
               </div>

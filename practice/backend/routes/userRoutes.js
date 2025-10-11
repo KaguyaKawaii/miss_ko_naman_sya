@@ -3,36 +3,43 @@ const router = express.Router();
 const userController = require("../controllers/userController");
 const upload = require("../middleware/upload");
 
-// Public routes
+// ================== GET ALL USERS (for admin messaging) ==================
+router.get("/", userController.getAllUsersForMessaging); // KEEP THIS ONE
+
+// ================== PUBLIC ROUTES ==================
 router.post("/signup", upload.single("profile"), userController.signup);
 router.post("/login", userController.login);
 
-// ✅ Admin & special routes first (to avoid conflict with "/:id")
+// ================== ADMIN & SPECIAL ROUTES ==================
 router.put("/toggle-suspend/:id", userController.toggleSuspendUser);
 router.put("/suspend/:id", userController.suspendUser);
 router.put("/unsuspend/:id", userController.unsuspendUser);
-router.put("/verify/:id", userController.verifyUser);
+router.patch("/verify/:id", userController.verifyUser);
 router.put("/archive/:id", userController.archiveUser);
 router.put("/restore/:id", userController.restoreUser);
 router.put("/admin-edit/:id", upload.single("profile"), userController.adminEditUser);
 router.post("/add-user", upload.single("profile"), userController.addUser);
+
 router.get("/archived/all", userController.getArchivedUsers);
 router.delete("/archived/:id", userController.deleteArchivedUser);
+
 router.get("/all/users", userController.getAllUsers);
 router.get("/search/users", userController.searchUsers);
-router.get("/unread/counts", userController.getUnreadCounts);
-router.get("/check/participant", userController.checkParticipant);
 
-// ✅ NEW: Fetch users by role (Staff, Student, etc.)
-router.get("/", userController.getUsersByRole);
+// ================== STATIC ROUTES ==================
+router.get("/check-participant", userController.checkParticipant);
 
-// ✅ Profile routes after special routes
+// ================== UNREAD COUNTS ROUTES ==================
+// Specific route for user unread counts - place BEFORE generic :id routes
+router.get("/:userId/unread-counts", userController.getUserUnreadCounts);
+
+// ================== PROFILE ROUTES ==================
 router.put("/:id/update-profile", userController.updateProfile);
-router.post("/upload-picture/:id", upload.single("profile"), userController.uploadPicture);
-router.delete("/remove-picture/:id", userController.removePicture);
-router.put("/change-password/:id", userController.changePassword);
+router.post("/:id/upload-picture", upload.single("profile"), userController.uploadPicture);
+router.delete("/:id/remove-picture", userController.removePicture);
+router.put("/:id/change-password", userController.changePassword);
 
-// ✅ Generic route LAST (avoid route conflicts)
+// ================== GENERIC ROUTE LAST ==================
 router.get("/:id", userController.getUserById);
 
 module.exports = router;

@@ -1,84 +1,131 @@
-// services/notificationService.js
+
 const Notification = require("../models/Notification");
-const User = require("../models/User");
 
-
-/**
- * Create a new notification and optionally emit via socket.io
- * @param {Object} data - Notification fields
- * @param {Object} io - Socket.io instance (optional)
- */
-// services/notificationService.js
-exports.createNotification = async (data, io = null) => {
-  const notificationData = {
-    userId: data.userId || null,
-    reservationId: data.reservationId || null,
-    reportId: data.reportId || null,
-    message: data.message,
-    type: data.type || "system",
-    status: data.status || "New",
-    isRead: false,
-    dismissed: false,
-  };
-
-  const notification = await Notification.create(notificationData);
-
-  // 🔔 Emit logic
-  if (io) {
-    if (data.userId) {
-      // Only emit to that specific user (or staff)
-      io.to(data.userId.toString()).emit("notification", notification);
-    } else if (data.to === "admin") {
-      // Explicit admin room
-      io.to("admin").emit("notification", notification);
-    }
-    // ❌ no fallback broadcast
-  }
-
-  return notification;
-};
-
-
-exports.createReservationNotification = async (reservation, io) => {
-  try {
-    const userId = reservation.userId;
-
-    // 1. Notify the user
-    await exports.createNotification(
-      {
+class NotificationService {
+  async createNotification(notificationData, io) {
+    try {
+      const {
         userId,
-        reservationId: reservation._id,
-        message: `Your reservation for ${reservation.roomName} has been ${reservation.status}.`,
-        type: "reservation",
-      },
-      io
-    );
+        message,
+        status,
+        reservationId,
+        type = "reservation",
+        reportId,
+        targetRole = "user",
+        adminName,
+        issue,
+        roomName,
+        date,
+        startTime,
+        endTime,
+        newEndTime,
+        userName,
+        idNumber,
+        staffName
+      } = notificationData;
 
-    // 2. Notify staff on the same floor
-    const staff = await User.find({ role: "Staff", floor: reservation.floor });
-    for (const s of staff) {
-      await exports.createNotification(
-        {
-          userId: s._id,
-          reservationId: reservation._id,
-          message: `A reservation on your floor (${reservation.floor}) has been ${reservation.status}.`,
-          type: "reservation",
-        },
-        io
-      );
+      // Create the notification
+      const notification = new Notification({
+        userId,
+        message,
+        status,
+        reservationId,
+        type,
+        reportId,
+        targetRole,
+        adminName,
+        issue,
+        roomName,
+        date,
+        startTime,
+        endTime,
+        newEndTime,
+        userName,
+        idNumber,
+        staffName,
+        isRead: false,
+        dismissed: false,
+      });
+
+      await notification.save();
+
+      // Populate the notification for emitting
+      const populatedNotification = await Notification.findById(notification._id)
+        .populate("reservationId")
+        .populate("reportId")
+        .populate("userId", "name email");
+
+      // ✅ FIXED: Emit the notification with correct event names and rooms
+      if (io) {
+        const emitData = populatedNotification;
+        
+        console.log(`🔔 Emitting notification for:`, {
+          userId,
+          targetRole,
+          message: populatedNotification.message
+        });
+
+        if (targetRole === "admin") {
+          io.to("admin-room").emit("new-notification", emitData);
+          io.to("admin-room").emit("notification", emitData);
+          console.log('📢 Sent to admin-room');
+        } else if (userId) {
+          // ✅ FIXED: Use the same room name as backend socket setup: "user-{userId}"
+          io.to(`user-${userId}`).emit("new-notification", emitData);
+          io.to(`user-${userId}`).emit("notification", emitData);
+          console.log(`📢 Sent to user-${userId} room`);
+        } else {
+          io.emit("new-notification", emitData);
+          io.emit("notification", emitData);
+          console.log('📢 Broadcast to all users');
+        }
+      }
+
+      return populatedNotification;
+    } catch (error) {
+      console.error("Notification service error:", error);
+      throw error;
     }
-
-    // 3. Notify admin globally
-    await exports.createNotification(
-      {
-        userId: null, // global
-        reservationId: reservation._id,
-        message: `A reservation has been ${reservation.status} for room ${reservation.roomName}.`,
-        type: "reservation",
-      },
-      io
-    );
-  } catch (err) {
-    console.error("createReservationNotification error:", err);
   }
-};
+
+  // Create multiple notifications for different users
+  async createBulkNotifications(notificationsData, io) {
+    try {
+      const notifications = await Notification.insertMany(notificationsData);
+      
+      // ✅ FIXED: Emit each notification with correct event names
+      if (io) {
+        for (const notification of notifications) {
+          const populated = await Notification.findById(notification._id)
+            .populate("reservationId")
+            .populate("reportId")
+            .populate("userId", "name email");
+          
+          const emitData = populated;
+          
+          if (notification.targetRole === "admin") {
+            io.to("admin-room").emit("new-notification", emitData);
+            io.to("admin-room").emit("notification", emitData);
+          } else if (notification.targetRole === "staff") {
+            io.emit("new-notification", emitData);
+            io.emit("staff_notification", emitData);
+          } else if (notification.userId) {
+            // ✅ FIXED: Use the same room name as backend socket setup
+            io.to(`user-${notification.userId.toString()}`).emit("new-notification", emitData);
+            io.to(`user-${notification.userId.toString()}`).emit("notification", emitData);
+          } else {
+            io.emit("new-notification", emitData);
+            io.emit("notification", emitData);
+          }
+        }
+      }
+
+      return notifications;
+    } catch (error) {
+      console.error("Bulk notification service error:", error);
+      throw error;
+    }
+  }
+}
+
+module.exports = new NotificationService();

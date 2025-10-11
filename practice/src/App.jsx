@@ -15,6 +15,7 @@ import Login_User from "./Login/Login_User.jsx";
 import Login_Admin from "./Login/Login_Admin.jsx";
 import SignUp_User from "./Login/SignUp_User.jsx";
 import ResetPassword from "./Login/ResetPassword.jsx";
+import MaintenanceScreen from "./Homepage/MaintenanceScreen.jsx";
 
 /* ---- user ---- */
 import Navigation from "./User/Navigation_User.jsx";
@@ -43,13 +44,16 @@ import AdminNotification from "./Admin/AdminNotification.jsx";
 import AdminNews from "./Admin/AdminNews.jsx";
 import AdminLogs from "./Admin/AdminLogs.jsx";
 
-
 /* ---- admin archive ---- */
 import ArchivedUsers from "./Admin/Archive/ArchivedUsers.jsx";
 import ArchivedReservations from "./Admin/Archive/ArchivedReservations.jsx";
 import ArchivedReports from "./Admin/Archive/ArchivedReports.jsx";
 import ArchivedNews from "./Admin/Archive/ArchivedNews.jsx";
 
+/* ---- admin settings ---- */
+import ProfileSettings from "./Admin/Settings/ProfileSettings.jsx";
+import PasswordSecurity from "./Admin/Settings/PasswordSecurity.jsx";
+import SystemSettings from "./Admin/Settings/SystemSettings.jsx";
 
 /* ---- staff ---- */
 import StaffNavigation from "./Staff/StaffNavigation.jsx";
@@ -61,7 +65,6 @@ import StaffNotification from "./Staff/StaffNotifications.jsx";
 import StaffProfile from "./Staff/StaffProfile.jsx";
 import StaffReports from "./Staff/StaffReports.jsx";
 
-
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,18 +74,23 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [view, setView] = useState(() => {
-    const saved = localStorage.getItem("view");
-    return saved || "home";
-  });
+  const [view, setView] = useState("home");
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [viewHistory, setViewHistory] = useState(["home"]); // Track navigation history
 
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState("");
+  const [allowAdminAccess, setAllowAdminAccess] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMaintenanceChecked, setIsMaintenanceChecked] = useState(false);
 
   /* ---------- ROUTE MAP ---------- */
   const viewToPath = {
     home: "/",
+    maintenance: "/maintenance",
     login: "/login",
     signup: "/signup",
     adminLogin: "/admin-login",
@@ -112,7 +120,9 @@ function App() {
     archivedReservations: "/admin/archive/reservations",
     archivedReports: "/admin/archive/reports",
     archivedNews: "/admin/archive/news",
-    archivedNotifications: "/admin/archive/notifications",
+    profileSettings: "/admin/settings/profile",
+    passwordSecurity: "/admin/settings/password-security",
+    systemSettings: "/admin/settings/system",
     staffDashboard: "/staff/dashboard",
     staffReservation: "/staff/reservations",
     staffUsers: "/staff/users",
@@ -120,52 +130,236 @@ function App() {
     staffNotification: "/staff/notifications",
     staffProfile: "/staff/profile",
     staffReports: "/staff/reports"
-
   };
 
   const pathToView = Object.fromEntries(
     Object.entries(viewToPath).map(([v, p]) => [p, v])
   );
 
+  /* ---------- TRACK VIEW HISTORY ---------- */
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    // Add current view to history when it changes
+    setViewHistory(prev => {
+      // Don't add consecutive duplicates
+      if (prev[prev.length - 1] === view) return prev;
+      
+      const newHistory = [...prev, view];
+      // Keep only last 20 entries to prevent memory issues
+      return newHistory.slice(-20);
+    });
+  }, [view, isInitialized]);
+
+  /* ---------- INITIAL ROUTE SETUP ---------- */
+  useEffect(() => {
+    if (isInitialized) return;
+
+    const initializeView = () => {
+      const path = location.pathname;
+      const viewFromPath = pathToView[path];
+      
+      console.log("Initial route setup:", { path, viewFromPath, user: user?.role });
+      
+      if (viewFromPath) {
+        setView(viewFromPath);
+        setViewHistory([viewFromPath]);
+      } else {
+        // Handle unknown routes - redirect to appropriate dashboard or home
+        if (user) {
+          const role = user.role.toLowerCase();
+          if (role === "staff") {
+            setView("staffDashboard");
+            setViewHistory(["staffDashboard"]);
+            navigate("/staff/dashboard", { replace: true });
+          } else if (role === "admin") {
+            setView("adminDashboard");
+            setViewHistory(["adminDashboard"]);
+            navigate("/admin/dashboard", { replace: true });
+          } else {
+            setView("dashboard");
+            setViewHistory(["dashboard"]);
+            navigate("/dashboard", { replace: true });
+          }
+        } else {
+          setView("home");
+          setViewHistory(["home"]);
+          navigate("/", { replace: true });
+        }
+      }
+      
+      setIsInitialized(true);
+    };
+
+    initializeView();
+  }, [location.pathname, user, isInitialized]);
+
   /* ---------- ROUTE SYNC ---------- */
   useEffect(() => {
-    localStorage.setItem("view", view);
+    if (!isInitialized) return;
+
+    // Only sync to URL when view changes (not during initial load)
     const path = viewToPath[view];
-    if (path && path !== location.pathname) navigate(path);
-  }, [view]);
+    if (path && path !== location.pathname) {
+      console.log("Syncing view to URL:", { view, path, currentPath: location.pathname });
+      navigate(path, { replace: false }); // Use push instead of replace for proper history
+    }
+  }, [view, isInitialized]);
 
-  useEffect(() => {
-    const newView = pathToView[location.pathname] || "home";
-    if (newView !== view) setView(newView);
-  }, [location.pathname]);
-
-  /* ---------- BACK BUTTON BEHAVIOR ---------- */
+  /* ---------- BACK BUTTON HANDLING ---------- */
   useEffect(() => {
     const handlePopState = () => {
-      if (
-        view === "dashboard" ||
-        view === "adminDashboard" ||
-        view === "staffDashboard"
-      ) {
-        setShowLogoutModal(true);
-        window.history.pushState(null, null, window.location.pathname);
-      } else if (view === "login") {
-        setView("home");
+      console.log("Back button pressed, current view history:", viewHistory);
+      
+      if (viewHistory.length > 1) {
+        // Go back to previous view in history
+        const previousView = viewHistory[viewHistory.length - 2];
+        console.log("Navigating back to:", previousView);
+        
+        // Remove current view from history
+        setViewHistory(prev => prev.slice(0, -1));
+        setView(previousView);
+      } else {
+        // If no history, go to home or appropriate default
+        if (user) {
+          const role = user.role.toLowerCase();
+          if (role === "staff") setView("staffDashboard");
+          else if (role === "admin") setView("adminDashboard");
+          else setView("dashboard");
+        } else {
+          setView("home");
+        }
       }
     };
 
-    if (
-      view === "dashboard" ||
-      view === "adminDashboard" ||
-      view === "staffDashboard" ||
-      view === "login"
-    ) {
-      window.history.pushState(null, null, window.location.pathname);
-      window.addEventListener("popstate", handlePopState);
-    }
+    window.addEventListener("popstate", handlePopState);
 
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [view]);
+  }, [viewHistory, user]);
+
+  /* ---------- MAINTENANCE MODE CHECK ---------- */
+  const handleMaintenanceRedirect = (maintenanceData) => {
+    if (!maintenanceData.maintenanceMode) {
+      if (view === "maintenance") {
+        if (user) {
+          const role = user.role.toLowerCase();
+          if (role === "staff") setView("staffDashboard");
+          else if (role === "admin") setView("adminDashboard");
+          else setView("dashboard");
+        } else {
+          setView("home");
+        }
+      }
+      return;
+    }
+
+    const isAdmin = user?.role === 'admin';
+    const isStaff = user?.role === 'staff';
+    const isAdminPage = view.startsWith('admin');
+    const isStaffPage = view.startsWith('staff');
+    const isAdminLogin = view === 'adminLogin';
+    const isPublicAuthPage = ['login', 'signup', 'resetPassword', 'adminLogin'].includes(view);
+    const isMaintenancePage = view === 'maintenance';
+    
+    // Allow access for admins (if allowed), staff, public auth pages, and maintenance page
+    const canAccess = (isAdmin && maintenanceData.allowAdminAccess) || 
+                     isStaff ||
+                     isPublicAuthPage || 
+                     isMaintenancePage;
+    
+    if (!canAccess && !isMaintenancePage) {
+      console.log("Redirecting to maintenance mode. User:", user?.role, "Admin access allowed:", maintenanceData.allowAdminAccess);
+      setView("maintenance");
+    } else {
+      console.log("Access allowed. User:", user?.role, "Admin access allowed:", maintenanceData.allowAdminAccess);
+    }
+  };
+
+  useEffect(() => {
+    checkMaintenanceMode();
+    
+    socket.on('maintenance-mode-updated', (data) => {
+      console.log("Maintenance mode updated via socket:", data);
+      setMaintenanceMode(data.maintenanceMode);
+      setMaintenanceMessage(data.maintenanceMessage || "");
+      setAllowAdminAccess(data.allowAdminAccess);
+      
+      if (!data.maintenanceMode && view === "maintenance") {
+        if (user) {
+          const role = user.role.toLowerCase();
+          if (role === "staff") setView("staffDashboard");
+          else if (role === "admin") setView("adminDashboard");
+          else setView("dashboard");
+        } else {
+          setView("home");
+        }
+      } else if (data.maintenanceMode) {
+        handleMaintenanceRedirect(data);
+      }
+    });
+
+    const interval = setInterval(checkMaintenanceMode, 30000);
+    return () => {
+      clearInterval(interval);
+      socket.off('maintenance-mode-updated');
+    };
+  }, [view, user]);
+
+  const checkMaintenanceMode = async () => {
+    try {
+      // Use the same endpoint that SystemSettings uses
+      const response = await api.get('/admin/system/settings');
+      if (response.data.success) {
+        const settings = response.data.settings || {};
+        console.log("Fetched maintenance settings:", settings);
+        
+        setMaintenanceMode(settings.maintenanceMode || false);
+        setMaintenanceMessage(settings.maintenanceMessage || "");
+        setAllowAdminAccess(settings.allowAdminAccess !== undefined ? settings.allowAdminAccess : true);
+        
+        handleMaintenanceRedirect({
+          maintenanceMode: settings.maintenanceMode || false,
+          maintenanceMessage: settings.maintenanceMessage || "",
+          allowAdminAccess: settings.allowAdminAccess !== undefined ? settings.allowAdminAccess : true
+        });
+      }
+    } catch (error) {
+      console.error('Error checking maintenance mode:', error);
+      // If there's an error, assume no maintenance mode
+      setMaintenanceMode(false);
+      setMaintenanceMessage("");
+      setAllowAdminAccess(true);
+    } finally {
+      setIsLoading(false);
+      setIsMaintenanceChecked(true);
+    }
+  };
+
+  /* ---------- MAINTENANCE MODE ACCESS CONTROL ---------- */
+  useEffect(() => {
+    if (maintenanceMode && isMaintenanceChecked) {
+      console.log("Maintenance mode active, checking access...", {
+        userRole: user?.role,
+        allowAdminAccess,
+        currentView: view
+      });
+      handleMaintenanceRedirect({
+        maintenanceMode,
+        maintenanceMessage,
+        allowAdminAccess
+      });
+    } else if (!maintenanceMode && view === "maintenance" && isMaintenanceChecked) {
+      console.log("Maintenance mode disabled, redirecting from maintenance screen");
+      if (user) {
+        const role = user.role.toLowerCase();
+        if (role === "staff") setView("staffDashboard");
+        else if (role === "admin") setView("adminDashboard");
+        else setView("dashboard");
+      } else {
+        setView("home");
+      }
+    }
+  }, [view, user, maintenanceMode, isMaintenanceChecked]);
 
   /* ---------- FETCH USER DATA ---------- */
   const fetchUser = async () => {
@@ -197,27 +391,61 @@ function App() {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
     const role = userData.role.toLowerCase();
-    if (role === "staff") setView("staffDashboard");
-    else if (role === "admin") setView("adminDashboard");
-    else setView("dashboard");
+    
+    if (maintenanceMode) {
+      if ((role === 'admin' && allowAdminAccess) || role === 'staff') {
+        if (role === "staff") {
+          setView("staffDashboard");
+          setViewHistory(["staffDashboard"]);
+        } else {
+          setView("adminDashboard");
+          setViewHistory(["adminDashboard"]);
+        }
+      } else {
+        setView("maintenance");
+        setViewHistory(["maintenance"]);
+      }
+    } else {
+      if (role === "staff") {
+        setView("staffDashboard");
+        setViewHistory(["staffDashboard"]);
+      } else if (role === "admin") {
+        setView("adminDashboard");
+        setViewHistory(["adminDashboard"]);
+      } else {
+        setView("dashboard");
+        setViewHistory(["dashboard"]);
+      }
+    }
   };
 
   const handleSignupSuccess = (newUserData) => {
-    // ✅ Auto-login after successful signup
     handleLoginSuccess(newUserData);
   };
 
   const handleAdminLoginSuccess = (adminData) => {
     localStorage.setItem("user", JSON.stringify(adminData));
     setUser(adminData);
-    setView("adminDashboard");
+    
+    if (maintenanceMode && !allowAdminAccess) {
+      setView("maintenance");
+      setViewHistory(["maintenance"]);
+    } else {
+      setView("adminDashboard");
+      setViewHistory(["adminDashboard"]);
+    }
   };
 
   const handleLogout = () => {
     localStorage.clear();
     setUser(null);
     setShowLogoutModal(false);
-    setView("home");
+    setViewHistory(["home"]);
+    if (maintenanceMode) {
+      setView("maintenance");
+    } else {
+      setView("home");
+    }
   };
 
   /* ---------- NAVIGATION WRAPPERS ---------- */
@@ -257,7 +485,47 @@ function App() {
     </>
   );
 
+  /* ---------- CHECK IF CURRENT VIEW IS ALLOWED ---------- */
+  const isViewAllowed = () => {
+    if (!maintenanceMode) return true;
+    
+    const isAdmin = user?.role === 'admin';
+    const isStaff = user?.role === 'staff';
+    const isAdminPage = view.startsWith('admin');
+    const isStaffPage = view.startsWith('staff');
+    const isAdminLogin = view === 'adminLogin';
+    const isPublicAuthPage = ['login', 'signup', 'resetPassword', 'adminLogin'].includes(view);
+    const isMaintenancePage = view === 'maintenance';
+    
+    return (isAdmin && allowAdminAccess) || 
+           isStaff ||
+           isPublicAuthPage || 
+           isMaintenancePage;
+  };
+
   /* ---------- RENDER ---------- */
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show maintenance screen after maintenance check is complete
+  if (maintenanceMode && isMaintenanceChecked && !isViewAllowed()) {
+    console.log("Showing maintenance screen. User role:", user?.role, "Admin access allowed:", allowAdminAccess);
+    return (
+      <MaintenanceScreen 
+        message={maintenanceMessage}
+      />
+    );
+  }
+
   return (
     <div>
       {/* Public Pages */}
@@ -265,7 +533,7 @@ function App() {
         <>
           <Header 
             onLoginClick={() => setView("login")} 
-            onSignUpClick={() => setView("signup")} // ✅ FIXED
+            onSignUpClick={() => setView("signup")}
           />
           <Body onReserveClick={() => setView("login")} />
           <Body2 />
@@ -279,12 +547,16 @@ function App() {
           onSwitchToSignUp={() => setView("signup")}
           onLoginSuccess={handleLoginSuccess}
           setView={setView}
+          maintenanceMode={maintenanceMode}
+          maintenanceMessage={maintenanceMessage}
         />
       )}
       {view === "signup" && (
         <SignUp_User
           onSwitchToLogin={() => setView("login")}
-          onSignupSuccess={handleSignupSuccess} // ✅ Auto-login
+          onSignupSuccess={handleSignupSuccess}
+          maintenanceMode={maintenanceMode}
+          maintenanceMessage={maintenanceMessage}
         />
       )}
       {view === "resetPassword" && <ResetPassword setView={setView} onBackToLogin={() => setView("login")} />}
@@ -292,6 +564,13 @@ function App() {
         <Login_Admin
           onAdminLoginSuccess={handleAdminLoginSuccess}
           onBackToUserLogin={() => setView("login")}
+        />
+      )}
+
+      {/* Maintenance Screen */}
+      {view === "maintenance" && (
+        <MaintenanceScreen 
+          message={maintenanceMessage}
         />
       )}
 
@@ -336,7 +615,7 @@ function App() {
             onReservationSubmitted={() => setHistoryRefreshKey((prev) => prev + 1)}
           />
         )}
-      {view === "reservationDetails" && selectedReservation &&
+      {view === "reservationDetails" && 
         renderUserNavigation(
           <ReservationDetails
             reservation={selectedReservation}
@@ -361,6 +640,10 @@ function App() {
       {view === "adminNews" && renderAdminNavigation(<AdminNews setView={setView} />)}
       {view === "adminLogs" && renderAdminNavigation(<AdminLogs setView={setView} />)}
 
+      {/* Admin Settings Pages */}
+      {view === "profileSettings" && renderAdminNavigation(<ProfileSettings setView={setView} admin={user} />)}
+      {view === "passwordSecurity" && renderAdminNavigation(<PasswordSecurity setView={setView} admin={user} />)}
+      {view === "systemSettings" && renderAdminNavigation(<SystemSettings setView={setView} admin={user} />)}
 
       {/* Staff Pages */}
       {view === "staffDashboard" && renderStaffNavigation(<StaffDashboard setView={setView} staff={user} />)}
@@ -370,7 +653,6 @@ function App() {
       {view === "staffNotification" && renderStaffNavigation(<StaffNotification setView={setView} staff={user} />)}
       {view === "staffProfile" && renderStaffNavigation(<StaffProfile setView={setView} staff={user} />)}
       {view === "staffReports" && renderStaffNavigation(<StaffReports setView={setView} staff={user} />)}
-
 
       {/* Logout Modal */}
       {showLogoutModal && (
@@ -384,7 +666,7 @@ function App() {
                 Log out of your account?
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                You’ll need to sign in again to access your dashboard.
+                You'll need to sign in again to access your dashboard.
               </p>
             </div>
             <div className="border-t border-gray-200 mb-6" />

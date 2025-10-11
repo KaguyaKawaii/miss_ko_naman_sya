@@ -59,6 +59,8 @@ function AdminNews({ setView, admin }) {
   };
 
   const handleAddOrUpdate = async () => {
+    if (isPosting) return; // Prevent double-clicking
+    
     if (!title.trim() || !content.trim()) return alert("Please complete the form");
     setIsPosting(true);
 
@@ -142,6 +144,7 @@ function AdminNews({ setView, admin }) {
                 className="border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-[#CC0000] focus:border-transparent transition-all"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
+                disabled={isPosting}
               />
               <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#CC0000] focus-within:border-transparent transition-all">
                 <EditorProvider>
@@ -149,6 +152,7 @@ function AdminNews({ setView, admin }) {
                     value={content}
                     onChange={e => setContent(e.target.value)}
                     className="min-h-[200px]"
+                    disabled={isPosting}
                   />
                 </EditorProvider>
               </div>
@@ -156,7 +160,7 @@ function AdminNews({ setView, admin }) {
               {/* Image upload */}
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-gray-700 mb-1">News Image</label>
-                <label className="flex flex-col items-center justify-center w-full h-40 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                <label className={`flex flex-col items-center justify-center w-full h-40 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   {imagePreviewUrl || editNews?.image ? (
                     <img
                       src={imagePreviewUrl || editNews.image}
@@ -176,6 +180,7 @@ function AdminNews({ setView, admin }) {
                     accept="image/*"
                     className="hidden"
                     onChange={handleImageChange}
+                    disabled={isPosting}
                   />
                 </label>
               </div>
@@ -183,8 +188,9 @@ function AdminNews({ setView, admin }) {
               <div className="flex justify-between items-center pt-2">
                 <button
                   type="button"
-                  className="px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  className={`px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={() => setPreview({ title, content, image: imagePreviewUrl || editNews?.image })}
+                  disabled={isPosting}
                 >
                   Preview
                 </button>
@@ -192,15 +198,16 @@ function AdminNews({ setView, admin }) {
                   {editNews && (
                     <button
                       type="button"
-                      className="px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                      className={`px-4 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
                       onClick={resetForm}
+                      disabled={isPosting}
                     >
                       Cancel
                     </button>
                   )}
                   <button
                     type="submit"
-                    className="bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm hover:shadow flex items-center justify-center gap-2"
+                    className="bg-[#CC0000] text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm hover:shadow flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isPosting}
                   >
                     {isPosting ? (
@@ -257,23 +264,38 @@ function AdminNews({ setView, admin }) {
               <div className="bg-white p-6 rounded-xl w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-gray-800">Confirm {editNews ? "Update" : "Post"}</h2>
-                  <button className="text-gray-500 hover:text-gray-700" onClick={() => setPostConfirm(false)}>✕</button>
+                  <button 
+                    className="text-gray-500 hover:text-gray-700" 
+                    onClick={() => setPostConfirm(false)}
+                    disabled={isPosting}
+                  >
+                    ✕
+                  </button>
                 </div>
                 <p className="text-gray-600 mb-6">
                   Are you sure you want to {editNews ? "update" : "post"} this news?
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button
-                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => setPostConfirm(false)}
+                    disabled={isPosting}
                   >
                     Cancel
                   </button>
                   <button
-                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors"
+                    className="px-4 py-2 bg-[#CC0000] text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleAddOrUpdate}
+                    disabled={isPosting}
                   >
-                    {editNews ? "Update" : "Post"}
+                    {isPosting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        {editNews ? "Updating..." : "Posting..."}
+                      </>
+                    ) : (
+                      editNews ? "Update" : "Post"
+                    )}
                   </button>
                 </div>
               </div>
@@ -286,7 +308,13 @@ function AdminNews({ setView, admin }) {
               <div className="bg-white p-6 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-gray-800">Preview</h2>
-                  <button className="text-gray-500 hover:text-gray-700" onClick={() => setPreview(null)}>✕</button>
+                  <button 
+                    className="text-gray-500 hover:text-gray-700" 
+                    onClick={() => setPreview(null)}
+                    disabled={isPosting}
+                  >
+                    ✕
+                  </button>
                 </div>
                 <h3 className="text-2xl font-semibold mb-2">{preview.title}</h3>
                 {preview.image && (

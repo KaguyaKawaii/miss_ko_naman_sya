@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AdminNavigation from "./AdminNavigation";
 import { Eye, Trash2, RefreshCw, Search, ChevronDown, X } from "lucide-react";
+import AdminReservationModal from "./Modals/AdminReservationModal";
 
 function AdminReservations({ setView }) {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
-  const [modalRes, setModalRes] = useState(null);
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const formatPHDateTime = (date) =>
     date
@@ -52,36 +54,40 @@ function AdminReservations({ setView }) {
       .catch((err) => console.error("Fetch reservations error:", err))
       .finally(() => setIsLoading(false));
   };
-
-  const handleStatusChange = (id, newStatus) => {
-    if (
-      newStatus === "Rejected" &&
-      !window.confirm("Are you sure you want to reject this reservation?")
-    )
-      return;
-
-    axios
-      .put(`http://localhost:5000/reservations/${id}`, { status: newStatus })
-      .then(() => {
-        alert(`Reservation ${newStatus}. Notification sent.`);
-        fetchReservations();
-        setModalRes(null);
-      })
-      .catch((err) => console.error("Status change error:", err));
-  };
-
 const handleArchive = (id) => {
-  if (window.confirm("Archive this reservation?")) {
+  if (window.confirm("Are you sure you want to archive this reservation?")) {
     axios
-      .put(`http://localhost:5000/reservations/archive/${id}`)
-      .then(() => {
-        alert("Reservation archived.");
-        fetchReservations();
+      .post(`http://localhost:5000/reservations/${id}/archive`)
+      .then((response) => {
+        // Check for both response formats
+        if (response.data.success || response.data.message) {
+          alert("Reservation archived successfully.");
+          fetchReservations();
+        } else {
+          alert("Unexpected response from server.");
+        }
       })
-      .catch((err) => console.error("Archive error:", err));
+      .catch((err) => {
+        console.error("Archive error:", err);
+        const errorMessage = err.response?.data?.message || err.message || "Failed to archive reservation";
+        alert(`Archive failed: ${errorMessage}`);
+      });
   }
 };
 
+  const handleView = (reservation) => {
+    setSelectedReservation(reservation);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedReservation(null);
+    setShowModal(false);
+  };
+
+  const handleActionSuccess = () => {
+    fetchReservations(); // Refresh the list after successful action
+  };
 
   const filteredReservations = reservations.filter((res) => {
     const reserver = res.userId?.name || "";
@@ -159,6 +165,10 @@ const handleArchive = (id) => {
                   <option value="Pending">Pending</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
+                  <option value="Ongoing">Ongoing</option>
+                  <option value="Cancelled">Cancelled</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Completed">Completed</option>
                 </select>
                 <ChevronDown
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
@@ -222,7 +232,7 @@ const handleArchive = (id) => {
                         ? new Date(r.createdAt)
                         : null;
                       const startDate = new Date(r.datetime);
-                      const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+                      const endDate = new Date(r.endDatetime);
 
                       const dateOnly = startDate.toLocaleDateString("en-PH", {
                         timeZone: "Asia/Manila",
@@ -264,10 +274,25 @@ const handleArchive = (id) => {
                                   ? "bg-green-100 text-green-800"
                                   : r.status === "Pending"
                                   ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
+                                  : r.status === "Ongoing"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : r.status === "Rejected"
+                                  ? "bg-red-100 text-red-800"
+                                  : r.status === "Cancelled"
+                                  ? "bg-gray-100 text-gray-800"
+                                  : r.status === "Expired"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : r.status === "Completed"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-gray-100 text-gray-800"
                               }`}
                             >
                               {r.status}
+                              {r.extensionRequested && (
+                                <span className="ml-1 text-xs">
+                                  (Ext)
+                                </span>
+                              )}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -277,7 +302,7 @@ const handleArchive = (id) => {
                             <div className="flex justify-end space-x-2">
                               {/* View */}
                               <button
-                                onClick={() => setModalRes(r)}
+                                onClick={() => handleView(r)}
                                 className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
                                 title="View Details"
                               >
@@ -304,177 +329,16 @@ const handleArchive = (id) => {
         </div>
       </main>
 
-      {/* Reservation Details Modal */}
-      {modalRes && (
-        <ReservationModal
-          reservation={modalRes}
-          formatPHDateTime={formatPHDateTime}
-          formatPHDate={formatPHDate}
-          onClose={() => setModalRes(null)}
-          onStatusChange={handleStatusChange}
+      {/* Reservation Modal */}
+      {showModal && selectedReservation && (
+        <AdminReservationModal
+          reservation={selectedReservation}
+          onClose={handleCloseModal}
+          onActionSuccess={handleActionSuccess}
+          currentUser={{ role: "Admin" }}
         />
       )}
     </>
-  );
-}
-
-function ReservationModal({
-  reservation,
-  formatPHDateTime,
-  formatPHDate,
-  onClose,
-  onStatusChange,
-}) {
-  const {
-    _id,
-    userId,
-    roomName,
-    location,
-    datetime,
-    numUsers,
-    purpose,
-    participants = [],
-    status,
-    createdAt,
-  } = reservation;
-
-  const startDate = new Date(datetime);
-  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-
-  const startTime = startDate.toLocaleTimeString("en-PH", {
-    timeZone: "Asia/Manila",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  const endTime = endDate.toLocaleTimeString("en-PH", {
-    timeZone: "Asia/Manila",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
-        <header className="flex justify-between items-center bg-white px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">
-            Reservation Details
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
-          >
-            <X size={20} />
-          </button>
-        </header>
-
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Reserved By</h3>
-              <p className="mt-1 text-gray-800">{userId?.name}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Email</h3>
-              <p className="mt-1 text-gray-800">{userId?.email}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Room</h3>
-              <p className="mt-1 text-gray-800">
-                {roomName} @ {location}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">
-                Reserved Date
-              </h3>
-              <p className="mt-1 text-gray-800">{formatPHDate(datetime)}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Time</h3>
-              <p className="mt-1 text-gray-800">
-                {startTime} — {endTime}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">
-                Number of Users
-              </h3>
-              <p className="mt-1 text-gray-800">{numUsers}</p>
-            </div>
-            <div className="md:col-span-2">
-              <h3 className="text-sm font-medium text-gray-500">Purpose</h3>
-              <p className="mt-1 text-gray-800">{purpose}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Status</h3>
-              <p className="mt-1">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    status === "Approved"
-                      ? "bg-green-100 text-green-800"
-                      : status === "Pending"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {status}
-                </span>
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Created At</h3>
-              <p className="mt-1 text-gray-800">{formatPHDateTime(createdAt)}</p>
-            </div>
-          </div>
-
-          {participants.length > 0 && (
-            <div className="pt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
-                Participants
-              </h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <ul className="space-y-2">
-                  {participants.map((p, idx) => (
-                    <li key={idx} className="text-sm text-gray-800">
-                      <span className="font-medium">{p.name}</span> —{" "}
-                      {p.courseYear}, {p.department} ({p.idNumber})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-          {status === "Pending" && (
-            <>
-              <button
-                onClick={() => onStatusChange(_id, "Approved")}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => onStatusChange(_id, "Rejected")}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Reject
-              </button>
-            </>
-          )}
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

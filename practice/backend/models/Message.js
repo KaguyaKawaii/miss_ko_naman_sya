@@ -2,11 +2,11 @@ const mongoose = require("mongoose");
 
 const messageSchema = new mongoose.Schema({
   sender: {
-    type: String, // Can be user ID, "admin", or floor name
+    type: String,
     required: true
   },
   receiver: {
-    type: String, // Can be user ID, "admin", floor name, or staff ID
+    type: String,
     required: true
   },
   content: {
@@ -18,17 +18,18 @@ const messageSchema = new mongoose.Schema({
     enum: ["user", "staff", "admin"],
     required: true
   },
-  floor: {
-    type: String, // For floor-specific messages
-    required: false
-  },
   displayName: {
-    type: String, // How the sender appears (e.g., "Ground Floor Staff")
-    required: false
+    type: String
+  },
+  floor: {
+    type: String
   },
   read: {
     type: Boolean,
     default: false
+  },
+  readAt: {
+    type: Date
   },
   createdAt: {
     type: Date,
@@ -36,9 +37,9 @@ const messageSchema = new mongoose.Schema({
   }
 });
 
-// Indexes for better performance
+// Index for faster queries
 messageSchema.index({ sender: 1, receiver: 1 });
-messageSchema.index({ receiver: 1, sender: 1 });
+messageSchema.index({ receiver: 1, read: 1 });
 messageSchema.index({ floor: 1 });
 messageSchema.index({ createdAt: -1 });
 

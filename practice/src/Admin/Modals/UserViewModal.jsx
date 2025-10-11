@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import { 
   X, User, Mail, IdCard, Shield, Building, GraduationCap, 
   Layers, Calendar, Clock 
@@ -8,6 +9,7 @@ import {
 export default function UserViewModal({ user, onClose, onToggleVerified, onUserUpdated }) {
   const [imgTimestamp, setImgTimestamp] = useState(Date.now());
   const [loading, setLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
   const getProfilePictureUrl = () => {
     if (!user.profilePicture) return null;
@@ -32,7 +34,26 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
     });
   };
 
-  // ✅ FIX: handle suspend/unsuspend with correct endpoint + better error messages
+  // ✅ FIXED: Use the onToggleVerified prop directly
+  const handleToggleVerification = async () => {
+    try {
+      setVerificationLoading(true);
+      console.log("Toggling verification for:", user._id, "Current verified:", user.verified);
+      
+      // Call the parent function to handle verification
+      if (onToggleVerified) {
+        await onToggleVerified(user);
+      }
+    } catch (error) {
+      console.error("Failed to toggle verification:", error);
+      alert("Failed to update verification status.");
+    } finally {
+      setVerificationLoading(false);
+      setImgTimestamp(Date.now());
+    }
+  };
+
+  // ✅ FIXED: handle suspend/unsuspend with correct endpoint + better error messages
   const handleToggleSuspension = async () => {
     try {
       setLoading(true);
@@ -41,8 +62,17 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
         `http://localhost:5000/api/users/toggle-suspend/${user._id}`,
         { suspend: !user.suspended }
       );
-      if (onUserUpdated) {
-        onUserUpdated(response.data.user); // refresh parent state
+      
+      if (response.data.success) {
+        // Emit socket event for real-time updates
+        const socket = window.socket || io("http://localhost:5000");
+        socket.emit("user-updated", response.data.user);
+        
+        if (onUserUpdated) {
+          onUserUpdated(response.data.user); // refresh parent state
+        }
+      } else {
+        throw new Error(response.data.message || "Failed to update suspension status");
       }
     } catch (error) {
       console.error("Failed to toggle suspension:", error.response?.data || error.message);
@@ -111,17 +141,19 @@ export default function UserViewModal({ user, onClose, onToggleVerified, onUserU
               {/* Action Buttons */}
               <div className="flex flex-col gap-2 w-full max-w-xs">
                 <button
-                  onClick={() => {
-                    onToggleVerified(user);
-                    setImgTimestamp(Date.now());
-                  }}
+                  onClick={handleToggleVerification}
+                  disabled={verificationLoading}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors border ${
                     user.verified
                       ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200"
                       : "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100"
-                  }`}
+                  } ${verificationLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  {user.verified ? "Revoke Verification" : "Verify Account"}
+                  {verificationLoading
+                    ? "Processing..."
+                    : user.verified
+                      ? "Revoke Verification"
+                      : "Verify Account"}
                 </button>
 
                 <button
