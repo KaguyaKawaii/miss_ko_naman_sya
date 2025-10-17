@@ -1,0 +1,323 @@
+import { useState, useEffect } from "react";
+import { Eye, EyeOff, Loader2, CheckCircle, ArrowLeft, Mail } from "lucide-react";
+import Logo from "../assets/logo.png";
+import "../index.css";
+
+function ResetPassword({ onBackToLogin }) {
+  const [step, setStep] = useState("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    if (!email) return setError("Please enter your email.");
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setStep("otp");
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp) return setError("Enter the OTP.");
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setStep("reset");
+    }, 800); // mimic verifying
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || !confirmPassword)
+      return setError("Please fill in all fields.");
+    if (newPassword !== confirmPassword)
+      return setError("Passwords do not match.");
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, newPassword, confirmPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setSuccessModal(true);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  const closeSuccess = () => {
+    setSuccessModal(false);
+    onBackToLogin();
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-yellow-50 flex items-center justify-center p-4">
+      {loading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center">
+            <Loader2 size={64} className="text-red-600 animate-spin mb-4" />
+            <p className="text-gray-700 text-lg font-semibold">Processing…</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-center absolute top-6 left-0 right-0 z-40">
+        {error && (
+          <div
+            key={error}
+            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-lg animate-fade-in-down max-w-md"
+            role="alert"
+          >
+            <p className="font-bold">Error</p>
+            <p>{error}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col md:flex-row justify-center w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 animate-fade-in">
+
+        
+        
+        {/* Right side - Reset Form */}
+        <div className="w-full md:w-3/5 p-8 md:p-10 flex flex-col justify-center">
+         
+          
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">
+              {step === "email" && "Reset Password"}
+              {step === "otp" && "Enter Verification Code"}
+              {step === "reset" && "Create New Password"}
+            </h2>
+            <p className="text-gray-600 mt-2">
+              {step === "email" && "Enter your email to receive a verification code"}
+              {step === "otp" && "Check your email for the verification code"}
+              {step === "reset" && "Enter your new password below"}
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center gap-6">
+            {step === "email" && (
+              <form onSubmit={handleRequestOtp} className="w-full max-w-md">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Email Address</label>
+                    <input
+                      className="border border-gray-300 p-4 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : "Send Verification Code"}
+                  </button>
+                </div>
+                <div className="flex justify-center mt-6">
+                 <button 
+                  onClick={onBackToLogin}
+                  className="flex items-center justify-center text-gray-600 hover:text-red-600 mb-6 self-start transition-colors duration-200 cursor-pointer"
+                >
+                  
+                  Back to Login
+                </button>
+                </div>
+              </form>
+
+              
+            )}
+
+            {step === "otp" && (
+              <form onSubmit={handleVerifyOtp} className="w-full max-w-md">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Verification Code</label>
+                    <input
+                      className="border border-gray-300 p-4 rounded-xl hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center tracking-widest text-lg"
+                      type="text"
+                      placeholder="Enter the 6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      maxLength={6}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      We sent a code to {email}
+                    </p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : "Verify Code"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {step === "reset" && (
+              <form onSubmit={handleResetPassword} className="w-full max-w-md">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">New Password</label>
+                    <div className="relative">
+                      <input
+                        className="border border-gray-300 p-4 rounded-xl w-full hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        type={showPw ? "text" : "password"}
+                        placeholder="Enter your new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw((s) => !s)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors duration-200"
+                      >
+                        {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Confirm Password</label>
+                    <div className="relative">
+                      <input
+                        className="border border-gray-300 p-4 rounded-xl w-full hover:border-red-500 transition-colors duration-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        type={showConfirmPw ? "text" : "password"}
+                        placeholder="Confirm your new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPw((s) => !s)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors duration-200"
+                      >
+                        {showConfirmPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="p-4 rounded-xl bg-[#CC0000] hover:bg-[#b80000] font-semibold text-white cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : "Reset Password"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {successModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/50 backdrop-blur-md"
+          onClick={closeSuccess}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl p-10 max-w-lg w-[90%] text-center animate-fade-in-scale"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle size={48} className="text-green-600" />
+            </div>
+            <h3 className="text-3xl font-bold text-gray-800">Password Reset Successful!</h3>
+            <p className="mt-4 text-gray-600 text-lg">
+              Your password has been successfully updated. You can now log in with your new password.
+            </p>
+            <button
+              onClick={closeSuccess}
+              className="mt-8 bg-red-700 text-white w-full py-4 rounded-xl text-lg font-semibold hover:bg-red-800 cursor-pointer transition-colors duration-300 shadow-md hover:shadow-lg"
+            >
+              Continue to Login
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fade-in-down {
+          0% {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes fade-in-scale {
+          0% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        @keyframes fade-in {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fade-in-down {
+          animation: fade-in-down 0.5s ease-out;
+        }
+        
+        .animate-fade-in-scale {
+          animation: fade-in-scale 0.3s ease-out;
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+      `}</style>
+    </main>
+  );
+}
+
+export default ResetPassword;
