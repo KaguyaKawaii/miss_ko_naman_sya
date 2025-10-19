@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import api from "./utils/api";
 import socket from "./utils/socket";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/next"
 
 
 /* --------------- shared components --------------- */
@@ -607,7 +607,6 @@ function App() {
             onLoginClick={() => setView("login")} 
             onSignUpClick={() => setView("signup")}
           />
-          <Analytics />
           <Body onReserveClick={() => setView("login")} />
           <Body2 />
           <Body3 />

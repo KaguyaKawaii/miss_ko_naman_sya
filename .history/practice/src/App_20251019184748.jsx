@@ -607,7 +607,6 @@ function App() {
             onLoginClick={() => setView("login")} 
             onSignUpClick={() => setView("signup")}
           />
-          <Analytics />
           <Body onReserveClick={() => setView("login")} />
           <Body2 />
           <Body3 />
