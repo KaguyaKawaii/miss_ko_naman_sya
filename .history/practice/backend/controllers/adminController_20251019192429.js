@@ -12,9 +12,9 @@ const generateOTP = () => {
 };
 
 // Helper function to send OTP (using actual email service)
-const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date()) => {
+const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date(), ipAddress = "Unknown") => {
   try {
-    const subject = "Learning Resource Center - Admin Verification Code";
+    const subject = "Secure Admin Access - One-Time Password Required";
     const formattedTime = loginTime.toLocaleString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -22,6 +22,7 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
       day: 'numeric',
       hour: 'numeric',
       minute: 'numeric',
+      second: 'numeric',
       timeZoneName: 'short'
     });
 
@@ -33,6 +34,8 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Admin Login Verification</title>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+          
           * {
             margin: 0;
             padding: 0;
@@ -40,131 +43,123 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
           }
           
           body {
-            font-family: Arial, sans-serif;
-            background-color: #ffffff;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 40px 20px;
             min-height: 100vh;
           }
           
           .email-container {
-            max-width: 580px;
+            max-width: 600px;
             margin: 0 auto;
             background: #ffffff;
-            border-radius: 8px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            border: 1px solid #dddddd;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e8e8e8;
           }
           
           .header {
-            background: #ffffff;
-            color: #333333;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+            color: #ffffff;
             text-align: center;
-            padding: 35px 30px;
-            border-bottom: 3px solid #CC0000;
+            padding: 40px 30px;
+            position: relative;
           }
           
-          .institution-name {
-            font-size: 22px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333333;
-            letter-spacing: 0.5px;
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6);
           }
           
-          .department-name {
-            font-size: 16px;
-            color: #666666;
-            font-weight: normal;
+          .university-logo {
+            font-size: 24px;
+            font-weight: 700;
             margin-bottom: 8px;
+            letter-spacing: -0.5px;
           }
           
-          .email-title {
-            font-size: 18px;
-            color: #CC0000;
-            font-weight: bold;
-            margin-top: 10px;
+          .university-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
           }
           
           .content {
-            padding: 35px 30px;
+            padding: 40px 30px;
           }
           
           .greeting {
-            font-size: 16px;
-            color: #333333;
-            margin-bottom: 25px;
+            font-size: 18px;
+            color: #1f2937;
+            margin-bottom: 24px;
             line-height: 1.6;
-            text-align: center;
-          }
-          
-          .greeting strong {
-            color: #333333;
-            font-weight: bold;
           }
           
           .otp-section {
-            background: #f8f8f8;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 30px 25px;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 30px;
             text-align: center;
             margin: 30px 0;
           }
           
           .otp-label {
             font-size: 14px;
-            color: #666666;
+            color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin-bottom: 20px;
-            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            font-weight: 600;
           }
           
           .otp-code {
             font-size: 42px;
-            font-weight: bold;
-            color: #CC0000;
+            font-weight: 700;
+            color: #1e3a8a;
             letter-spacing: 8px;
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
             background: #ffffff;
-            padding: 20px 30px;
-            border-radius: 6px;
-            border: 1px solid #dddddd;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px dashed #c7d2fe;
             display: inline-block;
             margin: 10px 0;
           }
           
           .expiry-notice {
             font-size: 14px;
-            color: #666666;
-            font-weight: normal;
-            margin-top: 15px;
-            font-style: italic;
+            color: #ef4444;
+            font-weight: 600;
+            margin-top: 8px;
           }
           
           .details-section {
-            background: #f8f8f8;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 25px;
-            margin: 30px 0;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
           }
           
           .details-title {
-            font-size: 15px;
-            color: #333333;
-            font-weight: bold;
-            margin-bottom: 18px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 16px;
+            color: #0369a1;
+            font-weight: 600;
+            margin-bottom: 12px;
           }
           
           .detail-item {
             display: flex;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e8e8e8;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0f2fe;
           }
           
           .detail-item:last-child {
@@ -172,104 +167,91 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
           }
           
           .detail-label {
-            color: #666666;
-            font-weight: normal;
-            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
           }
           
           .detail-value {
-            color: #333333;
-            font-weight: bold;
-            font-size: 14px;
+            color: #1e293b;
+            font-weight: 600;
           }
           
           .security-section {
-            background: #f8f8f8;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 25px;
-            margin: 30px 0;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
           }
           
           .security-title {
-            font-size: 15px;
-            color: #333333;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 16px;
+            color: #dc2626;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
           }
           
-          .security-list {
-            list-style: none;
-            padding: 0;
+          .security-icon {
+            font-size: 18px;
           }
           
-          .security-item {
-            color: #666666;
+          .security-text {
+            color: #7f1d1d;
             font-size: 14px;
-            line-height: 1.6;
-            padding: 6px 0;
-            padding-left: 20px;
-            position: relative;
-          }
-          
-          .security-item::before {
-            content: '•';
-            color: #CC0000;
-            font-weight: bold;
-            position: absolute;
-            left: 8px;
+            line-height: 1.5;
           }
           
           .footer {
             text-align: center;
             padding: 30px;
-            background: #f8f8f8;
-            border-top: 1px solid #e0e0e0;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
           }
           
           .footer-text {
-            color: #666666;
-            font-size: 13px;
+            color: #64748b;
+            font-size: 12px;
             line-height: 1.6;
             margin-bottom: 8px;
           }
           
           .contact-info {
-            color: #666666;
-            font-size: 13px;
+            color: #475569;
+            font-size: 12px;
             margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #e0e0e0;
           }
           
-          .institution-brand {
-            color: #CC0000;
-            font-weight: bold;
+          .warning-badge {
+            display: inline-block;
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
           }
           
           @media (max-width: 600px) {
             body {
-              padding: 20px 15px;
+              padding: 20px 10px;
             }
             
             .content {
-              padding: 25px 20px;
+              padding: 30px 20px;
             }
             
             .otp-code {
-              font-size: 36px;
+              font-size: 32px;
               letter-spacing: 6px;
-              padding: 18px 25px;
+              padding: 15px;
             }
             
             .header {
-              padding: 25px 20px;
-            }
-            
-            .footer {
-              padding: 25px 20px;
+              padding: 30px 20px;
             }
           }
         </style>
@@ -278,62 +260,71 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
         <div class="email-container">
           <!-- Header -->
           <div class="header">
-            <div class="institution-name">University of San Agustin</div>
-            <div class="department-name">Learning Resource Center</div>
-            <div class="email-title">Admin Portal Security Verification</div>
+            <div class="university-logo">University of San Agustin</div>
+            <div class="university-subtitle">Administrative Portal Security</div>
           </div>
           
           <!-- Content -->
           <div class="content">
             <div class="greeting">
               Hello <strong>${adminName}</strong>,<br>
-              You are attempting to access the Learning Resource Center Admin Portal. Please use the following verification code to complete your authentication.
+              You are attempting to access the Admin Portal. Please use the following verification code to complete your login.
             </div>
             
             <!-- OTP Section -->
             <div class="otp-section">
               <div class="otp-label">Your Verification Code</div>
               <div class="otp-code">${otpCode}</div>
-              <div class="expiry-notice">This code will expire in 10 minutes</div>
+              <div class="expiry-notice">⏰ Expires in 10 minutes</div>
             </div>
             
             <!-- Login Details -->
             <div class="details-section">
-              <div class="details-title">Authentication Details</div>
+              <div class="details-title">Login Attempt Details</div>
               <div class="detail-item">
                 <span class="detail-label">Request Time:</span>
                 <span class="detail-value">${formattedTime}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">Administrator:</span>
+                <span class="detail-label">Admin Account:</span>
                 <span class="detail-value">${adminName}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">System Access:</span>
-                <span class="detail-value">University of San Agustin – FLD Learning Resource Center Admin Portal</span>
+                <span class="detail-label">IP Address:</span>
+                <span class="detail-value">${ipAddress}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">System:</span>
+                <span class="detail-value">Admin Portal</span>
               </div>
             </div>
             
             <!-- Security Notice -->
             <div class="security-section">
-              <div class="security-title">Security Information</div>
-              <ul class="security-list">
-                <li class="security-item">This verification code is for authorized system access only.</li>
-                <li class="security-item">Do not share this code with anyone.</li>
-                <li class="security-item">Please ensure you are accessing the official University of San Agustin – FLD Learning Resource Center Admin Portal.</li>
-              </ul>
+              <div class="security-title">
+                <span class="security-icon">⚠️</span>
+                Security Advisory
+              </div>
+              <div class="security-text">
+                • This OTP is valid for a single login session only<br>
+                • Never share this code with anyone, including support staff<br>
+                • Ensure you are on the official University of San Agustin portal<br>
+                • If you didn't initiate this request, contact IT Security immediately
+              </div>
             </div>
           </div>
           
           <!-- Footer -->
           <div class="footer">
             <div class="footer-text">
-              This is an automated security message from the <span class="institution-brand">University of San Agustin – FLD Learning Resource Center Admin Portal</span>.
+              This is an automated security message from the University of San Agustin Admin System.
             </div>
             <div class="footer-text">
-              Please do not forward or share this email.
+              For security reasons, please do not forward or share this email.
             </div>
-            
+            <div class="contact-info">
+              📧 IT Support: itsupport@usa.edu.ph | 📞 +63 (033) 123-4567
+            </div>
           </div>
         </div>
       </body>
@@ -341,28 +332,29 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
     `;
 
     const text = `
-LEARNING RESOURCE CENTER - ADMIN VERIFICATION CODE
+SECURE ADMIN ACCESS - ONE-TIME PASSWORD
 
 Hello ${adminName},
 
-You are attempting to access the Learning Resource Center Admin Portal. Use the following verification code to complete your authentication:
+You are attempting to access the Admin Portal. Use the following verification code:
 
-VERIFICATION CODE: ${otpCode}
-EXPIRES IN: 10 minutes
+OTP: ${otpCode}
+Expires: 10 minutes
 
-AUTHENTICATION DETAILS:
+Login Details:
 - Request Time: ${formattedTime}
-- Administrator: ${adminName}
-- System Access: Learning Resource Center Admin Portal
+- Admin Account: ${adminName}
+- IP Address: ${ipAddress}
+- System: Admin Portal
 
-SECURITY INFORMATION:
-- This verification code is valid for single use only
-- Do not share this code with anyone
-- Ensure you are accessing the official Learning Resource Center portal
+SECURITY NOTICE:
+- This OTP is valid for single use only
+- Never share this code with anyone
+- Ensure you're on the official University portal
+- Contact IT Security if you didn't initiate this request
 
-This is an automated security message from the Learning Resource Center Admin System.
-
-For assistance, contact: lrc-support@usa.edu.ph | +63 (033) 123-4567
+University of San Agustin Admin System
+IT Support: itsupport@usa.edu.ph | +63 (033) 123-4567
     `;
 
     await sendEmail({

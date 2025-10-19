@@ -155,10 +155,22 @@ exports.signup = async (req, res) => {
             
             .email-footer {
                 background: #ffffff;
-                padding: 20px;
+                padding: 25px 20px;
                 text-align: center;
                 color: #666666;
                 font-size: 12px;
+                border-top: 1px solid #dddddd;
+            }
+            
+            .contact-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #dddddd;
+            }
+            
+            .contact-info a {
+                color: #000000;
+                text-decoration: none;
             }
             
             @media (max-width: 600px) {
@@ -199,6 +211,7 @@ exports.signup = async (req, res) => {
                         <li>Enter this OTP on the verification page to complete your registration</li>
                         <li>Do not share this code with anyone for security reasons</li>
                         <li>If you didn't request this code, please ignore this email</li>
+                        <li>For security purposes, this OTP will expire in 5 minutes</li>
                     </ul>
                 </div>
                 
@@ -210,13 +223,17 @@ exports.signup = async (req, res) => {
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #333333;">
                     Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
+                    <strong>USA-FLD LRC Team</strong>
                 </p>
             </div>
             
             <div class="email-footer">
-                <p>University of San Agustin – Gen. Luna Street, Iloilo City, Philippines</p>
-                <p style="margin-top: 10px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
+                <p><strong>USA-FLD Learning Resource Center</strong></p>
+                <p>University of San Agustin - Fort San Pedro Drive, Iloilo City, Philippines</p>
+                <div class="contact-info">
+                    <p>Email: <a href="mailto:lrc-support@usa.edu.ph">lrc-support@usa.edu.ph</a> | Phone: (033) 123-4567</p>
+                </div>
+                <p style="margin-top: 15px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
             </div>
         </div>
     </body>
@@ -298,7 +315,7 @@ exports.verifyOtp = async (req, res) => {
                 color: #000000;
                 padding: 35px 20px;
                 text-align: center;
-                border-bottom: 2px solid #CC0000;
+                border-bottom: 2px solid #000000;
             }
             
             .email-header h1 {
@@ -429,10 +446,22 @@ exports.verifyOtp = async (req, res) => {
             
             .email-footer {
                 background: #ffffff;
-                padding: 20px;
+                padding: 25px 20px;
                 text-align: center;
                 color: #666666;
                 font-size: 12px;
+                border-top: 1px solid #dddddd;
+            }
+            
+            .contact-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #dddddd;
+            }
+            
+            .contact-info a {
+                color: #000000;
+                text-decoration: none;
             }
             
             @media (max-width: 600px) {
@@ -536,13 +565,18 @@ exports.verifyOtp = async (req, res) => {
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #333333;">
                     Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
+                    <strong>USA-FLD LRC Team</strong>
                 </p>
             </div>
             
             <div class="email-footer">
-                <p>University of San Agustin – Gen. Luna Street, Iloilo City, Philippines</p>
-                <p style="margin-top: 10px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD Learning Resource Center. All rights reserved.</p>
+                <p><strong>USA-FLD Learning Resource Center</strong></p>
+                <p>University of San Agustin - Fort San Pedro Drive, Iloilo City, Philippines</p>
+                <div class="contact-info">
+                    <p>Email: <a href="mailto:lrc-support@usa.edu.ph">lrc-support@usa.edu.ph</a> | Phone: (033) 123-4567</p>
+                    <p>Hours: Monday-Friday 8:00 AM - 5:00 PM</p>
+                </div>
+                <p style="margin-top: 15px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD Learning Resource Center. All rights reserved.</p>
             </div>
         </div>
     </body>
@@ -608,7 +642,7 @@ exports.resendOtp = async (req, res) => {
                 color: #000000;
                 padding: 30px 20px;
                 text-align: center;
-                border-bottom: 2px solid #CC0000;
+                border-bottom: 2px solid #000000;
             }
             
             .email-header h1 {
@@ -660,10 +694,22 @@ exports.resendOtp = async (req, res) => {
             
             .email-footer {
                 background: #ffffff;
-                padding: 20px;
+                padding: 25px 20px;
                 text-align: center;
                 color: #666666;
                 font-size: 12px;
+                border-top: 1px solid #dddddd;
+            }
+            
+            .contact-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #dddddd;
+            }
+            
+            .contact-info a {
+                color: #000000;
+                text-decoration: none;
             }
             
             @media (max-width: 600px) {
@@ -706,13 +752,17 @@ exports.resendOtp = async (req, res) => {
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #333333;">
                     Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
+                    <strong>USA-FLD LRC Team</strong>
                 </p>
             </div>
             
             <div class="email-footer">
-                <p>University of San Agustin – Gen. Luna Street, Iloilo City, Philippines</p>
-                <p style="margin-top: 10px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
+                <p><strong>USA-FLD Learning Resource Center</strong></p>
+                <p>University of San Agustin - Fort San Pedro Drive, Iloilo City, Philippines</p>
+                <div class="contact-info">
+                    <p>Email: <a href="mailto:lrc-support@usa.edu.ph">lrc-support@usa.edu.ph</a> | Phone: (033) 123-4567</p>
+                </div>
+                <p style="margin-top: 15px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
             </div>
         </div>
     </body>

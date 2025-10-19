@@ -328,7 +328,7 @@ const sendOTP = async (email, otpCode, adminName = "Admin", loginTime = new Date
           <!-- Footer -->
           <div class="footer">
             <div class="footer-text">
-              This is an automated security message from the <span class="institution-brand">University of San Agustin – FLD Learning Resource Center Admin Portal</span>.
+              This is an automated security message from the <span class="institution-brand">Learning Resource Center Admin System</span>.
             </div>
             <div class="footer-text">
               Please do not forward or share this email.

@@ -199,6 +199,7 @@ exports.signup = async (req, res) => {
                         <li>Enter this OTP on the verification page to complete your registration</li>
                         <li>Do not share this code with anyone for security reasons</li>
                         <li>If you didn't request this code, please ignore this email</li>
+                        <li>For security purposes, this OTP will expire in 5 minutes</li>
                     </ul>
                 </div>
                 
@@ -210,7 +211,7 @@ exports.signup = async (req, res) => {
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #333333;">
                     Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
+                    <strong>USA-FLD LRC Team</strong>
                 </p>
             </div>
             
@@ -536,7 +537,7 @@ exports.verifyOtp = async (req, res) => {
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #333333;">
                     Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
+                    <strong>USA-FLD LRC Team</strong>
                 </p>
             </div>
             
@@ -706,7 +707,7 @@ exports.resendOtp = async (req, res) => {
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #333333;">
                     Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
+                    <strong>USA-FLD LRC Team</strong>
                 </p>
             </div>
             

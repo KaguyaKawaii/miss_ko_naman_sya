@@ -62,76 +62,78 @@ exports.signup = async (req, res) => {
             }
             
             body {
-                font-family: Arial, sans-serif;
-                background-color: #ffffff;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f5f5f5;
                 padding: 20px;
-                color: #000000;
-                line-height: 1.5;
             }
             
             .email-container {
                 max-width: 600px;
                 margin: 0 auto;
                 background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             }
             
             .email-header {
-                background: #ffffff;
-                color: #000000;
+                background: linear-gradient(135deg, #d32f2f, #b71c1c);
+                color: white;
                 padding: 30px 20px;
                 text-align: center;
-                border-bottom: 2px solid #CC0000;
             }
             
             .email-header h1 {
-                font-size: 22px;
-                font-weight: bold;
+                font-size: 28px;
+                font-weight: 600;
                 margin-bottom: 8px;
             }
             
             .email-header p {
                 font-size: 16px;
-                color: #000000;
+                opacity: 0.9;
             }
             
             .email-body {
-                padding: 30px 20px;
-                color: #000000;
+                padding: 35px 30px;
+                color: #333;
             }
             
             .greeting {
-                font-size: 16px;
+                font-size: 18px;
                 margin-bottom: 20px;
-                color: #000000;
+                color: #444;
             }
             
             .otp-container {
-                background: #ffffff;
-                padding: 30px 0;
+                background: #ffebee;
+                border: 1px solid #ffcdd2;
+                border-radius: 8px;
+                padding: 20px;
                 text-align: center;
                 margin: 25px 0;
             }
             
             .otp-code {
-                font-size: 48px;
+                font-size: 42px;
                 font-weight: bold;
-                color: #cc0000;
-                letter-spacing: 10px;
-                margin: 20px 0;
-                font-family: Arial, sans-serif;
+                color: #d32f2f;
+                letter-spacing: 8px;
+                margin: 15px 0;
             }
             
             .instructions {
-                background: #ffffff;
-                padding: 20px 0;
+                background: #f8f9fa;
+                border-left: 4px solid #d32f2f;
+                padding: 15px;
                 margin: 25px 0;
+                border-radius: 0 8px 8px 0;
             }
             
             .instructions h3 {
-                color: #000000;
-                margin-bottom: 15px;
+                color: #d32f2f;
+                margin-bottom: 10px;
                 font-size: 16px;
-                font-weight: bold;
             }
             
             .instructions ul {
@@ -139,36 +141,60 @@ exports.signup = async (req, res) => {
             }
             
             .instructions li {
-                margin-bottom: 10px;
-                color: #333333;
-                line-height: 1.5;
+                margin-bottom: 8px;
+                color: #555;
             }
             
             .warning {
-                background: #ffffff;
+                background: #fff3e0;
+                border: 1px solid #ffcc80;
+                border-radius: 8px;
                 padding: 15px;
                 margin: 20px 0;
                 text-align: center;
-                color: #000000;
-                font-weight: bold;
+                color: #e65100;
+                font-weight: 500;
             }
             
             .email-footer {
-                background: #ffffff;
+                background: #f5f5f5;
                 padding: 20px;
                 text-align: center;
-                color: #666666;
-                font-size: 12px;
+                color: #666;
+                font-size: 14px;
+                border-top: 1px solid #e0e0e0;
+            }
+            
+            .contact-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #e0e0e0;
+            }
+            
+            .contact-info a {
+                color: #d32f2f;
+                text-decoration: none;
+            }
+            
+            .button {
+                display: inline-block;
+                background: #d32f2f;
+                color: white;
+                padding: 12px 30px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 500;
+                margin: 10px 0;
             }
             
             @media (max-width: 600px) {
                 .email-body {
-                    padding: 20px 15px;
+                    padding: 25px 20px;
                 }
                 
                 .otp-code {
-                    font-size: 40px;
-                    letter-spacing: 8px;
+                    font-size: 36px;
+                    letter-spacing: 6px;
                 }
             }
         </style>
@@ -176,7 +202,7 @@ exports.signup = async (req, res) => {
     <body>
         <div class="email-container">
             <div class="email-header">
-                <h1>University of San Agustin</h1>
+                <h1>USA-FLD LRC</h1>
                 <p>Learning Resource Center</p>
             </div>
             
@@ -188,9 +214,9 @@ exports.signup = async (req, res) => {
                 <p>Thank you for registering with USA-FLD Learning Resource Center. To complete your registration, please use the following One-Time Password (OTP) to verify your email address.</p>
                 
                 <div class="otp-container">
-                    <p style="margin-bottom: 15px; color: #666666; font-size: 14px;">Your verification code:</p>
+                    <p style="margin-bottom: 15px; color: #666;">Your verification code:</p>
                     <div class="otp-code">${otp}</div>
-                    <p style="color: #666666; font-size: 13px;">This code will expire in 5 minutes</p>
+                    <p style="color: #666; font-size: 14px;">This code will expire in 5 minutes</p>
                 </div>
                 
                 <div class="instructions">
@@ -203,20 +229,19 @@ exports.signup = async (req, res) => {
                 </div>
                 
                 <div class="warning">
-                    For security purposes, this OTP will expire in 5 minutes
+                    ⚠️ For security purposes, this OTP will expire in 5 minutes
                 </div>
                 
-                <p style="margin-top: 25px; color: #333333;">If you have any questions, please don't hesitate to contact our support team.</p>
-                
-                <p style="margin-top: 20px; font-size: 14px; color: #333333;">
-                    Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
-                </p>
+                <p style="margin-top: 25px;">If you have any questions, please don't hesitate to contact our support team.</p>
             </div>
             
             <div class="email-footer">
-                <p>University of San Agustin – Gen. Luna Street, Iloilo City, Philippines</p>
-                <p style="margin-top: 10px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
+                <p><strong>USA-FLD Learning Resource Center</strong></p>
+                <p>University of San Agustin - Fort San Pedro Drive, Iloilo City, Philippines</p>
+                <div class="contact-info">
+                    <p>Email: <a href="mailto:lrc-support@usa.edu.ph">lrc-support@usa.edu.ph</a> | Phone: (033) 123-4567</p>
+                </div>
+                <p style="margin-top: 15px; font-size: 12px; color: #999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
             </div>
         </div>
     </body>
@@ -280,66 +305,66 @@ exports.verifyOtp = async (req, res) => {
             }
             
             body {
-                font-family: Arial, sans-serif;
-                background-color: #ffffff;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f5f5f5;
                 padding: 20px;
-                color: #000000;
-                line-height: 1.5;
             }
             
             .email-container {
                 max-width: 600px;
                 margin: 0 auto;
                 background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             }
             
             .email-header {
-                background: #ffffff;
-                color: #000000;
-                padding: 35px 20px;
+                background: linear-gradient(135deg, #d32f2f, #b71c1c);
+                color: white;
+                padding: 40px 20px;
                 text-align: center;
-                border-bottom: 2px solid #CC0000;
             }
             
             .email-header h1 {
-                font-size: 22px;
-                font-weight: bold;
-                margin-bottom: 8px;
+                font-size: 32px;
+                font-weight: 600;
+                margin-bottom: 10px;
             }
             
             .email-header p {
-                font-size: 16px;
-                color: #000000;
+                font-size: 18px;
+                opacity: 0.9;
             }
             
             .email-body {
-                padding: 30px 20px;
-                color: #000000;
+                padding: 40px 30px;
+                color: #333;
             }
             
             .welcome-message {
                 text-align: center;
-                margin-bottom: 25px;
+                margin-bottom: 30px;
             }
             
             .welcome-message h2 {
-                color: #000000;
-                font-size: 20px;
-                margin-bottom: 10px;
-                font-weight: bold;
+                color: #d32f2f;
+                font-size: 28px;
+                margin-bottom: 15px;
             }
             
             .user-info {
-                background: #ffffff;
-                padding: 20px 0;
-                margin: 20px 0;
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 25px 0;
+                border-left: 4px solid #d32f2f;
             }
             
             .user-info h3 {
-                color: #000000;
+                color: #d32f2f;
                 margin-bottom: 15px;
-                font-size: 16px;
-                font-weight: bold;
+                font-size: 18px;
             }
             
             .info-grid {
@@ -349,34 +374,30 @@ exports.verifyOtp = async (req, res) => {
             }
             
             .info-item {
-                margin-bottom: 12px;
+                margin-bottom: 10px;
             }
             
             .info-label {
-                font-weight: bold;
-                color: #000000;
-                display: block;
-                margin-bottom: 4px;
-                font-size: 14px;
+                font-weight: 600;
+                color: #555;
             }
             
             .info-value {
-                color: #000000;
-                font-size: 14px;
+                color: #333;
             }
             
             .features {
-                background: #ffffff;
-                padding: 20px 0;
-                margin: 25px 0;
+                background: #ffebee;
+                border-radius: 8px;
+                padding: 25px;
+                margin: 30px 0;
             }
             
             .features h3 {
-                color: #000000;
+                color: #d32f2f;
                 text-align: center;
-                margin-bottom: 15px;
-                font-size: 16px;
-                font-weight: bold;
+                margin-bottom: 20px;
+                font-size: 20px;
             }
             
             .feature-grid {
@@ -387,33 +408,26 @@ exports.verifyOtp = async (req, res) => {
             
             .feature-item {
                 text-align: center;
-                padding: 15px 0;
+                padding: 15px;
             }
             
             .feature-title {
-                font-weight: bold;
-                color: #000000;
+                font-weight: 600;
+                color: #d32f2f;
                 margin-bottom: 8px;
-                font-size: 14px;
-            }
-            
-            .feature-item p {
-                color: #333333;
-                font-size: 13px;
-                line-height: 1.4;
             }
             
             .next-steps {
-                background: #ffffff;
-                padding: 20px 0;
-                margin: 20px 0;
+                background: #e8f5e8;
+                border: 1px solid #c8e6c9;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 25px 0;
             }
             
             .next-steps h3 {
-                color: #000000;
+                color: #2e7d32;
                 margin-bottom: 15px;
-                font-weight: bold;
-                font-size: 16px;
             }
             
             .next-steps ul {
@@ -422,27 +436,58 @@ exports.verifyOtp = async (req, res) => {
             
             .next-steps li {
                 margin-bottom: 10px;
-                color: #333333;
-                line-height: 1.5;
-                font-size: 14px;
+                color: #555;
+            }
+            
+            .cta-button {
+                text-align: center;
+                margin: 30px 0;
+            }
+            
+            .button {
+                display: inline-block;
+                background: linear-gradient(135deg, #d32f2f, #b71c1c);
+                color: white;
+                padding: 15px 40px;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 16px;
+                box-shadow: 0 4px 8px rgba(211, 47, 47, 0.3);
             }
             
             .email-footer {
-                background: #ffffff;
-                padding: 20px;
+                background: #f5f5f5;
+                padding: 25px;
                 text-align: center;
-                color: #666666;
-                font-size: 12px;
+                color: #666;
+                font-size: 14px;
+                border-top: 1px solid #e0e0e0;
+            }
+            
+            .contact-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #e0e0e0;
+            }
+            
+            .contact-info a {
+                color: #d32f2f;
+                text-decoration: none;
             }
             
             @media (max-width: 600px) {
                 .email-body {
-                    padding: 20px 15px;
+                    padding: 25px 20px;
                 }
                 
                 .info-grid,
                 .feature-grid {
                     grid-template-columns: 1fr;
+                }
+                
+                .feature-item {
+                    padding: 10px;
                 }
             }
         </style>
@@ -450,13 +495,13 @@ exports.verifyOtp = async (req, res) => {
     <body>
         <div class="email-container">
             <div class="email-header">
-                <h1>University of San Agustin</h1>
+                <h1>Welcome to USA-FLD LRC</h1>
                 <p>Learning Resource Center</p>
             </div>
             
             <div class="email-body">
                 <div class="welcome-message">
-                    <h2>Registration Successful!</h2>
+                    <h2>🎉 Registration Successful!</h2>
                     <p>Welcome to the University of San Agustin - Flexible Learning Delivery Learning Resource Center</p>
                 </div>
                 
@@ -532,17 +577,21 @@ exports.verifyOtp = async (req, res) => {
                     </ul>
                 </div>
                 
-                <p style="color: #333333;">If you have any questions or need assistance, our support team is always ready to help you make the most of our resources.</p>
+                <div class="cta-button">
+                    <a href="#" class="button">Access Your Account Now</a>
+                </div>
                 
-                <p style="margin-top: 20px; font-size: 14px; color: #333333;">
-                    Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
-                </p>
+                <p>If you have any questions or need assistance, our support team is always ready to help you make the most of our resources.</p>
             </div>
             
             <div class="email-footer">
-                <p>University of San Agustin – Gen. Luna Street, Iloilo City, Philippines</p>
-                <p style="margin-top: 10px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD Learning Resource Center. All rights reserved.</p>
+                <p><strong>USA-FLD Learning Resource Center</strong></p>
+                <p>University of San Agustin - Fort San Pedro Drive, Iloilo City, Philippines</p>
+                <div class="contact-info">
+                    <p>Email: <a href="mailto:lrc-support@usa.edu.ph">lrc-support@usa.edu.ph</a> | Phone: (033) 123-4567</p>
+                    <p>Hours: Monday-Friday 8:00 AM - 5:00 PM</p>
+                </div>
+                <p style="margin-top: 15px; font-size: 12px; color: #999;">© ${new Date().getFullYear()} USA-FLD Learning Resource Center. All rights reserved.</p>
             </div>
         </div>
     </body>
@@ -590,90 +639,104 @@ exports.resendOtp = async (req, res) => {
             }
             
             body {
-                font-family: Arial, sans-serif;
-                background-color: #ffffff;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f5f5f5;
                 padding: 20px;
-                color: #000000;
-                line-height: 1.5;
             }
             
             .email-container {
                 max-width: 600px;
                 margin: 0 auto;
                 background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             }
             
             .email-header {
-                background: #ffffff;
-                color: #000000;
+                background: linear-gradient(135deg, #d32f2f, #b71c1c);
+                color: white;
                 padding: 30px 20px;
                 text-align: center;
-                border-bottom: 2px solid #CC0000;
             }
             
             .email-header h1 {
-                font-size: 22px;
-                font-weight: bold;
+                font-size: 28px;
+                font-weight: 600;
                 margin-bottom: 8px;
             }
             
             .email-header p {
                 font-size: 16px;
-                color: #000000;
+                opacity: 0.9;
             }
             
             .email-body {
-                padding: 30px 20px;
-                color: #000000;
+                padding: 35px 30px;
+                color: #333;
             }
             
             .greeting {
-                font-size: 16px;
+                font-size: 18px;
                 margin-bottom: 20px;
-                color: #000000;
+                color: #444;
             }
             
             .otp-container {
-                background: #ffffff;
-                padding: 30px 0;
+                background: #ffebee;
+                border: 1px solid #ffcdd2;
+                border-radius: 8px;
+                padding: 20px;
                 text-align: center;
                 margin: 25px 0;
             }
             
             .otp-code {
-                font-size: 48px;
+                font-size: 42px;
                 font-weight: bold;
-                color: #cc0000;
-                letter-spacing: 10px;
-                margin: 20px 0;
-                font-family: Arial, sans-serif;
+                color: #d32f2f;
+                letter-spacing: 8px;
+                margin: 15px 0;
             }
             
             .note {
-                background: #ffffff;
+                background: #e3f2fd;
+                border: 1px solid #bbdefb;
+                border-radius: 8px;
                 padding: 15px;
                 margin: 20px 0;
                 text-align: center;
-                color: #000000;
-                font-weight: bold;
+                color: #1565c0;
             }
             
             .email-footer {
-                background: #ffffff;
+                background: #f5f5f5;
                 padding: 20px;
                 text-align: center;
-                color: #666666;
-                font-size: 12px;
+                color: #666;
+                font-size: 14px;
+                border-top: 1px solid #e0e0e0;
+            }
+            
+            .contact-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #e0e0e0;
+            }
+            
+            .contact-info a {
+                color: #d32f2f;
+                text-decoration: none;
             }
             
             @media (max-width: 600px) {
                 .email-body {
-                    padding: 20px 15px;
+                    padding: 25px 20px;
                 }
                 
                 .otp-code {
-                    font-size: 40px;
-                    letter-spacing: 8px;
+                    font-size: 36px;
+                    letter-spacing: 6px;
                 }
             }
         </style>
@@ -681,8 +744,8 @@ exports.resendOtp = async (req, res) => {
     <body>
         <div class="email-container">
             <div class="email-header">
-                <h1>University of San Agustin</h1>
-                <p>Learning Resource Center</p>
+                <h1>USA-FLD LRC</h1>
+                <p>New OTP Request</p>
             </div>
             
             <div class="email-body">
@@ -693,9 +756,9 @@ exports.resendOtp = async (req, res) => {
                 <p>We received your request for a new One-Time Password (OTP). Here is your new verification code:</p>
                 
                 <div class="otp-container">
-                    <p style="margin-bottom: 15px; color: #666666; font-size: 14px;">Your new verification code:</p>
+                    <p style="margin-bottom: 15px; color: #666;">Your new verification code:</p>
                     <div class="otp-code">${newOtp}</div>
-                    <p style="color: #666666; font-size: 13px;">This code will expire in 5 minutes</p>
+                    <p style="color: #666; font-size: 14px;">This code will expire in 5 minutes</p>
                 </div>
                 
                 <div class="note">
@@ -703,16 +766,15 @@ exports.resendOtp = async (req, res) => {
                 </div>
                 
                 <p>If you didn't request a new OTP, please contact our support team immediately.</p>
-                
-                <p style="margin-top: 20px; font-size: 14px; color: #333333;">
-                    Best regards,<br>
-                    <strong>University of San Agustin – FLD Learning Resource Center Team</strong>
-                </p>
             </div>
             
             <div class="email-footer">
-                <p>University of San Agustin – Gen. Luna Street, Iloilo City, Philippines</p>
-                <p style="margin-top: 10px; font-size: 11px; color: #999999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
+                <p><strong>USA-FLD Learning Resource Center</strong></p>
+                <p>University of San Agustin - Fort San Pedro Drive, Iloilo City, Philippines</p>
+                <div class="contact-info">
+                    <p>Email: <a href="mailto:lrc-support@usa.edu.ph">lrc-support@usa.edu.ph</a> | Phone: (033) 123-4567</p>
+                </div>
+                <p style="margin-top: 15px; font-size: 12px; color: #999;">© ${new Date().getFullYear()} USA-FLD LRC. All rights reserved.</p>
             </div>
         </div>
     </body>

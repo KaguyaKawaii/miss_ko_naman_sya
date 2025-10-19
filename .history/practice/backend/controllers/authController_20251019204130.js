@@ -199,6 +199,7 @@ exports.signup = async (req, res) => {
                         <li>Enter this OTP on the verification page to complete your registration</li>
                         <li>Do not share this code with anyone for security reasons</li>
                         <li>If you didn't request this code, please ignore this email</li>
+                        <li>For security purposes, this OTP will expire in 5 minutes</li>
                     </ul>
                 </div>
                 
