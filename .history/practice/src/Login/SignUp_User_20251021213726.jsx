@@ -866,7 +866,7 @@ function SignUp_User({ onSwitchToLogin }) {
                       <button
                         type="button"
                         onClick={() => setShowDataPrivacyModal(true)}
-                        className="text-red-600 hover:text-red-800 font-medium underline cursor-pointer transition-colors duration-300"
+                        className="text-red-600 hover:text-red-800 font-medium underline"
                       >
                         Data Privacy Policy
                       </button>{" "}
@@ -874,7 +874,7 @@ function SignUp_User({ onSwitchToLogin }) {
                       <button
                         type="button"
                         onClick={() => setShowTermsModal(true)}
-                        className="text-red-600 hover:text-red-800 font-medium underline cursor-pointer transition-colors duration-300"
+                        className="text-red-600 hover:text-red-800 font-medium underline"
                       >
                         Terms & Conditions
                       </button>

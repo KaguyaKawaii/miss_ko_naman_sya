@@ -112,7 +112,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   };
 
   return (
-    <main className="min-h-screen  w-screen bg-white md:bg-gradient-to-br md:from-blue-50 md:via-white md:to-yellow-50 flex items-center justify-center p-0 m-0 overflow-x-hidden">
+    <main className="min-h-screen min-h-dvh w-screen bg-white flex items-center justify-center p-0 m-0 overflow-x-hidden">
       {loading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-2xl flex flex-col items-center mx-4">
@@ -136,8 +136,8 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
         )}
       </div>
 
-      {/* Main Content Container - Full white background always */}
-      <div className="w-full h-full flex items-center justify-center bg-white md:bg-transparent">
+      {/* Main Content Container - Full white background on mobile */}
+      <div className="w-full h-full flex items-center justify-center bg-white">
         <div className="w-full max-w-md bg-white md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 p-6 md:p-8">
           {/* Header Section */}
           <div className="text-center mb-8">
@@ -299,10 +299,26 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
           animation: fade-in-scale 0.3s ease-out;
         }
 
-        /* Ensure full white background on mobile */
+        /* Ensure full white background on all screens */
         @media (max-width: 767px) {
           main {
-            background: white !important;
+            background: white;
+          }
+        }
+
+        /* Desktop gradient background */
+        @media (min-width: 768px) {
+          main {
+            background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #fefce8 100%);
+          }
+        }
+
+        /* Ensure proper content centering on all screens */
+        @media (max-height: 600px) {
+          .h-full {
+            align-items: flex-start;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
           }
         }
       `}</style>

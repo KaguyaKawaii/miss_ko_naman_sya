@@ -112,7 +112,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   };
 
   return (
-    <main className="min-h-screen  w-screen bg-white md:bg-gradient-to-br md:from-blue-50 md:via-white md:to-yellow-50 flex items-center justify-center p-0 m-0 overflow-x-hidden">
+    <main className="min-h-screen min-h-dvh w-screen bg-white md:bg-gradient-to-br md:from-blue-50 md:via-white md:to-yellow-50 flex items-center justify-center p-0 m-0 overflow-x-hidden">
       {loading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-2xl flex flex-col items-center mx-4">

@@ -107,7 +107,7 @@ function RoomAvailabilityModal({
                               {isOccupied ? (
                                 <div className="space-y-2">
                                   <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                                    Occupied Schedule
+                                    Occupied
                                   </span>
                                   <div className="text-sm text-gray-700 space-y-1.5 mt-2">
                                     {room.occupied.map((o, i) => (

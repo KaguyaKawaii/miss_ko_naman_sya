@@ -482,7 +482,7 @@ function SignUp_User({ onSwitchToLogin }) {
 
         {/* Form Content */}
         <div className="w-full max-w-4xl mx-auto px-6 pb-8">
-          <div className="bg-white md:rounded-2xl  md:border md:border-gray-200 md:overflow-hidden md:flex">
+          <div className="bg-white md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 md:overflow-hidden md:flex">
             {/* Left side - University Info - Hidden on mobile, shown on desktop */}
             <div className="hidden md:flex md:w-2/5 bg-yellow-500 p-10 text-white flex-col justify-center items-center text-center">
               <div className="flex justify-around w-full mb-4">
@@ -866,7 +866,7 @@ function SignUp_User({ onSwitchToLogin }) {
                       <button
                         type="button"
                         onClick={() => setShowDataPrivacyModal(true)}
-                        className="text-red-600 hover:text-red-800 font-medium underline cursor-pointer transition-colors duration-300"
+                        className="text-red-600 hover:text-red-800 font-medium underline"
                       >
                         Data Privacy Policy
                       </button>{" "}
@@ -874,7 +874,7 @@ function SignUp_User({ onSwitchToLogin }) {
                       <button
                         type="button"
                         onClick={() => setShowTermsModal(true)}
-                        className="text-red-600 hover:text-red-800 font-medium underline cursor-pointer transition-colors duration-300"
+                        className="text-red-600 hover:text-red-800 font-medium underline"
                       >
                         Terms & Conditions
                       </button>
@@ -944,7 +944,7 @@ function SignUp_User({ onSwitchToLogin }) {
                 Already have an account?{" "}
                 <button
                   onClick={onSwitchToLogin}
-                  className="text-red-600 hover:text-red-800 font-bold cursor-pointer transition-colors duration-300"
+                  className="text-red-600 hover:text-red-800 font-bold"
                 >
                   Login
                 </button>

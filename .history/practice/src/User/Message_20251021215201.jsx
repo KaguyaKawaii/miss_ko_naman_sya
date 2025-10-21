@@ -595,7 +595,7 @@ function Message({ user, setView, currentView }) {
         </aside>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative z-40">
+        <div className="flex-1 flex flex-col">
           {/* Chat Header */}
           <div className="bg-white p-4 lg:p-6 border-b border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">

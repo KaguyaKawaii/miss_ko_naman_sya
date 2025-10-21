@@ -424,7 +424,8 @@ function Message({ user, setView, currentView }) {
 
   return (
     <main className="ml-0 lg:ml-[250px] w-full lg:w-[calc(100%-250px)] h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-gray-100 relative z-40">      {/* HEADER */}
-<header className="text-black px-4 lg:px-6 h-16 lg:h-[60px] flex items-center justify-between shadow-sm lg:shadow-lg border-b border-gray-200 bg-white relative z-50">        <div className="flex items-center space-x-3">
+      <header className="text-black px-4 lg:px-6 h-16 lg:h-[60px] flex items-center justify-between shadow-sm lg:shadow-lg border-b border-gray-200 bg-white">
+        <div className="flex items-center space-x-3">
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors lg:hidden"
@@ -439,7 +440,7 @@ function Message({ user, setView, currentView }) {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden relative z-40">
+      <div className="flex flex-1 overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {isSidebarOpen && (
           <div 
@@ -449,8 +450,8 @@ function Message({ user, setView, currentView }) {
         )}
 
         {/* Sidebar - Mobile & Desktop */}
- <aside className={`
-          fixed lg:static top-0 left-0 h-full w-80 bg-white border-r border-gray-200 shadow-sm z-60 flex flex-col
+        <aside className={`
+          fixed lg:static top-0 left-0 h-full w-80 bg-white border-r border-gray-200 shadow-sm z-50 flex flex-col
           transition-transform duration-300 ease-in-out
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
@@ -595,7 +596,7 @@ function Message({ user, setView, currentView }) {
         </aside>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative z-40">
+        <div className="flex-1 flex flex-col">
           {/* Chat Header */}
           <div className="bg-white p-4 lg:p-6 border-b border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">

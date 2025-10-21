@@ -171,25 +171,27 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
     const remainingMinutes = Math.ceil((lockUntil - Date.now()) / 1000 / 60);
     return (
       <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="w-20 h-20 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-700/50">
-            <Lock className="text-red-400" size={40} />
+        <div className="w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl border border-red-800/50 p-8">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-700/50">
+              <Lock className="text-red-400" size={40} />
+            </div>
+            <h2 className="text-2xl font-bold text-red-400 mb-4">Account Locked</h2>
+            <p className="text-gray-300 text-base">
+              Your account has been temporarily locked due to too many failed login attempts.
+            </p>
+            <p className="text-gray-400 mt-2">
+              Please try again in <strong className="text-amber-400">{remainingMinutes} minute{remainingMinutes > 1 ? 's' : ''}</strong>.
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Account Locked</h2>
-          <p className="text-gray-300 text-base mb-4">
-            Your account has been temporarily locked due to too many failed login attempts.
-          </p>
-          <p className="text-gray-400 mb-6">
-            Please try again in <strong className="text-amber-400">{remainingMinutes} minute{remainingMinutes > 1 ? 's' : ''}</strong>.
-          </p>
           <div className="flex justify-center">
             <button
               onClick={handleBackToUserLogin}
               disabled={maintenanceMode}
               className={`px-6 py-3 rounded-lg transition-all duration-300 ${
                 maintenanceMode 
-                  ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
-                  : "bg-gray-700 hover:bg-gray-600 text-white cursor-pointer"
+                  ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed" 
+                  : "bg-gray-700 hover:bg-gray-600 text-white border-gray-600 cursor-pointer"
               }`}
             >
               {maintenanceMode ? "Maintenance Mode Active" : "Back to User Login"}
@@ -206,13 +208,14 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-4">
+    <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-0 sm:p-4">
       {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
-          <div className="bg-gray-900/90 p-8 rounded-2xl flex flex-col items-center border border-amber-500/30">
+          <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl flex flex-col items-center border border-amber-500/30">
             <div className="relative">
               <Loader2 size={64} className="text-amber-500 animate-spin mb-4" />
+              
             </div>
             <p className="text-gray-300 text-lg font-semibold mt-2">
               {requiresOTP ? "Verifying OTP..." : "Authenticating..."}
@@ -221,24 +224,23 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
         </div>
       )}
 
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full h-full sm:h-auto sm:max-w-md bg-gray-900 sm:rounded-2xl shadow-2xl overflow-hidden border-0 sm:border border-gray-700 backdrop-blur-sm">
         {/* Header Section */}
-        <div className="text-center mb-8">
+        <div className="bg-gradient-to-r from-red-900 to-amber-900 p-6 text-white text-center">
           <div className="flex justify-center mb-4">
             <img 
               src={Logo} 
               alt="University of San Agustin Logo" 
-              className="h-20 w-20 filter brightness-125"
+              className="h-16 w-16 filter brightness-125"
             />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">University of San Agustin</h1>
-          <h2 className="text-xl font-bold text-amber-400 mb-3">Learning Resource Center</h2>
-          <div className="bg-gradient-to-r from-red-600/20 to-amber-600/20 inline-block px-4 py-2 rounded-full border border-amber-500/30">
-            <p className="text-amber-300 font-semibold text-sm">Admin Portal</p>
-          </div>
+          <h1 className="text-xl font-bold">University of San Agustin</h1>
+          
+          <h1 className="mb-4 text-lg font-bold">Learning Resource Center</h1>
+          <p className="text-amber-200/80 text-sm">Admin Portal</p>
         </div>
 
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-8">
+        <div className="p-6 sm:p-8">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">
               {requiresOTP ? "Verify OTP" : "Admin Login"}
@@ -279,7 +281,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-300">Verification Code</label>
                 <input
-                  className="w-full border border-gray-600 bg-gray-800/50 p-4 rounded-xl text-center text-2xl font-mono tracking-widest text-white placeholder-gray-500 transition-all duration-300 outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full border border-gray-600 bg-gray-800 p-4 rounded-xl text-center text-2xl font-mono tracking-widest text-white placeholder-gray-500 transition-all duration-300 outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   type="text"
                   placeholder="000000"
                   maxLength="6"
@@ -294,7 +296,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
                   type="button"
                   onClick={resetLogin}
                   disabled={loading}
-                  className="flex-1 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 font-semibold text-white cursor-pointer transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 font-semibold text-white cursor-pointer transition-all duration-300 border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Back
                 </button>
@@ -333,7 +335,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-300">Admin Username</label>
                 <input
-                  className="w-full border border-gray-600 bg-gray-800/50 p-4 rounded-xl text-white placeholder-gray-500 focus:border-amber-500 transition-all duration-300 outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full border border-gray-600 bg-gray-800 p-4 rounded-xl text-white placeholder-gray-500 focus:border-amber-500 transition-all duration-300 outline-none focus:ring-2 focus:ring-amber-500"
                   type="text"
                   placeholder="Enter admin username"
                   value={username}
@@ -346,7 +348,7 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
                 <label className="text-sm font-medium text-gray-300">Password</label>
                 <div className="relative">
                   <input
-                    className="w-full border border-gray-600 bg-gray-800/50 p-4 rounded-xl text-white placeholder-gray-500 focus:border-amber-500 transition-all duration-300 outline-none focus:ring-2 focus:ring-amber-500 pr-12"
+                    className="w-full border border-gray-600 bg-gray-800 p-4 rounded-xl text-white placeholder-gray-500 focus:border-amber-500 transition-all duration-300 outline-none focus:ring-2 focus:ring-amber-500 pr-12"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
@@ -394,12 +396,12 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
               )}
             </div>
           )}
-        </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} University of San Agustin. All rights reserved.
-          </p>
+          <div className="mt-6 pt-4 border-t border-gray-700">
+            <p className="text-xs text-center text-gray-500">
+              © {new Date().getFullYear()} University of San Agustin. All rights reserved.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -417,6 +419,18 @@ function Login_Admin({ onAdminLoginSuccess, onBackToUserLogin }) {
         
         .animate-fade-in-down {
           animation: fade-in-down 0.5s ease-out;
+        }
+
+        /* Mobile-specific full-screen styles */
+        @media (max-width: 640px) {
+          main {
+            padding: 0 !important;
+          }
+          
+          .min-h-screen {
+            min-height: 100vh;
+            min-height: 100dvh; /* Dynamic viewport height for mobile */
+          }
         }
       `}</style>
     </main>

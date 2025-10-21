@@ -112,7 +112,7 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
   };
 
   return (
-    <main className="min-h-screen  w-screen bg-white md:bg-gradient-to-br md:from-blue-50 md:via-white md:to-yellow-50 flex items-center justify-center p-0 m-0 overflow-x-hidden">
+    <main className="min-h-screen min-h-dvh w-screen bg-gradient-to-br from-blue-50 via-white to-yellow-50 flex items-center justify-center p-0 m-0 overflow-x-hidden">
       {loading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-2xl flex flex-col items-center mx-4">
@@ -136,9 +136,9 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
         )}
       </div>
 
-      {/* Main Content Container - Full white background always */}
-      <div className="w-full h-full flex items-center justify-center bg-white md:bg-transparent">
-        <div className="w-full max-w-md bg-white md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 p-6 md:p-8">
+      {/* Main Content Container */}
+      <div className="w-full h-full md:h-auto md:max-w-md">
+        <div className="bg-white h-full w-full md:h-auto md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 p-6 md:p-8 flex flex-col justify-center">
           {/* Header Section */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-6">
@@ -299,10 +299,27 @@ function Login_User({ onSwitchToSignUp, onLoginSuccess, setView }) {
           animation: fade-in-scale 0.3s ease-out;
         }
 
-        /* Ensure full white background on mobile */
+        /* Mobile-first responsive adjustments */
         @media (max-width: 767px) {
           main {
-            background: white !important;
+            align-items: flex-start;
+            padding-top: 2rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          main {
+            padding-top: 1rem;
+          }
+        }
+
+        /* Ensure proper sizing on very small screens */
+        @media (max-width: 320px) {
+          .text-2xl {
+            font-size: 1.5rem;
+          }
+          .p-6 {
+            padding: 1rem;
           }
         }
       `}</style>

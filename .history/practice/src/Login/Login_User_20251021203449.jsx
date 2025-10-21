@@ -436,7 +436,7 @@ function SignUp_User({ onSwitchToLogin }) {
   };
 
   return (
-    <main className="min-h-screen w-screen bg-white flex items-center justify-center p-0 m-0 overflow-x-hidden">
+    <main className="min-h-screen w-screen bg-white md:bg-gradient-to-br md:from-blue-50 md:via-white md:to-yellow-50 flex items-center justify-center p-0 m-0 overflow-x-hidden">
       {/* full‑screen spinner when loading */}
       {loading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-500/50 backdrop-blur-md">
@@ -461,53 +461,46 @@ function SignUp_User({ onSwitchToLogin }) {
         )}
       </div>
 
-      {/* Main Content Container - Full screen white background */}
-      <div className="w-full h-full bg-white overflow-y-auto">
-        {/* Mobile Header */}
-        <div className="md:hidden w-full bg-white pt-8 pb-6 px-6">
-          <div className="flex flex-col items-center">
-            <div className="flex justify-center gap-6 mb-4">
-              <img src={Logo} alt="USA logo" className="h-16 w-16" />
-              <img src={lrc} alt="LRC logo" className="h-16 w-16" />
-            </div>
-            <h1 className="text-xl font-serif font-semibold text-center text-gray-800">
-              University of San Agustin
-            </h1>
-            <p className="text-md font-semibold text-gray-700 text-center">
-              Learning Resource Center
-            </p>
-            <div className="w-12 h-1 bg-yellow-500 mt-2"></div>
-          </div>
-        </div>
-
-        {/* Form Content */}
-        <div className="w-full max-w-4xl mx-auto px-6 pb-8">
-          <div className="bg-white md:rounded-2xl  md:border md:border-gray-200 md:overflow-hidden md:flex">
-            {/* Left side - University Info - Hidden on mobile, shown on desktop */}
-            <div className="hidden md:flex md:w-2/5 bg-yellow-500 p-10 text-white flex-col justify-center items-center text-center">
+      {/* Main Content Container - Full white background always */}
+      <div className="w-full h-full flex items-center justify-center bg-white md:bg-transparent">
+        <div className="w-full max-w-5xl bg-white md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 md:overflow-hidden">
+          <div className="flex flex-col md:flex-row">
+            {/* Left side - University Info */}
+            <div className="md:w-2/5 bg-yellow-500 p-6 md:p-10 text-white flex flex-col justify-center items-center text-center">
               <div className="flex justify-around w-full mb-4">
                 <img 
-                  className="relative w-[130px] h-[130px]" 
+                  className="relative w-[100px] h-[100px] md:w-[130px] md:h-[130px]" 
                   src={Logo} 
                   alt="University of San Agustin Logo" 
                 />
                 <img 
                   src={lrc} 
                   alt="Learning Resource Center Logo" 
-                  className="relative w-[130px] h-[130px]"
+                  className="relative w-[100px] h-[100px] md:w-[130px] md:h-[130px]"
                 />
               </div>
-              <h1 className="text-2xl font-serif font-bold mb-4">
+              <h1 className="text-xl md:text-2xl font-serif font-bold mb-4">
                 University of San Agustin
               </h1>
               <div className="w-16 h-1 bg-yellow-400 mb-4"></div>
-              <p className="text-xl font-semibold text-white">
+              <p className="text-lg md:text-xl font-semibold text-white">
                 Learning Resource Center
               </p>
             </div>
 
             {/* Right side - Form Content */}
-            <div className="w-full md:w-3/5 p-6 md:p-8">
+            <div className="md:w-3/5 p-6 md:p-8">
+              {/* logo & header for mobile */}
+              <div className="flex flex-col items-center mb-6 md:hidden">
+                <img src={Logo} alt="USA logo" className="h-16 w-16 mb-2" />
+                <h1 className="text-lg font-serif font-semibold text-center">
+                  University of San Agustin
+                </h1>
+                <p className="text-sm font-semibold text-gray-700 text-center">
+                  Learning Resource Center
+                </p>
+              </div>
+
               {/* ---------- SIGN UP vs OTP ---------- */}
               {!otpSent ? (
                 /* ======= SIGN‑UP FORM ======= */
@@ -515,7 +508,7 @@ function SignUp_User({ onSwitchToLogin }) {
                   onSubmit={handleSubmit}
                   className="flex flex-col gap-4"
                 >
-                  <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-800 text-center mb-2">
                     Create Account
                   </h2>
 
@@ -866,7 +859,7 @@ function SignUp_User({ onSwitchToLogin }) {
                       <button
                         type="button"
                         onClick={() => setShowDataPrivacyModal(true)}
-                        className="text-red-600 hover:text-red-800 font-medium underline cursor-pointer transition-colors duration-300"
+                        className="text-red-600 hover:text-red-800 font-medium underline"
                       >
                         Data Privacy Policy
                       </button>{" "}
@@ -874,7 +867,7 @@ function SignUp_User({ onSwitchToLogin }) {
                       <button
                         type="button"
                         onClick={() => setShowTermsModal(true)}
-                        className="text-red-600 hover:text-red-800 font-medium underline cursor-pointer transition-colors duration-300"
+                        className="text-red-600 hover:text-red-800 font-medium underline"
                       >
                         Terms & Conditions
                       </button>
@@ -892,7 +885,7 @@ function SignUp_User({ onSwitchToLogin }) {
               ) : (
                 /* ======= OTP VERIFY ======= */
                 <div className="flex flex-col gap-4 mt-2">
-                  <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-800 text-center mb-2">
                     Verify Email
                   </h2>
                   
@@ -944,7 +937,7 @@ function SignUp_User({ onSwitchToLogin }) {
                 Already have an account?{" "}
                 <button
                   onClick={onSwitchToLogin}
-                  className="text-red-600 hover:text-red-800 font-bold cursor-pointer transition-colors duration-300"
+                  className="text-red-600 hover:text-red-800 font-bold"
                 >
                   Login
                 </button>
@@ -999,6 +992,13 @@ function SignUp_User({ onSwitchToLogin }) {
         
         .animate-fade-in-down {
           animation: fade-in-down 0.5s ease-out;
+        }
+
+        /* Ensure full white background on mobile */
+        @media (max-width: 767px) {
+          main {
+            background: white !important;
+          }
         }
       `}</style>
     </main>

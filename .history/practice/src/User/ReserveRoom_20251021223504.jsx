@@ -430,6 +430,7 @@ const response = await axios.post(
   const submitReservation = async () => {
     if (!user.verified) {
       setShowNotVerifiedWarning(true);
+      showAlert("You cannot reserve a room until your account is verified.");
       return;
     }
 
@@ -508,12 +509,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
     navigate("/dashboard");
   };
 
-  const roomLocations = [
-    "Ground Floor",
-    "2nd Floor", 
-    "4th Floor", 
-    "5th Floor"
-  ];
+  const roomLocations = ["Ground Floor", "2nd Floor", "4th Floor", "5th Floor"];
   
   const timeSlots = [
     { value: "07:00", display: "7:00 AM" },
@@ -840,7 +836,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                     day: 'numeric'
                   })
                 ) : (
-                  <span className="text-gray-400 font-semibold">Select Date</span>
+                  <span className="text-gray-400">Select Date</span>
                 )}
               </div>
             </div>
@@ -857,7 +853,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                 onClick={() => setShowTimeModal(true)}
                 className="w-full p-2 sm:p-3 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] flex items-center cursor-pointer hover:bg-gray-50 transition-colors text-sm sm:text-base"
               >
-                {formData.time ? formatDisplayTime(formData.time) : <span className="text-gray-400 font-semibold">Select Time</span>}
+                {formData.time ? formatDisplayTime(formData.time) : <span className="text-gray-400">Select Time</span>}
               </div>
             </div>
 
@@ -887,7 +883,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
               Purpose
             </p>
             <input
-              className="w-full p-2 sm:p-3 mt-1 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] text-sm sm:text-base font-semibold"
+              className="w-full p-2 sm:p-3 mt-1 border rounded-lg border-gray-300 shadow-sm outline-none focus:border-[#CC0000] text-sm sm:text-base"
               type="text"
               value={formData.purpose}
               onChange={(e) =>
@@ -1068,7 +1064,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                 </svg>
                 Number of Users
               </h2>
-              <div className="grid grid-cols-1 gap-2 sm:gap-3 font-bold mb-4 ">
+              <div className="grid grid-cols-1 gap-2 sm:gap-3 mb-4">
                 {[4, 5, 6, 7, 8].map((num) => (
                   <button
                     key={num}
@@ -1076,7 +1072,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                       handleNumUsersChange(num.toString());
                       setShowUsersModal(false);
                     }}
-                    className={`p-3 sm:p-4 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors text-sm sm:text-base  ${
+                    className={`p-3 sm:p-4 border border-gray-300 rounded-lg text-center cursor-pointer transition-colors text-sm sm:text-base ${
                       formData.numUsers === num.toString()
                         ? "bg-[#CC0000] text-white border-[#CC0000]"
                         : "hover:bg-gray-100"
@@ -1088,7 +1084,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
               </div>
               <button
                 onClick={() => setShowUsersModal(false)}
-                className="mt-4 bg-[#CC0000] text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full cursor-pointer"
+                className="mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition w-full cursor-pointer"
               >
                 Cancel
               </button>
@@ -1125,7 +1121,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                       room_Id: "",
                     });
                   }}
-                  className={`border-2 rounded-2xl w-full xs:w-[150px] sm:w-[180px] md:w-[200px] h-[120px] sm:h-[150px] md:h-[200px] flex flex-col justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
+                  className={`border-2 rounded-2xl w-full xs:w-[150px] sm:w-[180px] md:w-[200px] h-[120px] sm:h-[150px] md:h-[200px] flex justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
                     formData.location === loc 
                       ? "border-[#CC0000] ring-2 ring-red-100 opacity-100 scale-105" 
                       : !canReserve
@@ -1150,16 +1146,9 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                     </div>
                   )}
                   
-                  <div className="relative z-10 text-white text-center px-2 drop-shadow-md">
-                    <p className="text-sm sm:text-base md:text-lg font-semibold mb-1">
-                      {loc}
-                    </p>
-                    {(loc === "Ground Floor" || loc === "2nd Floor") && (
-                      <p className="text-xs sm:text-sm opacity-90">
-                        {loc === "Ground Floor" ? "Graduate Studies & Periodicals" : "Law Library"}
-                      </p>
-                    )}
-                  </div>
+                  <p className="relative z-10 text-white text-sm sm:text-base md:text-lg font-semibold text-center px-2 drop-shadow-md">
+                    {loc}
+                  </p>
                 </div>
               );
             })}

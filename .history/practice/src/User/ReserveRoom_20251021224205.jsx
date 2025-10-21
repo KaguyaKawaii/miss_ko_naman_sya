@@ -430,6 +430,7 @@ const response = await axios.post(
   const submitReservation = async () => {
     if (!user.verified) {
       setShowNotVerifiedWarning(true);
+      showAlert("You cannot reserve a room until your account is verified.");
       return;
     }
 
@@ -508,12 +509,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
     navigate("/dashboard");
   };
 
-  const roomLocations = [
-    "Ground Floor",
-    "2nd Floor", 
-    "4th Floor", 
-    "5th Floor"
-  ];
+  const roomLocations = ["Ground Floor | Graduate Studies & Periodicals", "2nd Floor | Law Library", "4th Floor", "5th Floor"];
   
   const timeSlots = [
     { value: "07:00", display: "7:00 AM" },
@@ -1125,7 +1121,7 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                       room_Id: "",
                     });
                   }}
-                  className={`border-2 rounded-2xl w-full xs:w-[150px] sm:w-[180px] md:w-[200px] h-[120px] sm:h-[150px] md:h-[200px] flex flex-col justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
+                  className={`border-2 rounded-2xl w-full xs:w-[150px] sm:w-[180px] md:w-[200px] h-[120px] sm:h-[150px] md:h-[200px] flex justify-center items-center cursor-pointer transition-all duration-200 overflow-hidden relative ${
                     formData.location === loc 
                       ? "border-[#CC0000] ring-2 ring-red-100 opacity-100 scale-105" 
                       : !canReserve
@@ -1150,16 +1146,9 @@ await axios.post("http://localhost:5000/api/reservations", reservationData);
                     </div>
                   )}
                   
-                  <div className="relative z-10 text-white text-center px-2 drop-shadow-md">
-                    <p className="text-sm sm:text-base md:text-lg font-semibold mb-1">
-                      {loc}
-                    </p>
-                    {(loc === "Ground Floor" || loc === "2nd Floor") && (
-                      <p className="text-xs sm:text-sm opacity-90">
-                        {loc === "Ground Floor" ? "Graduate Studies & Periodicals" : "Law Library"}
-                      </p>
-                    )}
-                  </div>
+                  <p className="relative z-10 text-white text-sm sm:text-base md:text-lg font-semibold text-center px-2 drop-shadow-md">
+                    {loc}
+                  </p>
                 </div>
               );
             })}

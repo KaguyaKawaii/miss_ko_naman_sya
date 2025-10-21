@@ -123,17 +123,25 @@ function Header({ onLoginClick, onSignUpClick }) {
           </div>
         </nav>
 
-        {/* Compact Full Screen Mobile Menu with Right-to-Left Slide Animation */}
+        {/* Compact Mobile Menu with Right-to-Left Slide Animation */}
         {isOpen && (
           <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
-            {/* Full Screen Slide Panel */}
+            {/* Overlay Background */}
             <div 
-              className={`absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 transition-transform duration-300 ease-out ${
+              className={`absolute inset-0 bg-black transition-opacity duration-300 ${
+                isAnimating ? 'opacity-50' : 'opacity-0'
+              }`}
+              onClick={closeMenu}
+            />
+            
+            {/* Compact Slide Panel */}
+            <div 
+              className={`absolute top-0 right-0 h-full w-64 bg-gradient-to-b from-gray-900 to-gray-800 shadow-2xl transition-transform duration-300 ${
                 isAnimating ? 'translate-x-0' : 'translate-x-full'
               }`}
             >
               {/* Close Button */}
-              <div className="absolute top-4 right-4 z-60">
+              <div className="absolute top-4 right-4">
                 <button
                   onClick={closeMenu}
                   className="text-white p-2 hover:bg-white/10 rounded-lg transition-all duration-300"
@@ -143,31 +151,26 @@ function Header({ onLoginClick, onSignUpClick }) {
                 </button>
               </div>
 
-              {/* Menu Content - Centered */}
-              <div className="flex flex-col items-center justify-center h-full px-6">
+              {/* Menu Content */}
+              <div className="flex flex-col h-full px-6 py-8">
                 {/* Logo Section */}
-                <div className="flex flex-col items-center mb-12">
+                <div className="flex items-center gap-3 mb-12 pt-8">
                   <img
-                    className="w-16 h-16 mb-3"
+                    className="w-10 h-10"
                     src={Logo}
                     alt="University of San Agustin Logo"
                   />
-                  <h2 className="text-xl font-bold text-white text-center mb-1">
-                    University of San Agustin
-                  </h2>
-                  <p className="text-amber-400 text-base font-semibold text-center">
-                    CircuLink
-                  </p>
-                  <p className="text-white/60 text-xs text-center mt-1">
-                    Library Reservation
-                  </p>
+                  <div>
+                    <h2 className="text-white font-semibold text-sm">USA CircuLink</h2>
+                    <p className="text-amber-400 text-xs">Library System</p>
+                  </div>
                 </div>
 
-                {/* Buttons Section */}
-                <div className="flex flex-col gap-4 w-full max-w-xs">
+                {/* Buttons Section - Centered */}
+                <div className="flex-1 flex flex-col justify-center space-y-4">
                   <button
                     onClick={handleLoginClick}
-                    className="w-full text-center group relative text-base font-semibold px-6 py-4 rounded-xl border transition-all duration-300
+                    className="w-full text-center group relative text-base font-medium px-6 py-3 rounded-lg border transition-all duration-300
                                shadow-lg overflow-hidden cursor-pointer
                                text-white border-white/40 hover:bg-white/15 hover:border-white/80 hover:shadow-xl"
                   >
@@ -177,7 +180,7 @@ function Header({ onLoginClick, onSignUpClick }) {
                   
                   <button
                     onClick={handleSignUpClick}
-                    className="w-full text-center group relative text-base font-semibold px-6 py-4 rounded-xl border transition-all duration-300 transform
+                    className="w-full text-center group relative text-base font-medium px-6 py-3 rounded-lg border transition-all duration-300 transform
                                shadow-lg overflow-hidden cursor-pointer
                                text-[#CC0000] bg-white border-white hover:bg-gray-50 hover:shadow-xl"
                   >
@@ -187,19 +190,15 @@ function Header({ onLoginClick, onSignUpClick }) {
                 </div>
 
                 {/* Footer Text */}
-                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-center">
-                  <p className="text-white/40 text-xs">
-                    Modern Web-Based System
+                <div className="text-center pt-4 border-t border-white/10">
+                  <p className="text-white/60 text-xs">
+                    University of San Agustin
                   </p>
                 </div>
               </div>
 
-              {/* Subtle Background Elements */}
-              <div className="absolute top-0 left-0 w-64 h-64 bg-[#CC0000]/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-2xl"></div>
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-amber-400/5 rounded-full translate-x-1/2 translate-y-1/2 blur-2xl"></div>
-              
-              {/* Subtle Grid Pattern */}
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]"></div>
+              {/* Simple Background Pattern */}
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:2rem_2rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)] -z-10"></div>
             </div>
           </div>
         )}

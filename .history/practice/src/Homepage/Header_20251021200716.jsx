@@ -123,7 +123,7 @@ function Header({ onLoginClick, onSignUpClick }) {
           </div>
         </nav>
 
-        {/* Compact Full Screen Mobile Menu with Right-to-Left Slide Animation */}
+        {/* Full Screen Mobile Menu with Right-to-Left Slide Animation */}
         {isOpen && (
           <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
             {/* Full Screen Slide Panel */}
@@ -133,43 +133,43 @@ function Header({ onLoginClick, onSignUpClick }) {
               }`}
             >
               {/* Close Button */}
-              <div className="absolute top-4 right-4 z-60">
+              <div className="absolute top-6 right-6 z-60">
                 <button
                   onClick={closeMenu}
-                  className="text-white p-2 hover:bg-white/10 rounded-lg transition-all duration-300"
+                  className="text-white p-3 hover:bg-white/10 rounded-xl transition-all duration-300 transform hover:scale-110"
                   title="Close menu"
                 >
-                  <X size={24} />
+                  <X size={32} />
                 </button>
               </div>
 
               {/* Menu Content - Centered */}
-              <div className="flex flex-col items-center justify-center h-full px-6">
+              <div className="flex flex-col items-center justify-center h-full px-8">
                 {/* Logo Section */}
-                <div className="flex flex-col items-center mb-12">
+                <div className="flex flex-col items-center mb-16">
                   <img
-                    className="w-16 h-16 mb-3"
+                    className="w-20 h-20 mb-4"
                     src={Logo}
                     alt="University of San Agustin Logo"
                   />
-                  <h2 className="text-xl font-bold text-white text-center mb-1">
+                  <h2 className="text-2xl font-bold text-white text-center mb-2">
                     University of San Agustin
                   </h2>
-                  <p className="text-amber-400 text-base font-semibold text-center">
+                  <p className="text-amber-400 text-lg font-semibold text-center">
                     CircuLink
                   </p>
-                  <p className="text-white/60 text-xs text-center mt-1">
-                    Library Reservation
+                  <p className="text-white/60 text-sm text-center mt-2">
+                    Library Room Reservation System
                   </p>
                 </div>
 
                 {/* Buttons Section */}
-                <div className="flex flex-col gap-4 w-full max-w-xs">
+                <div className="flex flex-col gap-6 w-full max-w-xs">
                   <button
                     onClick={handleLoginClick}
-                    className="w-full text-center group relative text-base font-semibold px-6 py-4 rounded-xl border transition-all duration-300
-                               shadow-lg overflow-hidden cursor-pointer
-                               text-white border-white/40 hover:bg-white/15 hover:border-white/80 hover:shadow-xl"
+                    className="w-full text-center group relative text-xl font-semibold px-8 py-5 rounded-2xl border-2 transition-all duration-300
+                               shadow-2xl overflow-hidden cursor-pointer
+                               text-white border-white/40 hover:bg-white/15 hover:border-white/80 hover:shadow-3xl transform hover:-translate-y-1"
                   >
                     <span className="relative z-10">Login</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
@@ -177,9 +177,9 @@ function Header({ onLoginClick, onSignUpClick }) {
                   
                   <button
                     onClick={handleSignUpClick}
-                    className="w-full text-center group relative text-base font-semibold px-6 py-4 rounded-xl border transition-all duration-300 transform
-                               shadow-lg overflow-hidden cursor-pointer
-                               text-[#CC0000] bg-white border-white hover:bg-gray-50 hover:shadow-xl"
+                    className="w-full text-center group relative text-xl font-semibold px-8 py-5 rounded-2xl border-2 transition-all duration-300 transform
+                               shadow-2xl overflow-hidden cursor-pointer
+                               text-[#CC0000] bg-white border-white hover:bg-gray-50 hover:shadow-3xl hover:-translate-y-1"
                   >
                     <span className="relative z-10">Sign Up</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
@@ -187,19 +187,19 @@ function Header({ onLoginClick, onSignUpClick }) {
                 </div>
 
                 {/* Footer Text */}
-                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-center">
-                  <p className="text-white/40 text-xs">
-                    Modern Web-Based System
+                <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-center">
+                  <p className="text-white/40 text-sm">
+                    Modern Web-Based Library System
                   </p>
                 </div>
               </div>
 
-              {/* Subtle Background Elements */}
-              <div className="absolute top-0 left-0 w-64 h-64 bg-[#CC0000]/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-2xl"></div>
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-amber-400/5 rounded-full translate-x-1/2 translate-y-1/2 blur-2xl"></div>
+              {/* Background Elements */}
+              <div className="absolute top-0 left-0 w-96 h-96 bg-[#CC0000]/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+              <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-400/5 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
               
-              {/* Subtle Grid Pattern */}
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]"></div>
+              {/* Grid Pattern */}
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]"></div>
             </div>
           </div>
         )}
